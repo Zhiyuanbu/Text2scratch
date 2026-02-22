@@ -1,134 +1,84 @@
 body.page-reference .docs-reference-page {
-  max-width: 1340px;
-  display: grid;
-  gap: 1rem;
-}
-
-body.page-reference .docs-banner {
-  border-color: #2b4365;
-  background:
-    linear-gradient(150deg, #111b2f 0%, #1b2d4b 56%, #243c62 100%);
-  box-shadow: 0 20px 34px rgba(10, 24, 45, 0.28);
-}
-
-body.page-reference .docs-banner h1 {
-  color: #f4f8ff;
-}
-
-body.page-reference .docs-banner p {
-  color: #b9c9e2;
-}
-
-body.page-reference .docs-banner .kicker {
-  color: #9fc5f6;
+  max-width: 1320px;
 }
 
 body.page-reference .manual-section#reference-tools {
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr);
-  gap: 1rem;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: 0.9rem;
   padding: 0;
   border: 0;
-  box-shadow: none;
   background: transparent;
+  box-shadow: none;
   overflow: visible;
 }
 
 body.page-reference .manual-section#reference-tools .manual-head {
   grid-column: 1 / -1;
   border: 1px solid var(--line);
-  border-radius: 18px;
+  border-radius: var(--radius-lg);
   background: #fff;
-  box-shadow: var(--shadow-soft);
-  padding: 1.04rem 1.1rem;
+  box-shadow: var(--shadow);
+  padding: 1rem 1.05rem;
 }
 
 body.page-reference .manual-section#reference-tools .manual-head h2 {
-  font-size: 1.32rem;
+  margin-bottom: 0.3rem;
+  font-size: 1.28rem;
 }
 
 body.page-reference .manual-section#reference-tools .manual-head p {
   margin: 0;
-  color: #5c7696;
 }
 
 body.page-reference .reference-controls {
   grid-column: 1;
   grid-template-columns: 1fr;
-  gap: 0.54rem;
-  height: fit-content;
-  border-radius: 18px;
-  border: 1px solid var(--line);
-  background: #fff;
-  box-shadow: var(--shadow-soft);
+  gap: 0.5rem;
   position: sticky;
-  top: calc(var(--header-height) + 0.72rem);
-  z-index: 90;
-}
-
-body.page-reference .reference-controls .text-input,
-body.page-reference .reference-controls select.text-input {
-  min-height: 41px;
-}
-
-body.page-reference .reference-controls .control-field label {
-  color: #536d8d;
-}
-
-body.page-reference .reference-controls .control-actions {
-  justify-content: flex-start;
+  top: calc(var(--header-height) + 0.7rem);
+  height: fit-content;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
 }
 
 body.page-reference .reference-controls .secondary-btn {
   width: 100%;
 }
 
+body.page-reference .reference-controls .control-actions {
+  justify-content: flex-start;
+}
+
 body.page-reference .jump-menu-frame {
-  left: 0;
-  right: auto;
-  width: min(340px, 84vw);
+  width: min(320px, 84vw);
 }
 
 body.page-reference .reference-layout {
   grid-column: 2;
   margin-top: 0;
-  overflow: visible;
 }
 
 body.page-reference .reference-results-column {
   border: 1px solid var(--line);
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.9);
-  box-shadow: var(--shadow-soft);
-  padding: 0.95rem;
+  border-radius: var(--radius-lg);
+  background: #fff;
+  box-shadow: var(--shadow);
+  padding: 0.9rem;
   min-height: 520px;
-  overflow: visible;
 }
 
 body.page-reference .stats-line {
-  margin-bottom: 0.74rem;
-}
-
-body.page-reference .doc-root {
-  overflow: visible;
+  margin-bottom: 0.7rem;
 }
 
 body.page-reference .doc-group {
-  border-radius: 14px;
-  background: #fdfefe;
+  border-radius: var(--radius-md);
 }
 
-body.page-reference .doc-card {
-  background: #fcfdff;
-}
-
-body.page-reference .doc-actions {
-  flex-wrap: wrap;
-}
-
-@media (max-width: 1240px) {
+@media (max-width: 1200px) {
   body.page-reference .manual-section#reference-tools {
-    grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-columns: 270px minmax(0, 1fr);
   }
 }
 

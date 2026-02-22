@@ -4,13 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>text2scratch - Blocks Docs</title>
-  <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
-  <link rel="shortcut icon" type="image/png" href="logo.png">
-  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
+  <link rel="shortcut icon" href="favicon-32x32.png?v=20260222c">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20260222c">
+  <link rel="manifest" href="site.webmanifest?v=20260222c">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260222b">
+  <link rel="stylesheet" href="styles.css?v=20260222c">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-docs">
@@ -56,7 +59,7 @@
           <a href="#at-syntax">3. @ Expressions</a>
           <a href="#stage-coding">4. Stage Rules</a>
           <a href="#multi-sprite">5. Multi-Sprite Template</a>
-          <a href="#deep-guide">6. Extended Workflow Guide</a>
+          <a href="#deep-guide">6. Beginner Walkthrough</a>
           <a href="#reference-tools">7. Command Reference</a>
         </nav>
 
@@ -189,20 +192,111 @@ end</code>
 
         <section id="deep-guide" class="manual-section">
           <div class="manual-head">
-            <h2>6. Extended Workflow Guide</h2>
-            <p>Start every project by writing a short goal statement in plain language before touching commands, so your scripts map to one clear behavior.</p>
-            <p>Break that goal into tiny interactions such as movement, scoring, and scene transitions, then assign each interaction to stage logic or sprite logic.</p>
-            <p>Keep setup declarations together at the top of the file because variables, lists, and broadcasts are easiest to audit when they are not scattered across the project.</p>
-            <p>Use small scripts with obvious event names first, because long scripts make it harder to find where a state change began when something fails.</p>
-            <p>Whenever you add a new condition, test both the true path and the false path immediately so you never assume branch behavior from reading alone.</p>
-            <p>Use named broadcasts for milestones like round start, round end, or reset, and avoid generic names that become ambiguous later.</p>
-            <p>Prefer explicit variable resets at script start points so reruns do not carry stale values from a previous test cycle.</p>
-            <p>If a script behaves differently on stage and sprite targets, verify target compatibility first and move sprite-only actions into sprite code blocks early.</p>
-            <p>When using nested control blocks, align indentation carefully and close each group as soon as possible to reduce scope confusion.</p>
-            <p>After each successful milestone, save a known-good copy so future experiments can be rolled back quickly without rebuilding stable logic.</p>
-            <p>During final cleanup, shorten repetitive names, remove unused declarations, and keep only broadcasts and lists that are still part of runtime behavior.</p>
-            <p>Before export, run one complete end-to-end playthrough and record any warnings or odd transitions, then fix those while context is still fresh.</p>
+            <h2>6. Beginner Walkthrough (Copy, Test, Expand)</h2>
+            <p>This section assumes you are brand new. Follow each step exactly, test, then move to the next step.</p>
           </div>
+
+          <article class="manual-item">
+            <h3>Step 1: Paste this exact starter script</h3>
+            <p>Use this script first. Do not rename anything yet. Click Convert/Download only after this exact version works.</p>
+            <code class="guide-example">make_var score 0
+make_broadcast game_start
+
+stage_code =
+  when_flag_clicked
+  set_var score 0
+  broadcast game_start
+end
+
+sprite = "Cat"
+cat_code =
+  when_broadcast_received game_start
+  forever
+    wait 1
+    change_var score 1
+  end
+end</code>
+          </article>
+
+          <article class="manual-item">
+            <h3>Step 2: Understand what each part does</h3>
+            <ul class="tips-list">
+              <li><code>make_var score 0</code>: creates a variable named <code>score</code> starting at 0.</li>
+              <li><code>make_broadcast game_start</code>: creates a message that stage and sprites can share.</li>
+              <li><code>stage_code = ... end</code>: defines stage-only logic.</li>
+              <li><code>when_flag_clicked</code>: runs when green flag starts the project.</li>
+              <li><code>set_var score 0</code>: resets score every run (important).</li>
+              <li><code>broadcast game_start</code>: tells sprites to start their logic.</li>
+              <li><code>sprite = "Cat"</code>: starts a sprite section for Cat.</li>
+              <li><code>cat_code = ... end</code>: scripts that belong only to Cat.</li>
+              <li><code>forever ... end</code>: loop runs continuously.</li>
+            </ul>
+          </article>
+
+          <article class="manual-item">
+            <h3>Step 3: Test checklist (must pass before step 4)</h3>
+            <ol class="workflow-list">
+              <li>Export and open the generated project in Scratch.</li>
+              <li>Click green flag once.</li>
+              <li>Confirm <code>score</code> increases by 1 every second.</li>
+              <li>Click green flag again and confirm score restarts from 0.</li>
+            </ol>
+            <p>If any item fails, do not continue. Fix this base first.</p>
+          </article>
+
+          <article class="manual-item">
+            <h3>Step 4: Add win behavior at score 10</h3>
+            <p>Replace only the Cat section with this:</p>
+            <code class="guide-example">cat_code =
+  when_broadcast_received game_start
+  forever
+    wait 1
+    change_var score 1
+    if var(score) >= 10
+      say "You win!"
+      stop_all
+    end
+  end
+end</code>
+            <p>Expected result: at score 10, Cat says "You win!" and the project stops.</p>
+          </article>
+
+          <article class="manual-item">
+            <h3>Step 5: Add a second sprite safely</h3>
+            <p>Append this new section at the bottom:</p>
+            <code class="guide-example">sprite = "Ball"
+ball_code =
+  when_broadcast_received game_start
+  forever
+    move 6
+    if on_edge_bounce
+      say "boing"
+    end
+  end
+end</code>
+            <p>Now both sprites start from the same broadcast. This is the basic multiplayer-script pattern.</p>
+          </article>
+
+          <article class="manual-item">
+            <h3>Step 6: Common beginner errors and exact fixes</h3>
+            <ul class="tips-list">
+              <li>Error: "Unexpected end" or broken block tree. Fix: check every opened <code>if</code>, <code>repeat</code>, <code>forever</code> has a matching <code>end</code>.</li>
+              <li>Error: nothing happens when green flag starts. Fix: ensure stage has <code>when_flag_clicked</code> and it broadcasts the same name sprites listen to.</li>
+              <li>Error: score keeps old value on rerun. Fix: put <code>set_var score 0</code> in startup logic.</li>
+              <li>Error: command works in sprite but not stage. Fix: move sprite-only command into a sprite section.</li>
+              <li>Error: parser rejects text with spaces. Fix: wrap text in quotes, for example <code>say "Game Over"</code>.</li>
+            </ul>
+          </article>
+
+          <article class="manual-item">
+            <h3>Step 7: How to debug quickly</h3>
+            <ol class="workflow-list">
+              <li>Comment out one section at a time (or temporarily remove it).</li>
+              <li>Run again and find the smallest section that causes failure.</li>
+              <li>Add that section back line-by-line until error returns.</li>
+              <li>Fix the exact line, then test end-to-end one more time.</li>
+            </ol>
+          </article>
         </section>
 
         <section id="reference-tools" class="manual-section">
@@ -228,3 +322,4 @@ end</code>
   <script src="common.js" defer></script>
 </body>
 </html>
+
