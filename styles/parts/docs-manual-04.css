@@ -1,0 +1,68 @@
+.reference-controls label {
+  margin: 0;
+  font-size: 0.72rem;
+}
+
+.reference-controls .text-input,
+.reference-controls select.text-input {
+  min-height: 36px;
+  padding: 0.34rem 0.52rem;
+  font-size: 0.84rem;
+}
+
+.reference-controls #resetFilters,
+.reference-controls .jump-menu-toggle {
+  width: 100%;
+  min-height: 36px;
+  padding: 0.34rem 0.52rem;
+  font-size: 0.78rem;
+}
+
+.reference-controls #resetFilters {
+  margin-top: 0;
+  align-self: auto;
+}
+
+.jump-control {
+  position: relative;
+  min-width: 0;
+}
+
+.jump-menu-toggle {
+  margin-top: 0;
+}
+
+.jump-menu-frame {
+  position: absolute;
+  top: calc(100% + 0.24rem);
+  left: 0;
+  z-index: 30;
+  width: min(300px, 74vw);
+  border: 1px solid #b8cade;
+  border-radius: 10px;
+  background: #f8fbff;
+  box-shadow: 0 16px 32px rgba(30, 49, 73, 0.18);
+  padding: 0.4rem;
+}
+
+.jump-menu-title {
+  margin: 0 0 0.26rem;
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 0.78rem;
+  color: #2a4a6c;
+}
+
+.reference-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  flex: 1 1 auto;
+  height: 100%;
+  gap: 0.4rem;
+  padding: 0.42rem;
+  min-height: 0; /* Critical for nested scrolling */
+  min-width: 0;
+  align-items: stretch;
+  overflow: hidden; /* Changed from auto to hidden */
+}
+

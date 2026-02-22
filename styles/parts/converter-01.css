@@ -1,0 +1,56 @@
+/* Converter: fully different structure */
+.app-shell.converter-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 300px);
+  gap: 0.9rem;
+  align-items: start;
+}
+
+.right-rail {
+  border: 1px solid var(--line-strong);
+  background: linear-gradient(180deg, #f8fbff 0%, #eff4fb 100%);
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-md);
+  padding: 0.85rem;
+  display: grid;
+  gap: 0.8rem;
+  align-content: start;
+  position: sticky;
+  top: calc(var(--header-height) + 0.85rem);
+  max-height: calc(100vh - var(--header-height) - 1.8rem);
+  overflow: auto;
+}
+
+.rail-header h2,
+.rail-note h2 {
+  margin: 0;
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 1.1rem;
+  color: #243b57;
+}
+
+.rail-header p {
+  margin-top: 0.36rem;
+  font-size: 0.84rem;
+  color: var(--ink-700);
+}
+
+.rail-note {
+  border: 1px solid #bfcee2;
+  border-radius: 10px;
+  background: #f7fbff;
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.workspace-shell {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-md);
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.85rem;
+}
+

@@ -1,0 +1,55 @@
+.manual-section {
+  border: 1px solid #c4d3e6;
+  border-radius: 12px;
+  background: #fbfdff;
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.58rem;
+}
+
+.manual-head h2 {
+  margin: 0;
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 0.98rem;
+  color: #294565;
+}
+
+.manual-head p {
+  margin-top: 0.34rem;
+  color: var(--ink-700);
+  font-size: 0.83rem;
+}
+
+.manual-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 0.62rem;
+}
+
+.manual-item {
+  border: 1px solid #cfdbeb;
+  border-radius: 10px;
+  background: #f5f9ff;
+  padding: 0.64rem;
+  display: grid;
+  gap: 0.42rem;
+}
+
+.manual-item h3 {
+  margin: 0;
+  font-size: 0.88rem;
+  color: #2b4767;
+}
+
+.manual-item p {
+  color: var(--ink-700);
+  font-size: 0.8rem;
+}
+
+.reference-tools-panel {
+  border: 1px solid #bfd0e4;
+  border-radius: 10px;
+  background: #f8fbff;
+  overflow: hidden;
+}
+

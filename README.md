@@ -1,0 +1,90 @@
+# text2scratch
+
+`text2scratch` is a static web app that converts text commands into Scratch 3
+projects (`.sb3`) and can reverse-import existing Scratch projects back into
+editable text syntax.
+
+## Highlights
+
+- Write text commands and export a valid Scratch 3 `.sb3` project.
+- Import existing `.sb3` files, including projects not created by text2scratch.
+- Convert imported blocks back into editable text2scratch syntax.
+- Save and reload fast `.t2sh` session files.
+- Build Stage scripts and multiple sprite scripts in one project.
+- Edit project name directly from the editor toolbar.
+
+## File Formats
+
+- `.sb3`: Standard Scratch project archive.
+- `.t2sh`: Compressed text2scratch session (`session.json` in a deflated
+  container).
+
+## Run Locally
+
+The app fetches `blocks.json`, so run it through a local web server.
+
+```bash
+python -m http.server 8080
+# or
+npx serve .
+```
+
+Open `http://localhost:8080`.
+
+## Quick Workflow
+
+1. Create data (`make_var`, `make_list`, `make_broadcast`) if needed.
+2. Add Stage scripts in `stage_code =` ... `end`.
+3. Add sprite sections with `sprite = "Name"` and `<sprite>_code =` ... `end`.
+4. Export to `.sb3` for Scratch or `.t2sh` for fast restore.
+
+## `@` Expression Syntax
+
+- `@` forces expression mode inside an input slot.
+- Example: `set_var score @var(best_score)`.
+- Do not place expression lines by themselves.
+
+## Example (Stage + Multiple Sprites)
+
+```txt
+make_var score 0
+make_broadcast start_round
+
+stage_code =
+  when_flag_clicked
+  broadcast start_round
+end
+
+sprite = "Cat"
+cat_code =
+  when_broadcast_received start_round
+  set_var score 1
+end
+
+sprite = "Ball"
+ball_code =
+  when_broadcast_received start_round
+  if var(score) > 0
+    say "Game started"
+  end
+end
+```
+
+## Project Files
+
+- `index.html`: main converter/editor UI.
+- `app.js`: conversion logic, parser flow, import/export wiring.
+- `blocks.json`: source of truth for command mappings and syntax patterns.
+- `docs.html`: syntax guide and command reference.
+- `reference.html`: full command reference page.
+- `terms.html`, `privacy.html`, `license.html`: legal/policy pages.
+
+## License
+
+This project uses a custom non-commercial attribution license:
+
+- Non-commercial use, modification, and redistribution are allowed.
+- Visible attribution to `text2scratch` is required.
+- Commercial use requires prior written permission.
+
+See `LICENSE` and `license.html` for full terms.

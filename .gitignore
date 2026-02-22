@@ -1,0 +1,40 @@
+# OS clutter
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Dependencies / package manager caches
+node_modules/
+.npm/
+.pnpm-store/
+
+# Build output and temp folders
+dist/
+build/
+coverage/
+.tmp/
+temp/
+
+# Python cache (common when using python -m http.server tooling)
+__pycache__/
+*.pyc
+
+# Local environment files
+.env
+.env.*
+
+# Generated exports from text2scratch
+*.sb3
+*.t2sh

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>text2scratch - Blocks Docs</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+  <link rel="shortcut icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=20260222b">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="page-docs">
+  <header class="site-header">
+    <div class="container header-container">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
+        <span class="brand-text">
+          <strong>text2scratch</strong>
+          <small>Text to Scratch SB3</small>
+        </span>
+      </a>
+
+      <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-expanded="false" aria-label="Toggle navigation menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <nav class="main-nav">
+        <a href="index.html">Converter</a>
+        <a href="docs.html" aria-current="page">Blocks Docs</a>
+        <a href="reference.html">Full Reference</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="license.html">License</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-content">
+    <div class="container">
+      <main class="docs-manual">
+        <section class="docs-banner">
+          <p class="kicker">Official Documentation</p>
+          <h1>Learn text2scratch from basics to full multi-sprite projects</h1>
+          <p>This page is a full manual, not only a search tool. Read sections 1-6 in order, then use section 7 for fast command lookup.</p>
+          <p>Work through examples by typing each block yourself first, then changing names and values to fit your project.</p>
+          <p>When debugging, keep one copy of your script unchanged and test changes in small steps so problems stay easy to isolate.</p>
+        </section>
+
+        <nav class="manual-toc" aria-label="Documentation sections">
+          <a href="#syntax-basics">1. Syntax Basics</a>
+          <a href="#build-order">2. Build Order</a>
+          <a href="#at-syntax">3. @ Expressions</a>
+          <a href="#stage-coding">4. Stage Rules</a>
+          <a href="#multi-sprite">5. Multi-Sprite Template</a>
+          <a href="#deep-guide">6. Extended Workflow Guide</a>
+          <a href="#reference-tools">7. Command Reference</a>
+        </nav>
+
+        <section id="syntax-basics" class="manual-section">
+          <div class="manual-head">
+            <h2>1. Syntax Basics</h2>
+            <p>These rules prevent most errors and make scripts readable.</p>
+          </div>
+
+          <div class="manual-grid">
+            <article class="manual-item">
+              <h3>One line = one command</h3>
+              <p>Each line becomes one Scratch action in generated blocks.</p>
+              <code class="guide-example">move 10</code>
+            </article>
+
+            <article class="manual-item">
+              <h3>Indent nested commands</h3>
+              <p>Loop or if content must be indented below its parent.</p>
+              <code class="guide-example">repeat 10
+  move 10
+end</code>
+            </article>
+
+            <article class="manual-item">
+              <h3>Close with end</h3>
+              <p>Every open control block needs a closing <code>end</code>.</p>
+              <code class="guide-example">if var(score) &gt; 5
+  say "Great"
+end</code>
+            </article>
+
+            <article class="manual-item">
+              <h3>Use quotes for sentence text</h3>
+              <p>If text has spaces, wrap it in quotes.</p>
+              <code class="guide-example">say "Hello team"</code>
+            </article>
+          </div>
+        </section>
+
+        <section id="build-order" class="manual-section">
+          <div class="manual-head">
+            <h2>2. Build Order</h2>
+            <p>Use this sequence to avoid memory overload and broken scripts.</p>
+          </div>
+
+          <ol class="workflow-list">
+            <li>Create shared data first: <code>make_var</code>, <code>make_list</code>, <code>make_broadcast</code>.</li>
+            <li>Write stage behavior in <code>stage_code =</code> ... <code>end</code>.</li>
+            <li>Add each sprite with <code>sprite = "Name"</code>.</li>
+            <li>Write sprite scripts in <code>name_code =</code> ... <code>end</code>.</li>
+            <li>Run conversion and fix any Problems before export.</li>
+          </ol>
+        </section>
+
+        <section id="at-syntax" class="manual-section">
+          <div class="manual-head">
+            <h2>3. @ Expression Syntax</h2>
+            <p><code>@</code> means "insert a value returned by another block".</p>
+          </div>
+
+          <div class="manual-grid">
+            <article class="manual-item">
+              <h3>Correct usage</h3>
+              <code class="guide-example">set_var score @var(best_score)</code>
+            </article>
+
+            <article class="manual-item">
+              <h3>Incorrect usage</h3>
+              <code class="guide-example">@var(score)</code>
+            </article>
+
+            <article class="manual-item">
+              <h3>Readable condition</h3>
+              <code class="guide-example">if var(score) &gt; 5
+  say "Great"
+end</code>
+            </article>
+          </div>
+        </section>
+
+        <section id="stage-coding" class="manual-section">
+          <div class="manual-head">
+            <h2>4. Stage Coding Rules</h2>
+            <p>Some Scratch blocks are sprite-only and cannot run on stage.</p>
+          </div>
+
+          <ul class="tips-list">
+            <li>Put stage scripts inside <code>stage_code =</code> only.</li>
+            <li>If a line is stage-incompatible, move it into a sprite code section.</li>
+            <li>Use broadcasts to coordinate stage and sprites cleanly.</li>
+          </ul>
+        </section>
+
+        <section id="multi-sprite" class="manual-section">
+          <div class="manual-head">
+            <h2>5. Multi-Sprite Template</h2>
+            <p>Use this as your starter file for most projects.</p>
+          </div>
+
+          <code class="guide-example">make_var score 0
+make_broadcast start_round
+
+stage_code =
+  when_flag_clicked
+  switch_backdrop_to backdrop1
+  broadcast start_round
+end
+
+sprite = "Cat"
+cat_code =
+  when_broadcast_received start_round
+  set_var score 0
+  repeat 5
+    move 10
+    change_var score 1
+  end
+end
+
+sprite = "Ball"
+ball_code =
+  when_broadcast_received start_round
+  if var(score) &gt; 3
+    say "Ready"
+  else
+    think "Wait"
+  end
+end</code>
+        </section>
+
+        <section id="deep-guide" class="manual-section">
+          <div class="manual-head">
+            <h2>6. Extended Workflow Guide</h2>
+            <p>Start every project by writing a short goal statement in plain language before touching commands, so your scripts map to one clear behavior.</p>
+            <p>Break that goal into tiny interactions such as movement, scoring, and scene transitions, then assign each interaction to stage logic or sprite logic.</p>
+            <p>Keep setup declarations together at the top of the file because variables, lists, and broadcasts are easiest to audit when they are not scattered across the project.</p>
+            <p>Use small scripts with obvious event names first, because long scripts make it harder to find where a state change began when something fails.</p>
+            <p>Whenever you add a new condition, test both the true path and the false path immediately so you never assume branch behavior from reading alone.</p>
+            <p>Use named broadcasts for milestones like round start, round end, or reset, and avoid generic names that become ambiguous later.</p>
+            <p>Prefer explicit variable resets at script start points so reruns do not carry stale values from a previous test cycle.</p>
+            <p>If a script behaves differently on stage and sprite targets, verify target compatibility first and move sprite-only actions into sprite code blocks early.</p>
+            <p>When using nested control blocks, align indentation carefully and close each group as soon as possible to reduce scope confusion.</p>
+            <p>After each successful milestone, save a known-good copy so future experiments can be rolled back quickly without rebuilding stable logic.</p>
+            <p>During final cleanup, shorten repetitive names, remove unused declarations, and keep only broadcasts and lists that are still part of runtime behavior.</p>
+            <p>Before export, run one complete end-to-end playthrough and record any warnings or odd transitions, then fix those while context is still fresh.</p>
+          </div>
+        </section>
+
+        <section id="reference-tools" class="manual-section">
+          <div class="manual-head">
+            <h2>7. Command Reference</h2>
+            <p>Open the full command reference page for searchable syntax, filters, and section jump tools.</p>
+          </div>
+          <p class="support-text">
+            Open:
+            <a href="reference.html">Full Command Reference</a>
+          </p>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
+    </div>
+  </footer>
+
+  <script src="common.js" defer></script>
+</body>
+</html>

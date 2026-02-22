@@ -1,0 +1,57 @@
+/* Docs manual-first layout */
+.docs-manual {
+  max-width: 980px;
+  margin: 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--paper);
+  box-shadow: var(--shadow-md);
+  padding: 0.95rem;
+  display: grid;
+  gap: 0.88rem;
+}
+
+.docs-banner {
+  border: 1px solid #bccde2;
+  border-radius: 12px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.96), rgba(246, 250, 255, 0.95)),
+    linear-gradient(90deg, rgba(21, 95, 190, 0.08), rgba(18, 131, 115, 0.08));
+  padding: 0.94rem;
+}
+
+.docs-banner h1 {
+  margin: 0;
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: clamp(1.26rem, 1.02rem + 0.9vw, 1.72rem);
+  line-height: 1.16;
+  color: #1f3855;
+}
+
+.docs-banner p {
+  margin-top: 0.62rem;
+  color: var(--ink-700);
+  font-size: 0.86rem;
+}
+
+.manual-toc {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.42rem;
+}
+
+.manual-toc a {
+  border: 1px solid #c3d3e7;
+  border-radius: 10px;
+  background: #f4f9ff;
+  color: #295078;
+  padding: 0.4rem 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.manual-toc a:hover {
+  border-color: #94afd0;
+  background: #ffffff;
+}
+

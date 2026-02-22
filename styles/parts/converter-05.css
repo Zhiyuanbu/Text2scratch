@@ -1,0 +1,55 @@
+.script-fallback {
+  display: none;
+  width: 100%;
+  min-height: 320px;
+  border: 0;
+  outline: none;
+  resize: vertical;
+  padding: 0.86rem;
+  background: var(--editor-bg);
+  color: var(--editor-text);
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 0.9rem;
+  line-height: 1.54;
+}
+
+.script-fallback.visible {
+  display: block;
+}
+
+.control-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.control-cell {
+  flex: 1 1 230px;
+  min-width: 0;
+  display: grid;
+  gap: 0.38rem;
+}
+
+.control-cell.single-action {
+  align-content: start;
+}
+
+.action-select {
+  min-height: 40px;
+}
+
+.workspace-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  gap: 0.8rem;
+}
+
+.foot-panel {
+  border: 1px solid #bfd0e4;
+  border-radius: 10px;
+  background: #f9fcff;
+  padding: 0.72rem;
+  display: grid;
+  gap: 0.5rem;
+}
+

@@ -1,0 +1,61 @@
+.reference-results-column {
+  border: 1px solid #c8d8ea;
+  border-radius: 10px;
+  background: #fcfeff;
+  padding: 0.46rem;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  
+  /* Critical properties for scrolling */
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: 100%;
+  display: block;
+}
+
+/* Custom scrollbar styling */
+.reference-results-column::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reference-results-column::-webkit-scrollbar-track {
+  background: #e9f2ff;
+}
+
+.reference-results-column::-webkit-scrollbar-thumb {
+  background-color: #8baacf;
+  border-radius: 4px;
+  border: 2px solid #e9f2ff;
+}
+
+.reference-shell {
+  border: 1px solid #b8cade;
+  border-radius: 12px;
+  background: #fdfefe;
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.74rem;
+}
+
+.reference-head {
+  display: grid;
+  gap: 0.38rem;
+}
+
+.reference-head h2 {
+  margin: 0;
+  font-family: "Archivo Narrow", sans-serif;
+  font-size: 0.96rem;
+  color: #294667;
+}
+
+.support-text {
+  margin: 0;
+  color: var(--ink-700);
+  font-size: 0.82rem;
+}

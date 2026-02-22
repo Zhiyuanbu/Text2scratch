@@ -1,0 +1,58 @@
+.doc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.48rem;
+  min-width: 0;
+}
+
+.doc-syntax {
+  margin: 0;
+  display: block;
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  border: 1px solid #c3d5e8;
+  border-radius: 8px;
+  background: #edf5ff;
+  color: #214a71;
+  padding: 0.2rem 0.34rem;
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 0.71rem;
+  line-height: 1.44;
+}
+
+.doc-plain,
+.doc-howto,
+.doc-meta {
+  margin: 0;
+  color: #3a536e;
+  font-size: 0.79rem;
+  line-height: 1.48;
+}
+
+.doc-args {
+  margin: 0;
+  color: #355571;
+  font-size: 0.79rem;
+  line-height: 1.45;
+}
+
+.doc-options {
+  border: 1px solid #cbdaeb;
+  border-radius: 8px;
+  background: #f3f9ff;
+  padding: 0.34rem 0.42rem;
+}
+
+.doc-options > summary {
+  cursor: pointer;
+  color: #2a4f74;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+

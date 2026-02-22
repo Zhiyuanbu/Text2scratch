@@ -1,0 +1,55 @@
+/* Command list + docs dynamic cards */
+.command-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.command-list li {
+  border: 1px solid #c8d6e8;
+  border-radius: 8px;
+  background: #fbfdff;
+  padding: 0.46rem 0.52rem;
+  color: #2f4a67;
+  font-size: 0.81rem;
+  line-height: 1.44;
+}
+
+.command-list li:hover {
+  border-color: #96aec9;
+}
+
+.command-section {
+  border-color: #b6c9df;
+  background: #ebf4ff;
+  color: #335476;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.syntax {
+  display: block;
+  margin-bottom: 0.18rem;
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 0.76rem;
+  color: #22486d;
+}
+
+.guide-example {
+  display: block;
+  margin: 0;
+  border: 1px solid #c8d8ea;
+  border-radius: 8px;
+  background: #eef5ff;
+  color: #21476a;
+  padding: 0.42rem 0.5rem;
+  white-space: pre-wrap;
+  font-family: "IBM Plex Mono", "Consolas", monospace;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+

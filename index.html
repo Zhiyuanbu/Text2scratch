@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>text2scratch</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+  <link rel="shortcut icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=20260222b">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="page-converter">
+  <header class="site-header">
+    <div class="container header-container">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
+        <span class="brand-text">
+          <strong>text2scratch</strong>
+          <small>Text to Scratch SB3</small>
+        </span>
+      </a>
+
+      <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-expanded="false" aria-label="Toggle navigation menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <nav class="main-nav">
+        <a href="index.html" aria-current="page">Converter</a>
+        <a href="docs.html">Blocks Docs</a>
+        <a href="reference.html">Full Reference</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="license.html">License</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-content">
+    <div class="container">
+      <div class="app-shell converter-shell">
+        <main class="workspace-shell">
+          <section class="intro-strip">
+            <p class="kicker">Scratch Development Workbench</p>
+            <h1>Code your Scratch project in one editor, then export as SB3</h1>
+            <p>Import existing `.sb3` files, edit sprite and stage logic as text commands, and export as `.sb3` or quick `.t2sh` sessions.</p>
+            <div class="pill-row" aria-label="Highlights">
+              <span class="pill">Multi-sprite</span>
+              <span class="pill">Stage support</span>
+              <span class="pill">SB3 import and export</span>
+              <span class="pill">Quick fixes + diagnostics</span>
+            </div>
+          </section>
+
+          <section class="editor-workbench">
+            <div class="editor-heading">
+              <h2>Project Buffer</h2>
+              <p>Write scripts using text2scratch syntax. Right click or use quick fixes for common issues.</p>
+            </div>
+
+            <div class="editor-shell">
+              <div class="editor-toolbar" aria-hidden="true">
+                <span class="editor-dot"></span>
+                <span class="editor-dot"></span>
+                <span class="editor-dot"></span>
+                <label class="editor-label" for="projectNameInput">Project</label>
+                <input id="projectNameInput" class="project-name-input" type="text" value="multi_sprite_project" maxlength="80" aria-label="Project name">
+                <span class="editor-ext">.t2s</span>
+              </div>
+              <div id="editorHost" class="code-editor" role="region" aria-label="text2scratch code editor"></div>
+              <label class="sr-only" for="scriptInput">Script</label>
+              <textarea id="scriptInput" class="script-fallback" spellcheck="false"></textarea>
+            </div>
+
+            <div class="control-grid">
+              <div class="control-cell">
+                <button id="downloadBtn" type="button" class="primary-btn">
+                  <i class="fas fa-download"></i> Download
+                </button>
+                <select id="downloadFormat" class="text-input action-select" aria-label="Download format">
+                  <option value="sb3">Scratch Project (.sb3)</option>
+                  <option value="t2sh">Fast Session (.t2sh)</option>
+                </select>
+              </div>
+
+              <div class="control-cell">
+                <button id="uploadBtn" type="button" class="secondary-btn">
+                  <i class="fas fa-upload"></i> Upload
+                </button>
+                <select id="uploadFormat" class="text-input action-select" aria-label="Upload format">
+                  <option value="auto">Auto Detect</option>
+                  <option value="sb3">Scratch Project (.sb3)</option>
+                  <option value="t2sh">Fast Session (.t2sh)</option>
+                </select>
+              </div>
+
+              <div class="control-cell single-action">
+                <button id="sampleBtn" type="button" class="secondary-btn">
+                  <i class="fas fa-code"></i> Load Multi-Sprite Example
+                </button>
+              </div>
+
+              <input id="importInput" class="sr-only" type="file" aria-label="Import file">
+            </div>
+          </section>
+
+          <section class="workspace-foot">
+            <article class="foot-panel">
+              <h3>Start Here</h3>
+              <ul class="memory-list">
+                <li>One line usually equals one Scratch action.</li>
+                <li>Use <code>stage_code =</code> for stage-only scripts.</li>
+                <li>Use <code>sprite_name_code =</code> for sprite scripts.</li>
+                <li>Close open blocks with <code>end</code>.</li>
+              </ul>
+            </article>
+
+            <article class="foot-panel">
+              <h3>Compiler Output</h3>
+              <pre id="status" aria-live="polite"></pre>
+              <p class="support-text">Need syntax help? Read <a href="docs.html#syntax-basics">syntax basics</a> and <a href="docs.html#at-syntax">@ expression rules</a>.</p>
+            </article>
+          </section>
+        </main>
+
+        <aside class="right-rail">
+          <section class="rail-note">
+            <h2>Workflow</h2>
+            <ol class="workflow-list">
+              <li>Declare variables, lists, and broadcasts first.</li>
+              <li>Build stage script(s) inside <code>stage_code</code>.</li>
+              <li>Add sprites and write each sprite code section.</li>
+              <li>Fix diagnostics before exporting.</li>
+            </ol>
+          </section>
+
+          <section class="rail-note">
+            <h2>Remember</h2>
+            <ul class="checklist">
+              <li><code>@</code> expressions are values, not standalone commands.</li>
+              <li>Stage rejects sprite-only blocks.</li>
+              <li>Imported SB3 sprites can include SVG lines.</li>
+            </ul>
+          </section>
+        </aside>
+      </div>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+  <script src="common.js" defer></script>
+  <script src="app.js" type="module"></script>
+</body>
+</html>

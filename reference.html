@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>text2scratch - Full Command Reference</title>
+  <link rel="icon" type="image/png" sizes="512x512" href="logo.png">
+  <link rel="shortcut icon" type="image/png" href="logo.png">
+  <link rel="apple-touch-icon" href="logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+  <link rel="stylesheet" href="styles.css?v=20260222b">
+  <link rel="stylesheet" href="styles/reference-page.css?v=20260222b">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body class="page-docs page-reference">
+  <header class="site-header">
+    <div class="container header-container">
+      <a class="brand" href="index.html">
+        <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
+        <span class="brand-text">
+          <strong>text2scratch</strong>
+          <small>Text to Scratch SB3</small>
+        </span>
+      </a>
+
+      <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-expanded="false" aria-label="Toggle navigation menu">
+        <i class="fas fa-bars"></i>
+      </button>
+
+      <nav class="main-nav">
+        <a href="index.html">Converter</a>
+        <a href="docs.html">Blocks Docs</a>
+        <a href="reference.html" aria-current="page">Full Reference</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="license.html">License</a>
+      </nav>
+    </div>
+  </header>
+
+  <div class="site-content">
+    <div class="container">
+      <main class="docs-manual docs-reference-page">
+        <section class="docs-banner">
+          <p class="kicker">Full Search Page</p>
+          <h1>Searchable Command Reference</h1>
+          <p>This page is dedicated to command search and section jumping. It uses full-page scrolling to avoid frame scroll issues.</p>
+        </section>
+
+        <section id="reference-tools" class="manual-section">
+          <div class="manual-head">
+            <h2>Command Lookup</h2>
+            <p>Search syntax, filter by type/category/target, then jump to sections quickly.</p>
+          </div>
+
+          <div class="reference-controls">
+            <div class="control-field control-search">
+              <label for="searchInput">Search</label>
+              <input id="searchInput" class="text-input" type="text" placeholder="syntax, opcode, description, category">
+            </div>
+
+            <div class="control-field jump-control">
+              <label for="jumpMenuToggle">Jump to Section</label>
+              <button id="jumpMenuToggle" type="button" class="secondary-btn jump-menu-toggle" aria-expanded="false" aria-controls="jumpMenuFrame">
+                <i class="fas fa-list-ul" aria-hidden="true"></i> Jump to Section
+              </button>
+              <div id="jumpMenuFrame" class="jump-menu-frame" hidden>
+                <p class="jump-menu-title">Jump to Section</p>
+                <div id="extensionNav" class="extension-nav"></div>
+              </div>
+            </div>
+
+            <div class="control-field control-kind">
+              <label for="kindFilter">Block Type</label>
+              <select id="kindFilter" class="text-input">
+                <option value="all">All block types</option>
+                <option value="stack">Stack</option>
+                <option value="hat">Hat (start blocks)</option>
+                <option value="reporter">Reporter (value)</option>
+                <option value="boolean">Boolean (true/false)</option>
+                <option value="meta">Meta (setup commands)</option>
+                <option value="define">Define / Call</option>
+              </select>
+            </div>
+
+            <div class="control-field control-category">
+              <label for="extensionFilter">Category</label>
+              <select id="extensionFilter" class="text-input">
+                <option value="all">All categories</option>
+              </select>
+            </div>
+
+            <div class="control-field control-target">
+              <label for="targetFilter">Works On</label>
+              <select id="targetFilter" class="text-input">
+                <option value="all">Stage + Sprite</option>
+                <option value="both">Both only</option>
+                <option value="stage">Stage-compatible</option>
+                <option value="sprite">Sprite-compatible</option>
+              </select>
+            </div>
+
+            <div class="control-field control-sort">
+              <label for="sortFilter">Sort</label>
+              <select id="sortFilter" class="text-input">
+                <option value="extension">Section then name</option>
+                <option value="name">Name</option>
+                <option value="kind">Kind then name</option>
+              </select>
+            </div>
+
+            <div class="control-field control-actions">
+              <span class="control-label-spacer" aria-hidden="true">Actions</span>
+              <button id="resetFilters" type="button" class="secondary-btn">
+                <i class="fas fa-redo"></i> Reset Filters
+              </button>
+            </div>
+          </div>
+
+          <div class="reference-layout">
+            <div class="reference-results-column">
+              <div id="stats" class="stats-line"></div>
+              <div id="docRoot" class="doc-root"></div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
+    </div>
+  </footer>
+
+  <script src="common.js" defer></script>
+  <script src="docs.js" type="module"></script>
+</body>
+</html>

@@ -1,0 +1,3461 @@
+{
+  "name": "text2scratch",
+  "aliases": {
+    "turnright": "turn_right",
+    "turnleft": "turn_left",
+    "goto": "go_to",
+    "sayfor": "say_for",
+    "thinkfor": "think_for",
+    "setvar": "set_var",
+    "changevar": "change_var",
+    "showvar": "show_var",
+    "hidevar": "hide_var",
+    "play_drum": "music_play_drum_for_beats",
+    "play_note": "music_play_note_for_beats",
+    "set_tempo": "music_set_tempo",
+    "change_tempo": "music_change_tempo",
+    "tempo": "music_get_tempo",
+    "video_toggle": "videosensing_video_toggle",
+    "set_video_transparency": "videosensing_set_video_transparency"
+  },
+  "sampleScript": [
+    "# Stage setup and scene flow",
+    "make_var score 0",
+    "make_broadcast start_round",
+    "stage_code =",
+    "  when_flag_clicked",
+    "  switch_backdrop_to backdrop1",
+    "  broadcast start_round",
+    "end",
+    "",
+    "sprite = \"Cat\"",
+    "svg = \"https://upload.wikimedia.org/wikipedia/commons/f/fd/Ghostscript_Tiger.svg\"",
+    "cat_code =",
+    "  when_flag_clicked",
+    "  set_var score 0",
+    "  repeat 6",
+    "    move 14",
+    "    turn_right 30",
+    "    change_var score 1",
+    "  end",
+    "end",
+    "",
+    "sprite = \"Ball\"",
+    "ball_code =",
+    "  when_broadcast_received start_round",
+    "  go_to_xy 0 0",
+    "  if var(score) > 5",
+    "    say \"Ready to play\"",
+    "  else",
+    "    think \"Need more points\"",
+    "  end",
+    "end"
+  ],
+  "commands": {
+    "make_var": {
+      "kind": "meta",
+      "syntax": "make_var"
+    },
+    "make_list": {
+      "kind": "meta",
+      "syntax": "make_list"
+    },
+    "make_broadcast": {
+      "kind": "meta",
+      "syntax": "make_broadcast"
+    },
+    "stage_code": {
+      "kind": "meta",
+      "syntax": "stage_code =",
+      "description": "Starts Stage scripts. Add indented Stage commands below and close with end."
+    },
+    "when_flag_clicked": {
+      "kind": "hat",
+      "opcode": "event_whenflagclicked",
+      "syntax": "when_flag_clicked"
+    },
+    "when_key_pressed": {
+      "kind": "hat",
+      "opcode": "event_whenkeypressed",
+      "syntax": "when_key_pressed <key_option>",
+      "fields": [
+        {
+          "name": "KEY_OPTION",
+          "from": 0,
+          "default": "space"
+        }
+      ]
+    },
+    "when_sprite_clicked": {
+      "kind": "hat",
+      "opcode": "event_whenthisspriteclicked",
+      "syntax": "when_sprite_clicked"
+    },
+    "when_backdrop_switches": {
+      "kind": "hat",
+      "opcode": "event_whenbackdropswitchesto",
+      "syntax": "when_backdrop_switches <backdrop>",
+      "fields": [
+        {
+          "name": "BACKDROP",
+          "from": 0,
+          "default": "backdrop1"
+        }
+      ]
+    },
+    "when_greater_than": {
+      "kind": "hat",
+      "opcode": "event_whengreaterthan",
+      "syntax": "when_greater_than <whengreaterthanmenu> <value>",
+      "fields": [
+        {
+          "name": "WHENGREATERTHANMENU",
+          "from": 0,
+          "default": "LOUDNESS",
+          "uppercase": true,
+          "options": [
+            "LOUDNESS",
+            "TIMER"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "10"
+        }
+      ]
+    },
+    "when_broadcast_received": {
+      "kind": "hat",
+      "opcode": "event_whenbroadcastreceived",
+      "syntax": "when_broadcast_received <broadcast_option>",
+      "fields": [
+        {
+          "name": "BROADCAST_OPTION",
+          "from": 0,
+          "default": "message1",
+          "registry": "broadcasts"
+        }
+      ]
+    },
+    "broadcast": {
+      "opcode": "event_broadcast",
+      "syntax": "broadcast <broadcast_input>",
+      "inputs": [
+        {
+          "name": "BROADCAST_INPUT",
+          "type": "menu",
+          "from": 0,
+          "default": "message1",
+          "menuOpcode": "event_broadcast_menu",
+          "menuField": "BROADCAST_OPTION",
+          "registry": "broadcasts"
+        }
+      ]
+    },
+    "broadcast_and_wait": {
+      "opcode": "event_broadcastandwait",
+      "syntax": "broadcast_and_wait <broadcast_input>",
+      "inputs": [
+        {
+          "name": "BROADCAST_INPUT",
+          "type": "menu",
+          "from": 0,
+          "default": "message1",
+          "menuOpcode": "event_broadcast_menu",
+          "menuField": "BROADCAST_OPTION",
+          "registry": "broadcasts"
+        }
+      ]
+    },
+    "move": {
+      "opcode": "motion_movesteps",
+      "syntax": "move <steps>",
+      "inputs": [
+        {
+          "name": "STEPS",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        }
+      ]
+    },
+    "turn_right": {
+      "opcode": "motion_turnright",
+      "syntax": "turn_right <degrees>",
+      "inputs": [
+        {
+          "name": "DEGREES",
+          "type": "angle",
+          "from": 0,
+          "default": "15"
+        }
+      ]
+    },
+    "turn_left": {
+      "opcode": "motion_turnleft",
+      "syntax": "turn_left <degrees>",
+      "inputs": [
+        {
+          "name": "DEGREES",
+          "type": "angle",
+          "from": 0,
+          "default": "15"
+        }
+      ]
+    },
+    "go_to_xy": {
+      "opcode": "motion_gotoxy",
+      "syntax": "go_to_xy <x> <y>",
+      "inputs": [
+        {
+          "name": "X",
+          "type": "number",
+          "from": 0,
+          "default": "0"
+        },
+        {
+          "name": "Y",
+          "type": "number",
+          "from": 1,
+          "default": "0"
+        }
+      ]
+    },
+    "go_to": {
+      "opcode": "motion_goto",
+      "syntax": "go_to <to>",
+      "inputs": [
+        {
+          "name": "TO",
+          "type": "menu",
+          "from": 0,
+          "default": "_random_",
+          "menuOpcode": "motion_goto_menu",
+          "menuField": "TO"
+        }
+      ]
+    },
+    "glide_to_xy": {
+      "opcode": "motion_glidesecstoxy",
+      "syntax": "glide_to_xy <secs> <x> <y>",
+      "inputs": [
+        {
+          "name": "SECS",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "X",
+          "type": "number",
+          "from": 1,
+          "default": "0"
+        },
+        {
+          "name": "Y",
+          "type": "number",
+          "from": 2,
+          "default": "0"
+        }
+      ]
+    },
+    "glide_to": {
+      "opcode": "motion_glideto",
+      "syntax": "glide_to <secs> <to>",
+      "inputs": [
+        {
+          "name": "SECS",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "TO",
+          "type": "menu",
+          "from": 1,
+          "default": "_random_",
+          "menuOpcode": "motion_glideto_menu",
+          "menuField": "TO"
+        }
+      ]
+    },
+    "point_direction": {
+      "opcode": "motion_pointindirection",
+      "syntax": "point_direction <direction>",
+      "inputs": [
+        {
+          "name": "DIRECTION",
+          "type": "angle",
+          "from": 0,
+          "default": "90"
+        }
+      ]
+    },
+    "point_towards": {
+      "opcode": "motion_pointtowards",
+      "syntax": "point_towards <towards>",
+      "inputs": [
+        {
+          "name": "TOWARDS",
+          "type": "menu",
+          "from": 0,
+          "default": "_mouse_",
+          "menuOpcode": "motion_pointtowards_menu",
+          "menuField": "TOWARDS"
+        }
+      ]
+    },
+    "change_x": {
+      "opcode": "motion_changexby",
+      "syntax": "change_x <dx>",
+      "inputs": [
+        {
+          "name": "DX",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        }
+      ]
+    },
+    "set_x": {
+      "opcode": "motion_setx",
+      "syntax": "set_x <x>",
+      "inputs": [
+        {
+          "name": "X",
+          "type": "number",
+          "from": 0,
+          "default": "0"
+        }
+      ]
+    },
+    "change_y": {
+      "opcode": "motion_changeyby",
+      "syntax": "change_y <dy>",
+      "inputs": [
+        {
+          "name": "DY",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        }
+      ]
+    },
+    "set_y": {
+      "opcode": "motion_sety",
+      "syntax": "set_y <y>",
+      "inputs": [
+        {
+          "name": "Y",
+          "type": "number",
+          "from": 0,
+          "default": "0"
+        }
+      ]
+    },
+    "if_on_edge_bounce": {
+      "opcode": "motion_ifonedgebounce",
+      "syntax": "if_on_edge_bounce"
+    },
+    "set_rotation_style": {
+      "opcode": "motion_setrotationstyle",
+      "syntax": "set_rotation_style <style>",
+      "fields": [
+        {
+          "name": "STYLE",
+          "from": 0,
+          "default": "all around",
+          "options": [
+            "left-right",
+            "don't rotate",
+            "all around"
+          ]
+        }
+      ]
+    },
+    "x_position": {
+      "kind": "reporter",
+      "opcode": "motion_xposition",
+      "syntax": "@x_position()"
+    },
+    "y_position": {
+      "kind": "reporter",
+      "opcode": "motion_yposition",
+      "syntax": "@y_position()"
+    },
+    "direction": {
+      "kind": "reporter",
+      "opcode": "motion_direction",
+      "syntax": "@direction()"
+    },
+    "say": {
+      "opcode": "looks_say",
+      "syntax": "say <message>",
+      "inputs": [
+        {
+          "name": "MESSAGE",
+          "type": "text",
+          "from": "rest",
+          "start": 0,
+          "default": "Hello!"
+        }
+      ]
+    },
+    "say_for": {
+      "opcode": "looks_sayforsecs",
+      "syntax": "say_for <secs> <message>",
+      "inputs": [
+        {
+          "name": "SECS",
+          "type": "number",
+          "from": 0,
+          "default": "2"
+        },
+        {
+          "name": "MESSAGE",
+          "type": "text",
+          "from": "rest",
+          "start": 1,
+          "default": "Hello!"
+        }
+      ]
+    },
+    "think": {
+      "opcode": "looks_think",
+      "syntax": "think <message>",
+      "inputs": [
+        {
+          "name": "MESSAGE",
+          "type": "text",
+          "from": "rest",
+          "start": 0,
+          "default": "Hmm..."
+        }
+      ]
+    },
+    "think_for": {
+      "opcode": "looks_thinkforsecs",
+      "syntax": "think_for <secs> <message>",
+      "inputs": [
+        {
+          "name": "SECS",
+          "type": "number",
+          "from": 0,
+          "default": "2"
+        },
+        {
+          "name": "MESSAGE",
+          "type": "text",
+          "from": "rest",
+          "start": 1,
+          "default": "Hmm..."
+        }
+      ]
+    },
+    "switch_costume_to": {
+      "opcode": "looks_switchcostumeto",
+      "syntax": "switch_costume_to <costume>",
+      "inputs": [
+        {
+          "name": "COSTUME",
+          "type": "menu",
+          "from": 0,
+          "default": "costume1",
+          "menuOpcode": "looks_costume",
+          "menuField": "COSTUME"
+        }
+      ]
+    },
+    "next_costume": {
+      "opcode": "looks_nextcostume",
+      "syntax": "next_costume"
+    },
+    "switch_backdrop_to": {
+      "opcode": "looks_switchbackdropto",
+      "syntax": "switch_backdrop_to <backdrop>",
+      "inputs": [
+        {
+          "name": "BACKDROP",
+          "type": "menu",
+          "from": 0,
+          "default": "backdrop1",
+          "menuOpcode": "looks_backdrops",
+          "menuField": "BACKDROP"
+        }
+      ]
+    },
+    "switch_backdrop_and_wait": {
+      "opcode": "looks_switchbackdroptoandwait",
+      "syntax": "switch_backdrop_and_wait <backdrop>",
+      "inputs": [
+        {
+          "name": "BACKDROP",
+          "type": "menu",
+          "from": 0,
+          "default": "backdrop1",
+          "menuOpcode": "looks_backdrops",
+          "menuField": "BACKDROP"
+        }
+      ]
+    },
+    "next_backdrop": {
+      "opcode": "looks_nextbackdrop",
+      "syntax": "next_backdrop"
+    },
+    "change_effect": {
+      "opcode": "looks_changeeffectby",
+      "syntax": "change_effect <effect> <change>",
+      "fields": [
+        {
+          "name": "EFFECT",
+          "from": 0,
+          "default": "COLOR",
+          "uppercase": true,
+          "options": [
+            "COLOR",
+            "FISHEYE",
+            "WHIRL",
+            "PIXELATE",
+            "MOSAIC",
+            "BRIGHTNESS",
+            "GHOST"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "CHANGE",
+          "type": "number",
+          "from": 1,
+          "default": "25"
+        }
+      ]
+    },
+    "set_effect": {
+      "opcode": "looks_seteffectto",
+      "syntax": "set_effect <effect> <value>",
+      "fields": [
+        {
+          "name": "EFFECT",
+          "from": 0,
+          "default": "COLOR",
+          "uppercase": true,
+          "options": [
+            "COLOR",
+            "FISHEYE",
+            "WHIRL",
+            "PIXELATE",
+            "MOSAIC",
+            "BRIGHTNESS",
+            "GHOST"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "25"
+        }
+      ]
+    },
+    "clear_graphic_effects": {
+      "opcode": "looks_cleargraphiceffects",
+      "syntax": "clear_graphic_effects"
+    },
+    "show": {
+      "opcode": "looks_show",
+      "syntax": "show"
+    },
+    "hide": {
+      "opcode": "looks_hide",
+      "syntax": "hide"
+    },
+    "go_to_layer": {
+      "opcode": "looks_gotofrontback",
+      "syntax": "go_to_layer <front_back>",
+      "fields": [
+        {
+          "name": "FRONT_BACK",
+          "from": 0,
+          "default": "front",
+          "options": [
+            "front",
+            "back"
+          ]
+        }
+      ]
+    },
+    "go_layers": {
+      "opcode": "looks_goforwardbackwardlayers",
+      "syntax": "go_layers <forward_backward> <num>",
+      "fields": [
+        {
+          "name": "FORWARD_BACKWARD",
+          "from": 0,
+          "default": "forward",
+          "options": [
+            "forward",
+            "backward"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "NUM",
+          "type": "integer",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "change_size_by": {
+      "opcode": "looks_changesizeby",
+      "syntax": "change_size_by <change>",
+      "inputs": [
+        {
+          "name": "CHANGE",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        }
+      ]
+    },
+    "set_size_to": {
+      "opcode": "looks_setsizeto",
+      "syntax": "set_size_to <size>",
+      "inputs": [
+        {
+          "name": "SIZE",
+          "type": "number",
+          "from": 0,
+          "default": "100"
+        }
+      ]
+    },
+    "costume_number_name": {
+      "kind": "reporter",
+      "opcode": "looks_costumenumbername",
+      "syntax": "@costume_number_name(number_name)",
+      "fields": [
+        {
+          "name": "NUMBER_NAME",
+          "from": 0,
+          "default": "number",
+          "options": [
+            "number",
+            "name"
+          ]
+        }
+      ]
+    },
+    "backdrop_number_name": {
+      "kind": "reporter",
+      "opcode": "looks_backdropnumbername",
+      "syntax": "@backdrop_number_name(number_name)",
+      "fields": [
+        {
+          "name": "NUMBER_NAME",
+          "from": 0,
+          "default": "number",
+          "options": [
+            "number",
+            "name"
+          ]
+        }
+      ]
+    },
+    "size": {
+      "kind": "reporter",
+      "opcode": "looks_size",
+      "syntax": "@size()"
+    },
+    "play_sound_until_done": {
+      "opcode": "sound_playuntildone",
+      "syntax": "play_sound_until_done <sound_menu>",
+      "inputs": [
+        {
+          "name": "SOUND_MENU",
+          "type": "menu",
+          "from": 0,
+          "default": "Meow",
+          "menuOpcode": "sound_sounds_menu",
+          "menuField": "SOUND_MENU"
+        }
+      ]
+    },
+    "start_sound": {
+      "opcode": "sound_play",
+      "syntax": "start_sound <sound_menu>",
+      "inputs": [
+        {
+          "name": "SOUND_MENU",
+          "type": "menu",
+          "from": 0,
+          "default": "Meow",
+          "menuOpcode": "sound_sounds_menu",
+          "menuField": "SOUND_MENU"
+        }
+      ]
+    },
+    "stop_all_sounds": {
+      "opcode": "sound_stopallsounds",
+      "syntax": "stop_all_sounds"
+    },
+    "change_sound_effect": {
+      "opcode": "sound_changeeffectby",
+      "syntax": "change_sound_effect <effect> <value>",
+      "fields": [
+        {
+          "name": "EFFECT",
+          "from": 0,
+          "default": "PITCH",
+          "uppercase": true,
+          "options": [
+            "PITCH",
+            "PAN"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "10"
+        }
+      ]
+    },
+    "set_sound_effect": {
+      "opcode": "sound_seteffectto",
+      "syntax": "set_sound_effect <effect> <value>",
+      "fields": [
+        {
+          "name": "EFFECT",
+          "from": 0,
+          "default": "PITCH",
+          "uppercase": true,
+          "options": [
+            "PITCH",
+            "PAN"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "100"
+        }
+      ]
+    },
+    "clear_sound_effects": {
+      "opcode": "sound_cleareffects",
+      "syntax": "clear_sound_effects"
+    },
+    "change_volume_by": {
+      "opcode": "sound_changevolumeby",
+      "syntax": "change_volume_by <volume>",
+      "inputs": [
+        {
+          "name": "VOLUME",
+          "type": "number",
+          "from": 0,
+          "default": "-10"
+        }
+      ]
+    },
+    "set_volume_to": {
+      "opcode": "sound_setvolumeto",
+      "syntax": "set_volume_to <volume>",
+      "inputs": [
+        {
+          "name": "VOLUME",
+          "type": "number",
+          "from": 0,
+          "default": "100"
+        }
+      ]
+    },
+    "volume": {
+      "kind": "reporter",
+      "opcode": "sound_volume",
+      "syntax": "@volume()"
+    },
+    "wait": {
+      "opcode": "control_wait",
+      "syntax": "wait <duration>",
+      "inputs": [
+        {
+          "name": "DURATION",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        }
+      ]
+    },
+    "repeat": {
+      "kind": "c",
+      "opcode": "control_repeat",
+      "syntax": "repeat <times>",
+      "stacks": [
+        "SUBSTACK"
+      ],
+      "inputs": [
+        {
+          "name": "TIMES",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        }
+      ]
+    },
+    "forever": {
+      "kind": "c",
+      "opcode": "control_forever",
+      "syntax": "forever",
+      "stacks": [
+        "SUBSTACK"
+      ]
+    },
+    "if": {
+      "kind": "c",
+      "opcode": "control_if",
+      "syntax": "if <condition>",
+      "stacks": [
+        "SUBSTACK"
+      ],
+      "inputs": [
+        {
+          "name": "CONDITION",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        }
+      ]
+    },
+    "if_else": {
+      "kind": "c",
+      "opcode": "control_if_else",
+      "syntax": "if_else <condition>",
+      "stacks": [
+        "SUBSTACK",
+        "SUBSTACK2"
+      ],
+      "inputs": [
+        {
+          "name": "CONDITION",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        }
+      ]
+    },
+    "wait_until": {
+      "opcode": "control_wait_until",
+      "syntax": "wait_until <condition>",
+      "inputs": [
+        {
+          "name": "CONDITION",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        }
+      ]
+    },
+    "repeat_until": {
+      "kind": "c",
+      "opcode": "control_repeat_until",
+      "syntax": "repeat_until <condition>",
+      "stacks": [
+        "SUBSTACK"
+      ],
+      "inputs": [
+        {
+          "name": "CONDITION",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        }
+      ]
+    },
+    "stop": {
+      "opcode": "control_stop",
+      "syntax": "stop <stop_option>",
+      "fields": [
+        {
+          "name": "STOP_OPTION",
+          "from": 0,
+          "default": "all",
+          "options": [
+            "all",
+            "this script",
+            "other scripts in sprite"
+          ]
+        }
+      ]
+    },
+    "when_start_as_clone": {
+      "kind": "hat",
+      "opcode": "control_start_as_clone",
+      "syntax": "when_start_as_clone"
+    },
+    "create_clone_of": {
+      "opcode": "control_create_clone_of",
+      "syntax": "create_clone_of <clone_option>",
+      "inputs": [
+        {
+          "name": "CLONE_OPTION",
+          "type": "menu",
+          "from": 0,
+          "default": "_myself_",
+          "menuOpcode": "control_create_clone_of_menu",
+          "menuField": "CLONE_OPTION"
+        }
+      ]
+    },
+    "delete_this_clone": {
+      "opcode": "control_delete_this_clone",
+      "syntax": "delete_this_clone"
+    },
+    "else": {
+      "kind": "else",
+      "syntax": "else"
+    },
+    "end": {
+      "kind": "end",
+      "syntax": "end"
+    },
+    "touching": {
+      "kind": "boolean",
+      "opcode": "sensing_touchingobject",
+      "syntax": "@touching(touchingobjectmenu)",
+      "inputs": [
+        {
+          "name": "TOUCHINGOBJECTMENU",
+          "type": "menu",
+          "from": 0,
+          "default": "_mouse_",
+          "menuOpcode": "sensing_touchingobjectmenu",
+          "menuField": "TOUCHINGOBJECTMENU"
+        }
+      ]
+    },
+    "touching_color": {
+      "kind": "boolean",
+      "opcode": "sensing_touchingcolor",
+      "syntax": "@touching_color(color)",
+      "inputs": [
+        {
+          "name": "COLOR",
+          "type": "color",
+          "from": 0,
+          "default": "#ff0000"
+        }
+      ]
+    },
+    "color_touching_color": {
+      "kind": "boolean",
+      "opcode": "sensing_coloristouchingcolor",
+      "syntax": "@color_touching_color(color,color2)",
+      "inputs": [
+        {
+          "name": "COLOR",
+          "type": "color",
+          "from": 0,
+          "default": "#ff0000"
+        },
+        {
+          "name": "COLOR2",
+          "type": "color",
+          "from": 1,
+          "default": "#0000ff"
+        }
+      ]
+    },
+    "distance_to": {
+      "kind": "reporter",
+      "opcode": "sensing_distanceto",
+      "syntax": "@distance_to(distancetomenu)",
+      "inputs": [
+        {
+          "name": "DISTANCETOMENU",
+          "type": "menu",
+          "from": 0,
+          "default": "_mouse_",
+          "menuOpcode": "sensing_distancetomenu",
+          "menuField": "DISTANCETOMENU"
+        }
+      ]
+    },
+    "ask_and_wait": {
+      "opcode": "sensing_askandwait",
+      "syntax": "ask_and_wait <question>",
+      "inputs": [
+        {
+          "name": "QUESTION",
+          "type": "text",
+          "from": "rest",
+          "start": 0,
+          "default": "What's your name?"
+        }
+      ]
+    },
+    "answer": {
+      "kind": "reporter",
+      "opcode": "sensing_answer",
+      "syntax": "@answer()"
+    },
+    "key_pressed": {
+      "kind": "boolean",
+      "opcode": "sensing_keypressed",
+      "syntax": "@key_pressed(key_option)",
+      "inputs": [
+        {
+          "name": "KEY_OPTION",
+          "type": "menu",
+          "from": 0,
+          "default": "space",
+          "menuOpcode": "sensing_keyoptions",
+          "menuField": "KEY_OPTION"
+        }
+      ]
+    },
+    "mouse_down": {
+      "kind": "boolean",
+      "opcode": "sensing_mousedown",
+      "syntax": "@mouse_down()"
+    },
+    "mouse_x": {
+      "kind": "reporter",
+      "opcode": "sensing_mousex",
+      "syntax": "@mouse_x()"
+    },
+    "mouse_y": {
+      "kind": "reporter",
+      "opcode": "sensing_mousey",
+      "syntax": "@mouse_y()"
+    },
+    "set_drag_mode": {
+      "opcode": "sensing_setdragmode",
+      "syntax": "set_drag_mode <drag_mode>",
+      "fields": [
+        {
+          "name": "DRAG_MODE",
+          "from": 0,
+          "default": "draggable",
+          "options": [
+            "draggable",
+            "not draggable"
+          ]
+        }
+      ]
+    },
+    "loudness": {
+      "kind": "reporter",
+      "opcode": "sensing_loudness",
+      "syntax": "@loudness()"
+    },
+    "timer": {
+      "kind": "reporter",
+      "opcode": "sensing_timer",
+      "syntax": "@timer()"
+    },
+    "reset_timer": {
+      "opcode": "sensing_resettimer",
+      "syntax": "reset_timer"
+    },
+    "of": {
+      "kind": "reporter",
+      "opcode": "sensing_of",
+      "syntax": "@of(property,object)",
+      "fields": [
+        {
+          "name": "PROPERTY",
+          "from": 0,
+          "default": "x position"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "OBJECT",
+          "type": "menu",
+          "from": 1,
+          "default": "_stage_",
+          "menuOpcode": "sensing_of_object_menu",
+          "menuField": "OBJECT"
+        }
+      ]
+    },
+    "current": {
+      "kind": "reporter",
+      "opcode": "sensing_current",
+      "syntax": "@current(currentmenu)",
+      "fields": [
+        {
+          "name": "CURRENTMENU",
+          "from": 0,
+          "default": "SECOND",
+          "uppercase": true,
+          "options": [
+            "YEAR",
+            "MONTH",
+            "DATE",
+            "DAYOFWEEK",
+            "HOUR",
+            "MINUTE",
+            "SECOND"
+          ]
+        }
+      ]
+    },
+    "days_since_2000": {
+      "kind": "reporter",
+      "opcode": "sensing_dayssince2000",
+      "syntax": "@days_since_2000()"
+    },
+    "username": {
+      "kind": "reporter",
+      "opcode": "sensing_username",
+      "syntax": "@username()"
+    },
+    "add": {
+      "kind": "reporter",
+      "opcode": "operator_add",
+      "syntax": "@add(num1,num2)",
+      "inputs": [
+        {
+          "name": "NUM1",
+          "type": "number",
+          "from": 0,
+          "default": "0"
+        },
+        {
+          "name": "NUM2",
+          "type": "number",
+          "from": 1,
+          "default": "0"
+        }
+      ]
+    },
+    "subtract": {
+      "kind": "reporter",
+      "opcode": "operator_subtract",
+      "syntax": "@subtract(num1,num2)",
+      "inputs": [
+        {
+          "name": "NUM1",
+          "type": "number",
+          "from": 0,
+          "default": "0"
+        },
+        {
+          "name": "NUM2",
+          "type": "number",
+          "from": 1,
+          "default": "0"
+        }
+      ]
+    },
+    "multiply": {
+      "kind": "reporter",
+      "opcode": "operator_multiply",
+      "syntax": "@multiply(num1,num2)",
+      "inputs": [
+        {
+          "name": "NUM1",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "NUM2",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "divide": {
+      "kind": "reporter",
+      "opcode": "operator_divide",
+      "syntax": "@divide(num1,num2)",
+      "inputs": [
+        {
+          "name": "NUM1",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "NUM2",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "random": {
+      "kind": "reporter",
+      "opcode": "operator_random",
+      "syntax": "@random(from,to)",
+      "inputs": [
+        {
+          "name": "FROM",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "TO",
+          "type": "number",
+          "from": 1,
+          "default": "10"
+        }
+      ]
+    },
+    "lt": {
+      "kind": "boolean",
+      "opcode": "operator_lt",
+      "syntax": "@lt(operand1,operand2)",
+      "inputs": [
+        {
+          "name": "OPERAND1",
+          "type": "text",
+          "from": 0,
+          "default": ""
+        },
+        {
+          "name": "OPERAND2",
+          "type": "text",
+          "from": 1,
+          "default": ""
+        }
+      ]
+    },
+    "equals": {
+      "kind": "boolean",
+      "opcode": "operator_equals",
+      "syntax": "@equals(operand1,operand2)",
+      "inputs": [
+        {
+          "name": "OPERAND1",
+          "type": "text",
+          "from": 0,
+          "default": ""
+        },
+        {
+          "name": "OPERAND2",
+          "type": "text",
+          "from": 1,
+          "default": ""
+        }
+      ]
+    },
+    "gt": {
+      "kind": "boolean",
+      "opcode": "operator_gt",
+      "syntax": "@gt(operand1,operand2)",
+      "inputs": [
+        {
+          "name": "OPERAND1",
+          "type": "text",
+          "from": 0,
+          "default": ""
+        },
+        {
+          "name": "OPERAND2",
+          "type": "text",
+          "from": 1,
+          "default": ""
+        }
+      ]
+    },
+    "and": {
+      "kind": "boolean",
+      "opcode": "operator_and",
+      "syntax": "@and(operand1,operand2)",
+      "inputs": [
+        {
+          "name": "OPERAND1",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        },
+        {
+          "name": "OPERAND2",
+          "type": "boolean",
+          "from": 1,
+          "default": "false"
+        }
+      ]
+    },
+    "or": {
+      "kind": "boolean",
+      "opcode": "operator_or",
+      "syntax": "@or(operand1,operand2)",
+      "inputs": [
+        {
+          "name": "OPERAND1",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        },
+        {
+          "name": "OPERAND2",
+          "type": "boolean",
+          "from": 1,
+          "default": "false"
+        }
+      ]
+    },
+    "not": {
+      "kind": "boolean",
+      "opcode": "operator_not",
+      "syntax": "@not(operand)",
+      "inputs": [
+        {
+          "name": "OPERAND",
+          "type": "boolean",
+          "from": 0,
+          "default": "false"
+        }
+      ]
+    },
+    "join": {
+      "kind": "reporter",
+      "opcode": "operator_join",
+      "syntax": "@join(string1,string2)",
+      "inputs": [
+        {
+          "name": "STRING1",
+          "type": "text",
+          "from": 0,
+          "default": "hello "
+        },
+        {
+          "name": "STRING2",
+          "type": "text",
+          "from": 1,
+          "default": "world"
+        }
+      ]
+    },
+    "letter_of": {
+      "kind": "reporter",
+      "opcode": "operator_letter_of",
+      "syntax": "@letter_of(letter,string)",
+      "inputs": [
+        {
+          "name": "LETTER",
+          "type": "integer",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "STRING",
+          "type": "text",
+          "from": 1,
+          "default": "world"
+        }
+      ]
+    },
+    "length_of": {
+      "kind": "reporter",
+      "opcode": "operator_length",
+      "syntax": "@length_of(string)",
+      "inputs": [
+        {
+          "name": "STRING",
+          "type": "text",
+          "from": 0,
+          "default": "world"
+        }
+      ]
+    },
+    "contains": {
+      "kind": "boolean",
+      "opcode": "operator_contains",
+      "syntax": "@contains(string1,string2)",
+      "inputs": [
+        {
+          "name": "STRING1",
+          "type": "text",
+          "from": 0,
+          "default": "apple"
+        },
+        {
+          "name": "STRING2",
+          "type": "text",
+          "from": 1,
+          "default": "a"
+        }
+      ]
+    },
+    "mod": {
+      "kind": "reporter",
+      "opcode": "operator_mod",
+      "syntax": "@mod(num1,num2)",
+      "inputs": [
+        {
+          "name": "NUM1",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        },
+        {
+          "name": "NUM2",
+          "type": "number",
+          "from": 1,
+          "default": "3"
+        }
+      ]
+    },
+    "round": {
+      "kind": "reporter",
+      "opcode": "operator_round",
+      "syntax": "@round(num)",
+      "inputs": [
+        {
+          "name": "NUM",
+          "type": "number",
+          "from": 0,
+          "default": "3.14"
+        }
+      ]
+    },
+    "mathop": {
+      "kind": "reporter",
+      "opcode": "operator_mathop",
+      "syntax": "@mathop(operator,num)",
+      "fields": [
+        {
+          "name": "OPERATOR",
+          "from": 0,
+          "default": "sqrt"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "NUM",
+          "type": "number",
+          "from": 1,
+          "default": "9"
+        }
+      ]
+    },
+    "set_var": {
+      "opcode": "data_setvariableto",
+      "syntax": "set_var <variable> <value>",
+      "fields": [
+        {
+          "name": "VARIABLE",
+          "from": 0,
+          "default": "my variable",
+          "registry": "variables"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "text",
+          "from": "rest",
+          "start": 1,
+          "default": "0"
+        }
+      ]
+    },
+    "change_var": {
+      "opcode": "data_changevariableby",
+      "syntax": "change_var <variable> <value>",
+      "fields": [
+        {
+          "name": "VARIABLE",
+          "from": 0,
+          "default": "my variable",
+          "registry": "variables"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "show_var": {
+      "opcode": "data_showvariable",
+      "syntax": "show_var <variable>",
+      "fields": [
+        {
+          "name": "VARIABLE",
+          "from": 0,
+          "default": "my variable",
+          "registry": "variables"
+        }
+      ]
+    },
+    "hide_var": {
+      "opcode": "data_hidevariable",
+      "syntax": "hide_var <variable>",
+      "fields": [
+        {
+          "name": "VARIABLE",
+          "from": 0,
+          "default": "my variable",
+          "registry": "variables"
+        }
+      ]
+    },
+    "var": {
+      "kind": "reporter",
+      "opcode": "data_variable",
+      "syntax": "@var(variable)",
+      "fields": [
+        {
+          "name": "VARIABLE",
+          "from": 0,
+          "default": "my variable",
+          "registry": "variables"
+        }
+      ]
+    },
+    "add_to_list": {
+      "opcode": "data_addtolist",
+      "syntax": "add_to_list <item> <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 1,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "ITEM",
+          "type": "text",
+          "from": 0,
+          "default": "thing"
+        }
+      ]
+    },
+    "delete_of_list": {
+      "opcode": "data_deleteoflist",
+      "syntax": "delete_of_list <index> <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 1,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "INDEX",
+          "type": "integer",
+          "from": 0,
+          "default": "1"
+        }
+      ]
+    },
+    "delete_all_of_list": {
+      "opcode": "data_deletealloflist",
+      "syntax": "delete_all_of_list <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 0,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ]
+    },
+    "insert_at_list": {
+      "opcode": "data_insertatlist",
+      "syntax": "insert_at_list <item> <index> <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 2,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "ITEM",
+          "type": "text",
+          "from": 0,
+          "default": "thing"
+        },
+        {
+          "name": "INDEX",
+          "type": "integer",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "replace_in_list": {
+      "opcode": "data_replaceitemoflist",
+      "syntax": "replace_in_list <index> <item> <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 2,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "INDEX",
+          "type": "integer",
+          "from": 0,
+          "default": "1"
+        },
+        {
+          "name": "ITEM",
+          "type": "text",
+          "from": 1,
+          "default": "thing"
+        }
+      ]
+    },
+    "item_of_list": {
+      "kind": "reporter",
+      "opcode": "data_itemoflist",
+      "syntax": "@item_of_list(index,list)",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 1,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "INDEX",
+          "type": "integer",
+          "from": 0,
+          "default": "1"
+        }
+      ]
+    },
+    "item_num_of_list": {
+      "kind": "reporter",
+      "opcode": "data_itemnumoflist",
+      "syntax": "@item_num_of_list(item,list)",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 1,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "ITEM",
+          "type": "text",
+          "from": 0,
+          "default": "thing"
+        }
+      ]
+    },
+    "length_of_list": {
+      "kind": "reporter",
+      "opcode": "data_lengthoflist",
+      "syntax": "@length_of_list(list)",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 0,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ]
+    },
+    "list_contains": {
+      "kind": "boolean",
+      "opcode": "data_listcontainsitem",
+      "syntax": "@list_contains(item,list)",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 1,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ],
+      "inputs": [
+        {
+          "name": "ITEM",
+          "type": "text",
+          "from": 0,
+          "default": "thing"
+        }
+      ]
+    },
+    "show_list": {
+      "opcode": "data_showlist",
+      "syntax": "show_list <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 0,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ]
+    },
+    "hide_list": {
+      "opcode": "data_hidelist",
+      "syntax": "hide_list <list>",
+      "fields": [
+        {
+          "name": "LIST",
+          "from": 0,
+          "default": "my list",
+          "registry": "lists"
+        }
+      ]
+    },
+    "define": {
+      "kind": "define",
+      "syntax": "define"
+    },
+    "call": {
+      "kind": "call",
+      "opcode": "procedures_call",
+      "syntax": "call"
+    },
+    "arg": {
+      "kind": "reporter",
+      "opcode": "argument_reporter_string_number",
+      "syntax": "@arg(name)",
+      "fields": [
+        {
+          "name": "VALUE",
+          "from": 0,
+          "default": "input"
+        }
+      ]
+    },
+    "arg_bool": {
+      "kind": "boolean",
+      "opcode": "argument_reporter_boolean",
+      "syntax": "@arg_bool(name)",
+      "fields": [
+        {
+          "name": "VALUE",
+          "from": 0,
+          "default": "input"
+        }
+      ]
+    },
+    "pen_clear": {
+      "opcode": "pen_clear",
+      "syntax": "pen_clear",
+      "extension": "pen"
+    },
+    "stamp": {
+      "opcode": "pen_stamp",
+      "syntax": "stamp",
+      "extension": "pen"
+    },
+    "pen_down": {
+      "opcode": "pen_penDown",
+      "syntax": "pen_down",
+      "extension": "pen"
+    },
+    "pen_up": {
+      "opcode": "pen_penUp",
+      "syntax": "pen_up",
+      "extension": "pen"
+    },
+    "set_pen_color": {
+      "opcode": "pen_setPenColorToColor",
+      "syntax": "set_pen_color <color>",
+      "extension": "pen",
+      "inputs": [
+        {
+          "name": "COLOR",
+          "type": "color",
+          "from": 0,
+          "default": "#ff0000"
+        }
+      ]
+    },
+    "change_pen_color_param": {
+      "opcode": "pen_changePenColorParamBy",
+      "syntax": "change_pen_color_param <color_param> <value>",
+      "extension": "pen",
+      "fields": [
+        {
+          "name": "COLOR_PARAM",
+          "from": 0,
+          "default": "color",
+          "options": [
+            "color",
+            "saturation",
+            "brightness",
+            "transparency"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "10"
+        }
+      ]
+    },
+    "set_pen_color_param": {
+      "opcode": "pen_setPenColorParamTo",
+      "syntax": "set_pen_color_param <color_param> <value>",
+      "extension": "pen",
+      "fields": [
+        {
+          "name": "COLOR_PARAM",
+          "from": 0,
+          "default": "color",
+          "options": [
+            "color",
+            "saturation",
+            "brightness",
+            "transparency"
+          ]
+        }
+      ],
+      "inputs": [
+        {
+          "name": "VALUE",
+          "type": "number",
+          "from": 1,
+          "default": "50"
+        }
+      ]
+    },
+    "change_pen_size": {
+      "opcode": "pen_changePenSizeBy",
+      "syntax": "change_pen_size <size>",
+      "extension": "pen",
+      "inputs": [
+        {
+          "name": "SIZE",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        }
+      ]
+    },
+    "set_pen_size": {
+      "opcode": "pen_setPenSizeTo",
+      "syntax": "set_pen_size <size>",
+      "extension": "pen",
+      "inputs": [
+        {
+          "name": "SIZE",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        }
+      ]
+    },
+    "music_play_drum_for_beats": {
+      "kind": "stack",
+      "opcode": "music_playDrumForBeats",
+      "extension": "music",
+      "syntax": "music_play_drum_for_beats <drum> <beats>",
+      "description": "music playDrumForBeats block.",
+      "inputs": [
+        {
+          "name": "DRUM",
+          "type": "menu",
+          "from": 0,
+          "default": "1",
+          "menuOpcode": "music_menu_DRUM",
+          "menuField": "DRUM",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18"
+          ]
+        },
+        {
+          "name": "BEATS",
+          "type": "number",
+          "from": 1,
+          "default": "0.25"
+        }
+      ]
+    },
+    "music_midi_play_drum_for_beats": {
+      "kind": "stack",
+      "opcode": "music_midiPlayDrumForBeats",
+      "extension": "music",
+      "syntax": "music_midi_play_drum_for_beats <drum> <beats>",
+      "description": "music midiPlayDrumForBeats block.",
+      "hidden": true,
+      "inputs": [
+        {
+          "name": "DRUM",
+          "type": "menu",
+          "from": 0,
+          "default": "1",
+          "menuOpcode": "music_menu_DRUM",
+          "menuField": "DRUM",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18"
+          ]
+        },
+        {
+          "name": "BEATS",
+          "type": "number",
+          "from": 1,
+          "default": "0.25"
+        }
+      ]
+    },
+    "music_rest_for_beats": {
+      "kind": "stack",
+      "opcode": "music_restForBeats",
+      "extension": "music",
+      "syntax": "music_rest_for_beats <beats>",
+      "description": "music restForBeats block.",
+      "inputs": [
+        {
+          "name": "BEATS",
+          "type": "number",
+          "from": 0,
+          "default": "0.25"
+        }
+      ]
+    },
+    "music_play_note_for_beats": {
+      "kind": "stack",
+      "opcode": "music_playNoteForBeats",
+      "extension": "music",
+      "syntax": "music_play_note_for_beats <note> <beats>",
+      "description": "music playNoteForBeats block.",
+      "inputs": [
+        {
+          "name": "NOTE",
+          "type": "number",
+          "from": 0,
+          "default": "60"
+        },
+        {
+          "name": "BEATS",
+          "type": "number",
+          "from": 1,
+          "default": "0.25"
+        }
+      ]
+    },
+    "music_set_instrument": {
+      "kind": "stack",
+      "opcode": "music_setInstrument",
+      "extension": "music",
+      "syntax": "music_set_instrument <instrument>",
+      "description": "music setInstrument block.",
+      "inputs": [
+        {
+          "name": "INSTRUMENT",
+          "type": "menu",
+          "from": 0,
+          "default": "1",
+          "menuOpcode": "music_menu_INSTRUMENT",
+          "menuField": "INSTRUMENT",
+          "options": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+            "19",
+            "20",
+            "21"
+          ]
+        }
+      ]
+    },
+    "music_midi_set_instrument": {
+      "kind": "stack",
+      "opcode": "music_midiSetInstrument",
+      "extension": "music",
+      "syntax": "music_midi_set_instrument <instrument>",
+      "description": "music midiSetInstrument block.",
+      "hidden": true,
+      "inputs": [
+        {
+          "name": "INSTRUMENT",
+          "type": "number",
+          "from": 0,
+          "default": "1"
+        }
+      ]
+    },
+    "music_set_tempo": {
+      "kind": "stack",
+      "opcode": "music_setTempo",
+      "extension": "music",
+      "syntax": "music_set_tempo <tempo>",
+      "description": "music setTempo block.",
+      "inputs": [
+        {
+          "name": "TEMPO",
+          "type": "number",
+          "from": 0,
+          "default": "60"
+        }
+      ]
+    },
+    "music_change_tempo": {
+      "kind": "stack",
+      "opcode": "music_changeTempo",
+      "extension": "music",
+      "syntax": "music_change_tempo <tempo>",
+      "description": "music changeTempo block.",
+      "inputs": [
+        {
+          "name": "TEMPO",
+          "type": "number",
+          "from": 0,
+          "default": "20"
+        }
+      ]
+    },
+    "music_get_tempo": {
+      "kind": "reporter",
+      "opcode": "music_getTempo",
+      "extension": "music",
+      "syntax": "@music_get_tempo()",
+      "description": "music getTempo block."
+    },
+    "videosensing_when_motion_greater_than": {
+      "kind": "hat",
+      "opcode": "videoSensing_whenMotionGreaterThan",
+      "extension": "videoSensing",
+      "syntax": "videosensing_when_motion_greater_than <reference>",
+      "description": "videoSensing whenMotionGreaterThan block.",
+      "inputs": [
+        {
+          "name": "REFERENCE",
+          "type": "number",
+          "from": 0,
+          "default": "10"
+        }
+      ]
+    },
+    "videosensing_video_on": {
+      "kind": "reporter",
+      "opcode": "videoSensing_videoOn",
+      "extension": "videoSensing",
+      "syntax": "@videosensing_video_on(attribute,subject)",
+      "description": "videoSensing videoOn block.",
+      "inputs": [
+        {
+          "name": "ATTRIBUTE",
+          "type": "menu",
+          "from": 0,
+          "default": "motion",
+          "menuOpcode": "videoSensing_menu_ATTRIBUTE",
+          "menuField": "ATTRIBUTE",
+          "options": [
+            "motion",
+            "direction"
+          ]
+        },
+        {
+          "name": "SUBJECT",
+          "type": "menu",
+          "from": 1,
+          "default": "this sprite",
+          "menuOpcode": "videoSensing_menu_SUBJECT",
+          "menuField": "SUBJECT",
+          "options": [
+            "this sprite",
+            "Stage"
+          ]
+        }
+      ]
+    },
+    "videosensing_video_toggle": {
+      "kind": "stack",
+      "opcode": "videoSensing_videoToggle",
+      "extension": "videoSensing",
+      "syntax": "videosensing_video_toggle <video_state>",
+      "description": "videoSensing videoToggle block.",
+      "inputs": [
+        {
+          "name": "VIDEO_STATE",
+          "type": "menu",
+          "from": 0,
+          "default": "on",
+          "menuOpcode": "videoSensing_menu_VIDEO_STATE",
+          "menuField": "VIDEO_STATE",
+          "options": [
+            "on",
+            "off",
+            "on-flipped"
+          ]
+        }
+      ]
+    },
+    "videosensing_set_video_transparency": {
+      "kind": "stack",
+      "opcode": "videoSensing_setVideoTransparency",
+      "extension": "videoSensing",
+      "syntax": "videosensing_set_video_transparency <transparency>",
+      "description": "videoSensing setVideoTransparency block.",
+      "inputs": [
+        {
+          "name": "TRANSPARENCY",
+          "type": "number",
+          "from": 0,
+          "default": "50"
+        }
+      ]
+    },
+    "text2speech_speak_and_wait": {
+      "kind": "stack",
+      "opcode": "text2speech_speakAndWait",
+      "extension": "text2speech",
+      "syntax": "text2speech_speak_and_wait <words>",
+      "description": "text2speech speakAndWait block.",
+      "inputs": [
+        {
+          "name": "WORDS",
+          "type": "text",
+          "from": "rest",
+          "start": 0,
+          "default": "defaultTextToSpeak"
+        }
+      ]
+    },
+    "text2speech_set_voice": {
+      "kind": "stack",
+      "opcode": "text2speech_setVoice",
+      "extension": "text2speech",
+      "syntax": "text2speech_set_voice <voice>",
+      "description": "text2speech setVoice block.",
+      "inputs": [
+        {
+          "name": "VOICE",
+          "type": "menu",
+          "from": 0,
+          "default": "ALTO",
+          "menuOpcode": "text2speech_menu_voices",
+          "menuField": "VOICE",
+          "options": [
+            "ALTO",
+            "TENOR",
+            "SQUEAK",
+            "GIANT",
+            "KITTEN"
+          ]
+        }
+      ]
+    },
+    "text2speech_set_language": {
+      "kind": "stack",
+      "opcode": "text2speech_setLanguage",
+      "extension": "text2speech",
+      "syntax": "text2speech_set_language <language>",
+      "description": "text2speech setLanguage block.",
+      "inputs": [
+        {
+          "name": "LANGUAGE",
+          "type": "menu",
+          "from": 0,
+          "default": "en",
+          "menuOpcode": "text2speech_menu_languages",
+          "menuField": "LANGUAGE"
+        }
+      ]
+    },
+    "translate_get_translate": {
+      "kind": "reporter",
+      "opcode": "translate_getTranslate",
+      "extension": "translate",
+      "syntax": "@translate_get_translate(words,language)",
+      "description": "translate getTranslate block.",
+      "inputs": [
+        {
+          "name": "WORDS",
+          "type": "text",
+          "from": 0,
+          "default": "formatMessage"
+        },
+        {
+          "name": "LANGUAGE",
+          "type": "menu",
+          "from": 1,
+          "default": "es",
+          "menuOpcode": "translate_menu_languages",
+          "menuField": "LANGUAGE"
+        }
+      ]
+    },
+    "translate_get_viewer_language": {
+      "kind": "reporter",
+      "opcode": "translate_getViewerLanguage",
+      "extension": "translate",
+      "syntax": "@translate_get_viewer_language()",
+      "description": "translate getViewerLanguage block."
+    },
+    "makeymakey_when_makey_key_pressed": {
+      "kind": "hat",
+      "opcode": "makeymakey_whenMakeyKeyPressed",
+      "extension": "makeymakey",
+      "syntax": "makeymakey_when_makey_key_pressed <key>",
+      "description": "makeymakey whenMakeyKeyPressed block.",
+      "inputs": [
+        {
+          "name": "KEY",
+          "type": "menu",
+          "from": 0,
+          "default": "SPACE",
+          "menuOpcode": "makeymakey_menu_KEY",
+          "menuField": "KEY",
+          "options": [
+            "SPACE",
+            "UP",
+            "DOWN",
+            "LEFT",
+            "RIGHT",
+            "W",
+            "A",
+            "S",
+            "D",
+            "F",
+            "G"
+          ]
+        }
+      ]
+    },
+    "makeymakey_when_code_pressed": {
+      "kind": "hat",
+      "opcode": "makeymakey_whenCodePressed",
+      "extension": "makeymakey",
+      "syntax": "makeymakey_when_code_pressed <sequence>",
+      "description": "makeymakey whenCodePressed block.",
+      "inputs": [
+        {
+          "name": "SEQUENCE",
+          "type": "menu",
+          "from": 0,
+          "default": "LEFT UP RIGHT",
+          "menuOpcode": "makeymakey_menu_SEQUENCE",
+          "menuField": "SEQUENCE"
+        }
+      ]
+    },
+    "microbit_when_button_pressed": {
+      "kind": "hat",
+      "opcode": "microbit_whenButtonPressed",
+      "extension": "microbit",
+      "syntax": "microbit_when_button_pressed <btn>",
+      "description": "microbit whenButtonPressed block.",
+      "inputs": [
+        {
+          "name": "BTN",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "microbit_menu_buttons",
+          "menuField": "BTN",
+          "options": [
+            "A",
+            "B",
+            "any"
+          ]
+        }
+      ]
+    },
+    "microbit_is_button_pressed": {
+      "kind": "boolean",
+      "opcode": "microbit_isButtonPressed",
+      "extension": "microbit",
+      "syntax": "@microbit_is_button_pressed(btn)",
+      "description": "microbit isButtonPressed block.",
+      "inputs": [
+        {
+          "name": "BTN",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "microbit_menu_buttons",
+          "menuField": "BTN",
+          "options": [
+            "A",
+            "B",
+            "any"
+          ]
+        }
+      ]
+    },
+    "microbit_when_gesture": {
+      "kind": "hat",
+      "opcode": "microbit_whenGesture",
+      "extension": "microbit",
+      "syntax": "microbit_when_gesture <gesture>",
+      "description": "microbit whenGesture block.",
+      "inputs": [
+        {
+          "name": "GESTURE",
+          "type": "menu",
+          "from": 0,
+          "default": "moved",
+          "menuOpcode": "microbit_menu_gestures",
+          "menuField": "GESTURE"
+        }
+      ]
+    },
+    "microbit_display_symbol": {
+      "kind": "stack",
+      "opcode": "microbit_displaySymbol",
+      "extension": "microbit",
+      "syntax": "microbit_display_symbol <matrix>",
+      "description": "microbit displaySymbol block.",
+      "inputs": [
+        {
+          "name": "MATRIX",
+          "type": "text",
+          "from": "rest",
+          "start": 0,
+          "default": "0101010101100010101000100"
+        }
+      ]
+    },
+    "microbit_display_text": {
+      "kind": "stack",
+      "opcode": "microbit_displayText",
+      "extension": "microbit",
+      "syntax": "microbit_display_text <text>",
+      "description": "microbit displayText block.",
+      "inputs": [
+        {
+          "name": "TEXT",
+          "type": "text",
+          "from": "rest",
+          "start": 0,
+          "default": "formatMessage"
+        }
+      ]
+    },
+    "microbit_display_clear": {
+      "kind": "stack",
+      "opcode": "microbit_displayClear",
+      "extension": "microbit",
+      "syntax": "microbit_display_clear",
+      "description": "microbit displayClear block."
+    },
+    "microbit_when_tilted": {
+      "kind": "hat",
+      "opcode": "microbit_whenTilted",
+      "extension": "microbit",
+      "syntax": "microbit_when_tilted <direction>",
+      "description": "microbit whenTilted block.",
+      "inputs": [
+        {
+          "name": "DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "microbit_menu_tiltDirectionAny",
+          "menuField": "DIRECTION",
+          "options": [
+            "front",
+            "back",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "microbit_is_tilted": {
+      "kind": "boolean",
+      "opcode": "microbit_isTilted",
+      "extension": "microbit",
+      "syntax": "@microbit_is_tilted(direction)",
+      "description": "microbit isTilted block.",
+      "inputs": [
+        {
+          "name": "DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "microbit_menu_tiltDirectionAny",
+          "menuField": "DIRECTION",
+          "options": [
+            "front",
+            "back",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "microbit_get_tilt_angle": {
+      "kind": "reporter",
+      "opcode": "microbit_getTiltAngle",
+      "extension": "microbit",
+      "syntax": "@microbit_get_tilt_angle(direction)",
+      "description": "microbit getTiltAngle block.",
+      "inputs": [
+        {
+          "name": "DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "front",
+          "menuOpcode": "microbit_menu_tiltDirection",
+          "menuField": "DIRECTION",
+          "options": [
+            "front",
+            "back",
+            "left",
+            "right"
+          ]
+        }
+      ]
+    },
+    "microbit_when_pin_connected": {
+      "kind": "hat",
+      "opcode": "microbit_whenPinConnected",
+      "extension": "microbit",
+      "syntax": "microbit_when_pin_connected <pin>",
+      "description": "microbit whenPinConnected block.",
+      "inputs": [
+        {
+          "name": "PIN",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "microbit_menu_touchPins",
+          "menuField": "PIN",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "logo"
+          ]
+        }
+      ]
+    },
+    "boost_motor_on_for": {
+      "kind": "stack",
+      "opcode": "boost_motorOnFor",
+      "extension": "boost",
+      "syntax": "boost_motor_on_for <motor_id> <duration>",
+      "description": "boost motorOnFor block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "ABCD"
+          ]
+        },
+        {
+          "name": "DURATION",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "boost_motor_on_for_rotation": {
+      "kind": "stack",
+      "opcode": "boost_motorOnForRotation",
+      "extension": "boost",
+      "syntax": "boost_motor_on_for_rotation <motor_id> <rotation>",
+      "description": "boost motorOnForRotation block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "ABCD"
+          ]
+        },
+        {
+          "name": "ROTATION",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "boost_motor_on": {
+      "kind": "stack",
+      "opcode": "boost_motorOn",
+      "extension": "boost",
+      "syntax": "boost_motor_on <motor_id>",
+      "description": "boost motorOn block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "ABCD"
+          ]
+        }
+      ]
+    },
+    "boost_motor_off": {
+      "kind": "stack",
+      "opcode": "boost_motorOff",
+      "extension": "boost",
+      "syntax": "boost_motor_off <motor_id>",
+      "description": "boost motorOff block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "ABCD"
+          ]
+        }
+      ]
+    },
+    "boost_set_motor_power": {
+      "kind": "stack",
+      "opcode": "boost_setMotorPower",
+      "extension": "boost",
+      "syntax": "boost_set_motor_power <motor_id> <power>",
+      "description": "boost setMotorPower block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "ABCD"
+          ]
+        },
+        {
+          "name": "POWER",
+          "type": "number",
+          "from": 1,
+          "default": "100"
+        }
+      ]
+    },
+    "boost_set_motor_direction": {
+      "kind": "stack",
+      "opcode": "boost_setMotorDirection",
+      "extension": "boost",
+      "syntax": "boost_set_motor_direction <motor_id> <motor_direction>",
+      "description": "boost setMotorDirection block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "ABCD"
+          ]
+        },
+        {
+          "name": "MOTOR_DIRECTION",
+          "type": "menu",
+          "from": 1,
+          "default": "this way",
+          "menuOpcode": "boost_menu_MOTOR_DIRECTION",
+          "menuField": "MOTOR_DIRECTION",
+          "options": [
+            "this way",
+            "that way",
+            "reverse"
+          ]
+        }
+      ]
+    },
+    "boost_get_motor_position": {
+      "kind": "reporter",
+      "opcode": "boost_getMotorPosition",
+      "extension": "boost",
+      "syntax": "@boost_get_motor_position(motor_reporter_id)",
+      "description": "boost getMotorPosition block.",
+      "inputs": [
+        {
+          "name": "MOTOR_REPORTER_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "A",
+          "menuOpcode": "boost_menu_MOTOR_REPORTER_ID",
+          "menuField": "MOTOR_REPORTER_ID",
+          "options": [
+            "A",
+            "B",
+            "C",
+            "D"
+          ]
+        }
+      ]
+    },
+    "boost_when_color": {
+      "kind": "hat",
+      "opcode": "boost_whenColor",
+      "extension": "boost",
+      "syntax": "boost_when_color <color>",
+      "description": "boost whenColor block.",
+      "inputs": [
+        {
+          "name": "COLOR",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "boost_menu_COLOR",
+          "menuField": "COLOR",
+          "options": [
+            "any",
+            "red",
+            "blue",
+            "green",
+            "yellow",
+            "white",
+            "black"
+          ]
+        }
+      ]
+    },
+    "boost_seeing_color": {
+      "kind": "boolean",
+      "opcode": "boost_seeingColor",
+      "extension": "boost",
+      "syntax": "@boost_seeing_color(color)",
+      "description": "boost seeingColor block.",
+      "inputs": [
+        {
+          "name": "COLOR",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "boost_menu_COLOR",
+          "menuField": "COLOR",
+          "options": [
+            "any",
+            "red",
+            "blue",
+            "green",
+            "yellow",
+            "white",
+            "black"
+          ]
+        }
+      ]
+    },
+    "boost_when_tilted": {
+      "kind": "hat",
+      "opcode": "boost_whenTilted",
+      "extension": "boost",
+      "syntax": "boost_when_tilted <tilt_direction_any>",
+      "description": "boost whenTilted block.",
+      "inputs": [
+        {
+          "name": "TILT_DIRECTION_ANY",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "boost_menu_TILT_DIRECTION_ANY",
+          "menuField": "TILT_DIRECTION_ANY",
+          "options": [
+            "up",
+            "down",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "boost_get_tilt_angle": {
+      "kind": "reporter",
+      "opcode": "boost_getTiltAngle",
+      "extension": "boost",
+      "syntax": "@boost_get_tilt_angle(tilt_direction)",
+      "description": "boost getTiltAngle block.",
+      "inputs": [
+        {
+          "name": "TILT_DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "up",
+          "menuOpcode": "boost_menu_TILT_DIRECTION",
+          "menuField": "TILT_DIRECTION",
+          "options": [
+            "up",
+            "down",
+            "left",
+            "right"
+          ]
+        }
+      ]
+    },
+    "boost_set_light_hue": {
+      "kind": "stack",
+      "opcode": "boost_setLightHue",
+      "extension": "boost",
+      "syntax": "boost_set_light_hue <hue>",
+      "description": "boost setLightHue block.",
+      "inputs": [
+        {
+          "name": "HUE",
+          "type": "number",
+          "from": 0,
+          "default": "50"
+        }
+      ]
+    },
+    "ev3_motor_turn_clockwise": {
+      "kind": "stack",
+      "opcode": "ev3_motorTurnClockwise",
+      "extension": "ev3",
+      "syntax": "ev3_motor_turn_clockwise <port> <time>",
+      "description": "ev3 motorTurnClockwise block.",
+      "inputs": [
+        {
+          "name": "PORT",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "ev3_menu_motorPorts",
+          "menuField": "PORT",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        {
+          "name": "TIME",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "ev3_motor_turn_counter_clockwise": {
+      "kind": "stack",
+      "opcode": "ev3_motorTurnCounterClockwise",
+      "extension": "ev3",
+      "syntax": "ev3_motor_turn_counter_clockwise <port> <time>",
+      "description": "ev3 motorTurnCounterClockwise block.",
+      "inputs": [
+        {
+          "name": "PORT",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "ev3_menu_motorPorts",
+          "menuField": "PORT",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        {
+          "name": "TIME",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "ev3_motor_set_power": {
+      "kind": "stack",
+      "opcode": "ev3_motorSetPower",
+      "extension": "ev3",
+      "syntax": "ev3_motor_set_power <port> <power>",
+      "description": "ev3 motorSetPower block.",
+      "inputs": [
+        {
+          "name": "PORT",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "ev3_menu_motorPorts",
+          "menuField": "PORT",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        {
+          "name": "POWER",
+          "type": "number",
+          "from": 1,
+          "default": "100"
+        }
+      ]
+    },
+    "ev3_get_motor_position": {
+      "kind": "reporter",
+      "opcode": "ev3_getMotorPosition",
+      "extension": "ev3",
+      "syntax": "@ev3_get_motor_position(port)",
+      "description": "ev3 getMotorPosition block.",
+      "inputs": [
+        {
+          "name": "PORT",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "ev3_menu_motorPorts",
+          "menuField": "PORT",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        }
+      ]
+    },
+    "ev3_when_button_pressed": {
+      "kind": "hat",
+      "opcode": "ev3_whenButtonPressed",
+      "extension": "ev3",
+      "syntax": "ev3_when_button_pressed <port>",
+      "description": "ev3 whenButtonPressed block.",
+      "inputs": [
+        {
+          "name": "PORT",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "ev3_menu_sensorPorts",
+          "menuField": "PORT",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        }
+      ]
+    },
+    "ev3_when_distance_less_than": {
+      "kind": "hat",
+      "opcode": "ev3_whenDistanceLessThan",
+      "extension": "ev3",
+      "syntax": "ev3_when_distance_less_than <distance>",
+      "description": "ev3 whenDistanceLessThan block.",
+      "inputs": [
+        {
+          "name": "DISTANCE",
+          "type": "number",
+          "from": 0,
+          "default": "5"
+        }
+      ]
+    },
+    "ev3_when_brightness_less_than": {
+      "kind": "hat",
+      "opcode": "ev3_whenBrightnessLessThan",
+      "extension": "ev3",
+      "syntax": "ev3_when_brightness_less_than <distance>",
+      "description": "ev3 whenBrightnessLessThan block.",
+      "inputs": [
+        {
+          "name": "DISTANCE",
+          "type": "number",
+          "from": 0,
+          "default": "50"
+        }
+      ]
+    },
+    "ev3_button_pressed": {
+      "kind": "boolean",
+      "opcode": "ev3_buttonPressed",
+      "extension": "ev3",
+      "syntax": "@ev3_button_pressed(port)",
+      "description": "ev3 buttonPressed block.",
+      "inputs": [
+        {
+          "name": "PORT",
+          "type": "menu",
+          "from": 0,
+          "default": "0",
+          "menuOpcode": "ev3_menu_sensorPorts",
+          "menuField": "PORT",
+          "options": [
+            "0",
+            "1",
+            "2",
+            "3"
+          ]
+        }
+      ]
+    },
+    "ev3_get_distance": {
+      "kind": "reporter",
+      "opcode": "ev3_getDistance",
+      "extension": "ev3",
+      "syntax": "@ev3_get_distance()",
+      "description": "ev3 getDistance block."
+    },
+    "ev3_get_brightness": {
+      "kind": "reporter",
+      "opcode": "ev3_getBrightness",
+      "extension": "ev3",
+      "syntax": "@ev3_get_brightness()",
+      "description": "ev3 getBrightness block."
+    },
+    "ev3_beep": {
+      "kind": "stack",
+      "opcode": "ev3_beep",
+      "extension": "ev3",
+      "syntax": "ev3_beep <note> <time>",
+      "description": "ev3 beep block.",
+      "inputs": [
+        {
+          "name": "NOTE",
+          "type": "number",
+          "from": 0,
+          "default": "60"
+        },
+        {
+          "name": "TIME",
+          "type": "number",
+          "from": 1,
+          "default": "0.5"
+        }
+      ]
+    },
+    "wedo2_motor_on_for": {
+      "kind": "stack",
+      "opcode": "wedo2_motorOnFor",
+      "extension": "wedo2",
+      "syntax": "wedo2_motor_on_for <motor_id> <duration>",
+      "description": "wedo2 motorOnFor block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "motor",
+          "menuOpcode": "wedo2_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID"
+        },
+        {
+          "name": "DURATION",
+          "type": "number",
+          "from": 1,
+          "default": "1"
+        }
+      ]
+    },
+    "wedo2_motor_on": {
+      "kind": "stack",
+      "opcode": "wedo2_motorOn",
+      "extension": "wedo2",
+      "syntax": "wedo2_motor_on <motor_id>",
+      "description": "wedo2 motorOn block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "motor",
+          "menuOpcode": "wedo2_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID"
+        }
+      ]
+    },
+    "wedo2_motor_off": {
+      "kind": "stack",
+      "opcode": "wedo2_motorOff",
+      "extension": "wedo2",
+      "syntax": "wedo2_motor_off <motor_id>",
+      "description": "wedo2 motorOff block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "motor",
+          "menuOpcode": "wedo2_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID"
+        }
+      ]
+    },
+    "wedo2_start_motor_power": {
+      "kind": "stack",
+      "opcode": "wedo2_startMotorPower",
+      "extension": "wedo2",
+      "syntax": "wedo2_start_motor_power <motor_id> <power>",
+      "description": "wedo2 startMotorPower block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "motor",
+          "menuOpcode": "wedo2_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID"
+        },
+        {
+          "name": "POWER",
+          "type": "number",
+          "from": 1,
+          "default": "100"
+        }
+      ]
+    },
+    "wedo2_set_motor_direction": {
+      "kind": "stack",
+      "opcode": "wedo2_setMotorDirection",
+      "extension": "wedo2",
+      "syntax": "wedo2_set_motor_direction <motor_id> <motor_direction>",
+      "description": "wedo2 setMotorDirection block.",
+      "inputs": [
+        {
+          "name": "MOTOR_ID",
+          "type": "menu",
+          "from": 0,
+          "default": "motor",
+          "menuOpcode": "wedo2_menu_MOTOR_ID",
+          "menuField": "MOTOR_ID"
+        },
+        {
+          "name": "MOTOR_DIRECTION",
+          "type": "menu",
+          "from": 1,
+          "default": "this way",
+          "menuOpcode": "wedo2_menu_MOTOR_DIRECTION",
+          "menuField": "MOTOR_DIRECTION",
+          "options": [
+            "this way",
+            "that way",
+            "reverse"
+          ]
+        }
+      ]
+    },
+    "wedo2_set_light_hue": {
+      "kind": "stack",
+      "opcode": "wedo2_setLightHue",
+      "extension": "wedo2",
+      "syntax": "wedo2_set_light_hue <hue>",
+      "description": "wedo2 setLightHue block.",
+      "inputs": [
+        {
+          "name": "HUE",
+          "type": "number",
+          "from": 0,
+          "default": "50"
+        }
+      ]
+    },
+    "wedo2_play_note_for": {
+      "kind": "stack",
+      "opcode": "wedo2_playNoteFor",
+      "extension": "wedo2",
+      "syntax": "wedo2_play_note_for <note> <duration>",
+      "description": "wedo2 playNoteFor block.",
+      "hidden": true,
+      "inputs": [
+        {
+          "name": "NOTE",
+          "type": "number",
+          "from": 0,
+          "default": "60"
+        },
+        {
+          "name": "DURATION",
+          "type": "number",
+          "from": 1,
+          "default": "0.5"
+        }
+      ]
+    },
+    "wedo2_when_distance": {
+      "kind": "hat",
+      "opcode": "wedo2_whenDistance",
+      "extension": "wedo2",
+      "syntax": "wedo2_when_distance <op> <reference>",
+      "description": "wedo2 whenDistance block.",
+      "inputs": [
+        {
+          "name": "OP",
+          "type": "menu",
+          "from": 0,
+          "default": "<",
+          "menuOpcode": "wedo2_menu_OP",
+          "menuField": "OP",
+          "options": [
+            "<",
+            ">"
+          ]
+        },
+        {
+          "name": "REFERENCE",
+          "type": "number",
+          "from": 1,
+          "default": "50"
+        }
+      ]
+    },
+    "wedo2_when_tilted": {
+      "kind": "hat",
+      "opcode": "wedo2_whenTilted",
+      "extension": "wedo2",
+      "syntax": "wedo2_when_tilted <tilt_direction_any>",
+      "description": "wedo2 whenTilted block.",
+      "inputs": [
+        {
+          "name": "TILT_DIRECTION_ANY",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "wedo2_menu_TILT_DIRECTION_ANY",
+          "menuField": "TILT_DIRECTION_ANY",
+          "options": [
+            "up",
+            "down",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "wedo2_get_distance": {
+      "kind": "reporter",
+      "opcode": "wedo2_getDistance",
+      "extension": "wedo2",
+      "syntax": "@wedo2_get_distance()",
+      "description": "wedo2 getDistance block."
+    },
+    "wedo2_is_tilted": {
+      "kind": "boolean",
+      "opcode": "wedo2_isTilted",
+      "extension": "wedo2",
+      "syntax": "@wedo2_is_tilted(tilt_direction_any)",
+      "description": "wedo2 isTilted block.",
+      "inputs": [
+        {
+          "name": "TILT_DIRECTION_ANY",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "wedo2_menu_TILT_DIRECTION_ANY",
+          "menuField": "TILT_DIRECTION_ANY",
+          "options": [
+            "up",
+            "down",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "wedo2_get_tilt_angle": {
+      "kind": "reporter",
+      "opcode": "wedo2_getTiltAngle",
+      "extension": "wedo2",
+      "syntax": "@wedo2_get_tilt_angle(tilt_direction)",
+      "description": "wedo2 getTiltAngle block.",
+      "inputs": [
+        {
+          "name": "TILT_DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "up",
+          "menuOpcode": "wedo2_menu_TILT_DIRECTION",
+          "menuField": "TILT_DIRECTION",
+          "options": [
+            "up",
+            "down",
+            "left",
+            "right"
+          ]
+        }
+      ]
+    },
+    "gdxfor_when_gesture": {
+      "kind": "hat",
+      "opcode": "gdxfor_whenGesture",
+      "extension": "gdxfor",
+      "syntax": "gdxfor_when_gesture <gesture>",
+      "description": "gdxfor whenGesture block.",
+      "inputs": [
+        {
+          "name": "GESTURE",
+          "type": "menu",
+          "from": 0,
+          "default": "shaken",
+          "menuOpcode": "gdxfor_menu_gestureOptions",
+          "menuField": "GESTURE"
+        }
+      ]
+    },
+    "gdxfor_when_force_pushed_or_pulled": {
+      "kind": "hat",
+      "opcode": "gdxfor_whenForcePushedOrPulled",
+      "extension": "gdxfor",
+      "syntax": "gdxfor_when_force_pushed_or_pulled <push_pull>",
+      "description": "gdxfor whenForcePushedOrPulled block.",
+      "inputs": [
+        {
+          "name": "PUSH_PULL",
+          "type": "menu",
+          "from": 0,
+          "default": "pushed",
+          "menuOpcode": "gdxfor_menu_pushPullOptions",
+          "menuField": "PUSH_PULL",
+          "options": [
+            "pushed",
+            "pulled"
+          ]
+        }
+      ]
+    },
+    "gdxfor_get_force": {
+      "kind": "reporter",
+      "opcode": "gdxfor_getForce",
+      "extension": "gdxfor",
+      "syntax": "@gdxfor_get_force()",
+      "description": "gdxfor getForce block."
+    },
+    "gdxfor_when_tilted": {
+      "kind": "hat",
+      "opcode": "gdxfor_whenTilted",
+      "extension": "gdxfor",
+      "syntax": "gdxfor_when_tilted <tilt>",
+      "description": "gdxfor whenTilted block.",
+      "inputs": [
+        {
+          "name": "TILT",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "gdxfor_menu_tiltAnyOptions",
+          "menuField": "TILT",
+          "options": [
+            "front",
+            "back",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "gdxfor_is_tilted": {
+      "kind": "boolean",
+      "opcode": "gdxfor_isTilted",
+      "extension": "gdxfor",
+      "syntax": "@gdxfor_is_tilted(tilt)",
+      "description": "gdxfor isTilted block.",
+      "inputs": [
+        {
+          "name": "TILT",
+          "type": "menu",
+          "from": 0,
+          "default": "any",
+          "menuOpcode": "gdxfor_menu_tiltAnyOptions",
+          "menuField": "TILT",
+          "options": [
+            "front",
+            "back",
+            "left",
+            "right",
+            "any"
+          ]
+        }
+      ]
+    },
+    "gdxfor_get_tilt": {
+      "kind": "reporter",
+      "opcode": "gdxfor_getTilt",
+      "extension": "gdxfor",
+      "syntax": "@gdxfor_get_tilt(tilt)",
+      "description": "gdxfor getTilt block.",
+      "inputs": [
+        {
+          "name": "TILT",
+          "type": "menu",
+          "from": 0,
+          "default": "front",
+          "menuOpcode": "gdxfor_menu_tiltOptions",
+          "menuField": "TILT",
+          "options": [
+            "front",
+            "back",
+            "left",
+            "right"
+          ]
+        }
+      ]
+    },
+    "gdxfor_is_free_falling": {
+      "kind": "boolean",
+      "opcode": "gdxfor_isFreeFalling",
+      "extension": "gdxfor",
+      "syntax": "@gdxfor_is_free_falling()",
+      "description": "gdxfor isFreeFalling block."
+    },
+    "gdxfor_get_spin_speed": {
+      "kind": "reporter",
+      "opcode": "gdxfor_getSpinSpeed",
+      "extension": "gdxfor",
+      "syntax": "@gdxfor_get_spin_speed(direction)",
+      "description": "gdxfor getSpinSpeed block.",
+      "inputs": [
+        {
+          "name": "DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "x",
+          "menuOpcode": "gdxfor_menu_axisOptions",
+          "menuField": "DIRECTION",
+          "options": [
+            "x",
+            "y",
+            "z"
+          ]
+        }
+      ]
+    },
+    "gdxfor_get_acceleration": {
+      "kind": "reporter",
+      "opcode": "gdxfor_getAcceleration",
+      "extension": "gdxfor",
+      "syntax": "@gdxfor_get_acceleration(direction)",
+      "description": "gdxfor getAcceleration block.",
+      "inputs": [
+        {
+          "name": "DIRECTION",
+          "type": "menu",
+          "from": 0,
+          "default": "x",
+          "menuOpcode": "gdxfor_menu_axisOptions",
+          "menuField": "DIRECTION",
+          "options": [
+            "x",
+            "y",
+            "z"
+          ]
+        }
+      ]
+    }
+  }
+}

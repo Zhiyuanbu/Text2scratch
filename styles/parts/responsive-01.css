@@ -1,0 +1,15 @@
+@media (max-width: 1320px) {
+  .app-shell.converter-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .right-rail {
+    position: static;
+    max-height: none;
+  }
+
+  .docs-manual {
+    max-width: none;
+  }
+}
+

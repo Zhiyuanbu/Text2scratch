@@ -1,0 +1,53 @@
+@media (max-width: 760px) {
+  .container {
+    padding: 0 0.85rem;
+  }
+
+  .site-content {
+    padding: 0.95rem 0 0.9rem;
+  }
+
+  .intro-strip h1,
+  .docs-banner h1 {
+    font-size: 1.5rem;
+  }
+
+  .control-grid {
+    flex-direction: column;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  .code-editor {
+    min-height: 280px;
+    height: 320px;
+  }
+
+  .brand-text small {
+    display: none;
+  }
+
+  .project-name-input {
+    width: min(180px, 54vw);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  body.page-animate,
+  body.page-animate.page-ready,
+  body.page-animate.page-leaving {
+    opacity: 1;
+    transform: none;
+  }
+}
+

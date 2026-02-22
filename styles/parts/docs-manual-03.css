@@ -1,0 +1,112 @@
+.reference-tools-panel[open] {
+  display: flex;
+  flex-direction: column;
+  height: min(90vh, 1000px);
+  max-height: min(90vh, 1000px);
+  min-height: 0;
+  overflow: hidden;
+}
+
+
+.reference-tools-panel > summary {
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.46rem;
+  padding: 0.6rem 0.72rem;
+  color: #2a4a6c;
+  font-size: 0.82rem;
+  font-weight: 700;
+  border-bottom: 1px solid #c8d8ea;
+  background: #eef5ff;
+}
+
+.reference-tools-panel > summary::-webkit-details-marker {
+  display: none;
+}
+
+.reference-tools-panel[open] > summary {
+  border-bottom-color: #bdd0e6;
+  background: #e9f2ff;
+}
+
+.reference-controls {
+  position: relative;
+  z-index: 2;
+  padding: 0.44rem;
+  border-bottom: 1px solid #c5d6ea;
+  background: #f7fbff;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 0.28rem 0.48rem;
+  align-items: end;
+}
+
+.reference-controls .control-field {
+  min-width: 0;
+  display: grid;
+  gap: 0.1rem;
+}
+
+.reference-controls .control-actions {
+  align-self: end;
+}
+
+.reference-controls .control-label-spacer {
+  visibility: hidden;
+  line-height: 1;
+  user-select: none;
+}
+
+@media (max-width: 1320px) {
+  .reference-controls {
+    grid-template-columns: repeat(3, minmax(170px, 1fr));
+  }
+}
+
+@media (max-width: 940px) {
+  .reference-controls {
+    grid-template-columns: repeat(2, minmax(170px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .reference-controls {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Create a separate scrollable container just for results */
+.reference-results-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #8baacf #e9f2ff;
+}
+
+/* Custom scrollbar styling */
+.reference-results-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.reference-results-container::-webkit-scrollbar-track {
+  background: #e9f2ff;
+}
+
+.reference-results-container::-webkit-scrollbar-thumb {
+  background-color: #8baacf;
+  border-radius: 4px;
+  border: 2px solid #e9f2ff;
+}
+
+/* The original reference-tools-body will now be non-scrollable */
+.reference-tools-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0; /* Critical for nested flex scrolling */
+  overflow: hidden;
+}
