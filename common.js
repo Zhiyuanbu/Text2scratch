@@ -17,11 +17,44 @@ function initMobileMenu() {
     return;
   }
 
+  const setMenuState = (open) => {
+    toggle.setAttribute("aria-expanded", String(open));
+    mainNav.classList.toggle("active", open);
+    toggle.innerHTML = open ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
+  };
+
   toggle.addEventListener("click", () => {
     const expanded = toggle.getAttribute("aria-expanded") === "true";
-    toggle.setAttribute("aria-expanded", String(!expanded));
-    mainNav.classList.toggle("active");
-    toggle.innerHTML = expanded ? '<i class="fas fa-bars"></i>' : '<i class="fas fa-times"></i>';
+    setMenuState(!expanded);
+  });
+
+  mainNav.addEventListener("click", (event) => {
+    if (event.target.closest("a[href]")) {
+      setMenuState(false);
+    }
+  });
+
+  document.addEventListener("click", (event) => {
+    const expanded = toggle.getAttribute("aria-expanded") === "true";
+    if (!expanded) {
+      return;
+    }
+    if (event.target === toggle || toggle.contains(event.target) || mainNav.contains(event.target)) {
+      return;
+    }
+    setMenuState(false);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      setMenuState(false);
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 960) {
+      setMenuState(false);
+    }
   });
 }
 

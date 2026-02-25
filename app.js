@@ -260,9 +260,9 @@ async function exportT2shFile() {
 
     const blob = await createT2shBlob(payload);
     downloadBlob(blob, fileName);
-    setStatus(`Saved ${fileName}. Use Upload + .t2sh to restore this session quickly.`);
+    setStatus(`Saved ${fileName}. Use Import + .t2sh to restore this session quickly.`, "success");
   } catch (error) {
-    setStatus(`Export error: ${error.message}`, true);
+    setStatus(`Export error: ${error.message}`, "error");
   }
 }
 
@@ -3339,6 +3339,27 @@ function clamp(value, min, max) {
 }
 
 function setStatus(message, isWarning = false) {
+  if (!ui.status) {
+    return;
+  }
+
+  let severity = "info";
+
+  if (typeof isWarning === "string") {
+    severity = isWarning;
+  } else if (isWarning === true) {
+    severity = /\berror\b/i.test(message) ? "error" : "warning";
+  } else if (/^(Created|Saved|Imported)\b/.test(message)) {
+    severity = "success";
+  }
+
+  if (!["info", "success", "warning", "error"].includes(severity)) {
+    severity = "info";
+  }
+
   ui.status.textContent = message;
-  ui.status.classList.toggle("warn", isWarning);
+  ui.status.classList.remove("status-info", "status-success", "status-warning", "status-error");
+  ui.status.classList.add(`status-${severity}`);
+  ui.status.setAttribute("data-severity", severity);
+  ui.status.setAttribute("aria-live", severity === "error" ? "assertive" : "polite");
 }

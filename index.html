@@ -13,10 +13,11 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260222c">
+  <link rel="stylesheet" href="styles.css?v=20260222d">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-converter">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
   <header class="site-header">
     <div class="container header-container">
       <a class="brand" href="index.html">
@@ -45,23 +46,33 @@
   <div class="site-content">
     <div class="container">
       <div class="app-shell converter-shell">
-        <main class="workspace-shell">
+        <main id="mainContent" class="workspace-shell">
           <section class="intro-strip">
-            <p class="kicker">Scratch Development Workbench</p>
-            <h1>Code your Scratch project in one editor, then export as SB3</h1>
-            <p>Import existing `.sb3` files, edit sprite and stage logic as text commands, and export as `.sb3` or quick `.t2sh` sessions.</p>
+            <p class="kicker">Converter Workspace</p>
+            <h1>Write script text, convert, then run in Scratch</h1>
+            <p>Use this page in order: write or import script, check output, then export your project file.</p>
+            <div class="intro-links">
+              <a class="secondary-btn intro-link-btn" href="docs.html">Open Beginner Docs</a>
+              <a class="secondary-btn intro-link-btn" href="reference.html">Open Command Reference</a>
+            </div>
+            <ol class="workflow-track" aria-label="Main workflow">
+              <li><strong>1. Write</strong><span>Create or load script text.</span></li>
+              <li><strong>2. Validate</strong><span>Check warnings in Compiler Output.</span></li>
+              <li><strong>3. Export</strong><span>Choose `.sb3` or `.t2sh`.</span></li>
+              <li><strong>4. Test</strong><span>Open in Scratch and run green flag.</span></li>
+            </ol>
             <div class="pill-row" aria-label="Highlights">
               <span class="pill">Multi-sprite</span>
               <span class="pill">Stage support</span>
               <span class="pill">SB3 import and export</span>
-              <span class="pill">Quick fixes + diagnostics</span>
+              <span class="pill">Validation diagnostics</span>
             </div>
           </section>
 
           <section class="editor-workbench">
             <div class="editor-heading">
-              <h2>Project Buffer</h2>
-              <p>Write scripts using text2scratch syntax. Right click or use quick fixes for common issues.</p>
+              <h2>Script Editor</h2>
+              <p>Write text2scratch commands. Keep one command per line and close nested blocks with <code>end</code>.</p>
             </div>
 
             <div class="editor-shell">
@@ -79,25 +90,43 @@
             </div>
 
             <div class="control-grid">
-              <div class="control-cell">
-                <button id="downloadBtn" type="button" class="primary-btn">
-                  <i class="fas fa-download"></i> Download
-                </button>
-                <select id="downloadFormat" class="text-input action-select" aria-label="Download format">
-                  <option value="sb3">Scratch Project (.sb3)</option>
-                  <option value="t2sh">Fast Session (.t2sh)</option>
-                </select>
+              <div class="control-cell action-card">
+                <div class="action-card-head">
+                  <h3>Export</h3>
+                  <p>Generate a file from your current editor content.</p>
+                </div>
+                <div class="action-card-row">
+                  <button id="downloadBtn" type="button" class="primary-btn">
+                    <i class="fas fa-download"></i> Export File
+                  </button>
+                  <div class="field-stack">
+                    <label for="downloadFormat">Export format</label>
+                    <select id="downloadFormat" class="text-input action-select" aria-label="Download format">
+                      <option value="sb3">Scratch Project (.sb3)</option>
+                      <option value="t2sh">Session Backup (.t2sh)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
-              <div class="control-cell">
-                <button id="uploadBtn" type="button" class="secondary-btn">
-                  <i class="fas fa-upload"></i> Upload
-                </button>
-                <select id="uploadFormat" class="text-input action-select" aria-label="Upload format">
-                  <option value="auto">Auto Detect</option>
-                  <option value="sb3">Scratch Project (.sb3)</option>
-                  <option value="t2sh">Fast Session (.t2sh)</option>
-                </select>
+              <div class="control-cell action-card">
+                <div class="action-card-head">
+                  <h3>Import</h3>
+                  <p>Load an existing Scratch project or saved text2scratch session.</p>
+                </div>
+                <div class="action-card-row">
+                  <button id="uploadBtn" type="button" class="secondary-btn">
+                    <i class="fas fa-upload"></i> Import File
+                  </button>
+                  <div class="field-stack">
+                    <label for="uploadFormat">Import format</label>
+                    <select id="uploadFormat" class="text-input action-select" aria-label="Upload format">
+                      <option value="auto">Auto Detect</option>
+                      <option value="sb3">Scratch Project (.sb3)</option>
+                      <option value="t2sh">Session Backup (.t2sh)</option>
+                    </select>
+                  </div>
+                </div>
               </div>
 
               <div class="control-cell single-action">
@@ -123,7 +152,7 @@
 
             <article class="foot-panel">
               <h3>Compiler Output</h3>
-              <pre id="status" aria-live="polite"></pre>
+              <pre id="status" aria-live="polite" aria-atomic="true"></pre>
               <p class="support-text">Need syntax help? Read <a href="docs.html#syntax-basics">syntax basics</a> and <a href="docs.html#at-syntax">@ expression rules</a>.</p>
             </article>
           </section>
@@ -131,21 +160,22 @@
 
         <aside class="right-rail">
           <section class="rail-note">
-            <h2>Workflow</h2>
+            <h2>Before Exporting</h2>
             <ol class="workflow-list">
-              <li>Declare variables, lists, and broadcasts first.</li>
-              <li>Build stage script(s) inside <code>stage_code</code>.</li>
-              <li>Add sprites and write each sprite code section.</li>
-              <li>Fix diagnostics before exporting.</li>
+              <li>Make sure every opened block has an <code>end</code>.</li>
+              <li>Confirm stage code is in <code>stage_code</code>.</li>
+              <li>Confirm sprite code is in <code>name_code</code>.</li>
+              <li>Check Compiler Output for warnings/errors.</li>
             </ol>
           </section>
 
           <section class="rail-note">
-            <h2>Remember</h2>
+            <h2>Quick Rules</h2>
             <ul class="checklist">
               <li><code>@</code> expressions are values, not standalone commands.</li>
               <li>Stage rejects sprite-only blocks.</li>
-              <li>Imported SB3 sprites can include SVG lines.</li>
+              <li>Use quotes for text with spaces.</li>
+              <li>Use <code>.t2sh</code> for fast restore backups.</li>
             </ul>
           </section>
         </aside>
@@ -161,8 +191,12 @@
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
-  <script src="common.js" defer></script>
-  <script src="app.js" type="module"></script>
+  <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
+  <script src="rum.js?v=20260225a" defer></script>
+  <script src="common.js?v=20260222d" defer></script>
+  <script src="app.js?v=20260222d" type="module"></script>
 </body>
 </html>
+
+
 

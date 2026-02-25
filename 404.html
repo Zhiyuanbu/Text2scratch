@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch - Terms of Service</title>
+  <title>text2scratch - 404 Not Found</title>
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -16,7 +16,8 @@
   <link rel="stylesheet" href="styles.css?v=20260222d">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body>
+<body class="page-not-found">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
   <header class="site-header">
     <div class="container header-container">
       <a class="brand" href="index.html">
@@ -35,7 +36,7 @@
         <a href="index.html">Converter</a>
         <a href="docs.html">Blocks Docs</a>
         <a href="reference.html">Full Reference</a>
-        <a href="terms.html" aria-current="page">Terms of Service</a>
+        <a href="terms.html">Terms of Service</a>
         <a href="privacy.html">Privacy Policy</a>
         <a href="license.html">License</a>
       </nav>
@@ -44,33 +45,30 @@
 
   <div class="site-content">
     <div class="container">
-      <section class="hero-section">
-        <h1>Terms of Service</h1>
-        <p>Last updated: February 19, 2026</p>
-      </section>
+      <main id="mainContent" class="not-found-shell">
+        <section class="not-found-card">
+          <p class="kicker">Error 404</p>
+          <h1>This page hit a block and forgot to <code>end</code>.</h1>
+          <p>The URL you opened does not exist in this project, so the parser returned <strong>Not Found</strong>. Try one of the known routes below.</p>
 
-      <article class="card legal-card">
-        <h2>1. Use of This Project</h2>
-        <p>You may use text2scratch for personal, educational, and other non-commercial purposes under the license terms.</p>
+          <pre class="not-found-code" aria-label="404 example script"><code>when_link_clicked
+  go_to "missing/page.html"
+  say "404: sprite not found"
+end</code></pre>
 
-        <h2>2. Required Attribution</h2>
-        <p>You must give clear, visible credit wherever text2scratch is used or shared. Credit must be easy to see by normal users.</p>
+          <div class="not-found-actions">
+            <a class="primary-btn" href="index.html"><i class="fas fa-home" aria-hidden="true"></i> Back to Converter</a>
+            <a class="secondary-btn" href="docs.html"><i class="fas fa-book" aria-hidden="true"></i> Open Docs</a>
+            <a class="secondary-btn" href="reference.html"><i class="fas fa-search" aria-hidden="true"></i> Open Reference</a>
+          </div>
 
-        <h2>3. Commercial Use Prohibited</h2>
-        <p>You may not use text2scratch, any modified version, or outputs as part of a paid/commercial product or service without separate written permission.</p>
-
-        <h2>4. Acceptable Use</h2>
-        <p>You may not use this project for unlawful activity, abuse, malware, harassment, or deceptive behavior.</p>
-
-        <h2>5. No Warranty</h2>
-        <p>This project is provided as is, without warranties of any kind.</p>
-
-        <h2>6. Liability</h2>
-        <p>The authors are not liable for damages arising from use of this project.</p>
-
-        <h2>7. License Controls</h2>
-        <p>If these Terms conflict with the project license, the license terms in <code>LICENSE</code> control use permissions.</p>
-      </article>
+          <ul class="pill-row not-found-pills" aria-label="404 hints">
+            <li class="pill">Check spelling in URL</li>
+            <li class="pill">Use nav links above</li>
+            <li class="pill">Try from homepage</li>
+          </ul>
+        </section>
+      </main>
     </div>
   </div>
 
@@ -85,5 +83,3 @@
   <script src="common.js?v=20260222d" defer></script>
 </body>
 </html>
-
-
