@@ -12,6 +12,7 @@ editable text syntax.
 - Save and reload fast `.t2sh` session files.
 - Build Stage scripts and multiple sprite scripts in one project.
 - Edit project name directly from the editor toolbar.
+- Optional cloud save/share with Supabase auth and row-level security.
 
 ## File Formats
 
@@ -30,6 +31,18 @@ npx serve .
 ```
 
 Open `http://localhost:8080`.
+
+## Supabase Setup
+
+Cloud save/share uses Supabase from the browser (`index.html` + `app.js`).
+
+1. In Supabase SQL Editor, run [`supabase-schema.sql`](supabase-schema.sql).
+2. In Supabase Auth URL config:
+   - Set `Site URL` to your deployed domain.
+   - Add redirect URLs for local/dev/prod (for example `http://localhost:8080/**`).
+3. Update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `app.js` if your project values change.
+
+Do not use Postgres connection strings or `service_role` keys in frontend code.
 
 ## Quick Workflow
 

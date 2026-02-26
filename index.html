@@ -178,6 +178,45 @@
               <li>Use <code>.t2sh</code> for fast restore backups.</li>
             </ul>
           </section>
+
+          <section class="rail-note cloud-panel">
+            <h2>Cloud Projects</h2>
+            <p class="support-text">Create an account, save project text, and generate a public share link with Supabase.</p>
+            <p id="cloudAuthState" class="cloud-auth-state">Not signed in.</p>
+
+            <div class="cloud-auth-grid">
+              <label for="authEmailInput">Email</label>
+              <input id="authEmailInput" class="text-input" type="email" autocomplete="email" placeholder="you@example.com">
+              <label for="authPasswordInput">Password</label>
+              <input id="authPasswordInput" class="text-input" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+            </div>
+
+            <div class="cloud-actions">
+              <button id="signUpBtn" type="button" class="secondary-btn"><i class="fas fa-user-plus"></i> Create Account</button>
+              <button id="signInBtn" type="button" class="secondary-btn"><i class="fas fa-sign-in-alt"></i> Sign In</button>
+              <button id="signOutBtn" type="button" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+            </div>
+
+            <div class="cloud-actions">
+              <button id="saveCloudBtn" type="button" class="primary-btn"><i class="fas fa-cloud-upload-alt"></i> Save to Cloud</button>
+              <button id="shareProjectBtn" type="button" class="secondary-btn"><i class="fas fa-share-alt"></i> Share Project</button>
+            </div>
+
+            <div class="field-stack cloud-field">
+              <label for="cloudProjectsSelect">My projects</label>
+              <select id="cloudProjectsSelect" class="text-input">
+                <option value="">Sign in to load projects</option>
+              </select>
+            </div>
+
+            <div class="field-stack cloud-field">
+              <label for="shareLinkOutput">Share link</label>
+              <div class="cloud-share-row">
+                <input id="shareLinkOutput" class="text-input" type="text" readonly placeholder="No share link yet">
+                <button id="copyShareLinkBtn" type="button" class="secondary-btn"><i class="fas fa-copy"></i> Copy</button>
+              </div>
+            </div>
+          </section>
         </aside>
       </div>
     </div>
@@ -191,6 +230,7 @@
 
   <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
   <script src="common.js?v=20260222d" defer></script>

@@ -76,6 +76,10 @@ const STAGE_UNSUPPORTED_OPCODES = new Set([
 ]);
 
 const DEFAULT_PROJECT_NAME = "multi_sprite_project";
+const SUPABASE_URL = "https://ytsrvbrdxhyrazhnqohb.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
+const PROJECTS_TABLE = "projects";
+const SHARE_QUERY_PARAM = "share";
 const DEFAULT_MULTI_SPRITE_SAMPLE = [
   "# Stage setup",
   "make_var score 0",
@@ -121,7 +125,18 @@ const ui = {
   importInput: document.getElementById("importInput"),
   sample: document.getElementById("sampleBtn"),
   status: document.getElementById("status"),
-  commands: document.getElementById("commandList")
+  commands: document.getElementById("commandList"),
+  authState: document.getElementById("cloudAuthState"),
+  authEmail: document.getElementById("authEmailInput"),
+  authPassword: document.getElementById("authPasswordInput"),
+  signUp: document.getElementById("signUpBtn"),
+  signIn: document.getElementById("signInBtn"),
+  signOut: document.getElementById("signOutBtn"),
+  saveCloud: document.getElementById("saveCloudBtn"),
+  shareProject: document.getElementById("shareProjectBtn"),
+  cloudProjects: document.getElementById("cloudProjectsSelect"),
+  shareLinkOutput: document.getElementById("shareLinkOutput"),
+  copyShareLink: document.getElementById("copyShareLinkBtn")
 };
 
 let blockCatalog = null;
@@ -132,6 +147,13 @@ const editorState = {
   monacoRef: null,
   diagnosticTimer: null,
   codeActionsRegistered: false
+};
+
+const supabaseState = {
+  client: null,
+  user: null,
+  activeProjectId: null,
+  authListener: null
 };
 
 init();
@@ -169,6 +191,10 @@ async function init() {
     setProjectName(DEFAULT_PROJECT_NAME);
     setStatus("Multi-sprite sample script loaded.");
     scheduleDiagnosticsUpdate();
+  });
+
+  initSupabaseWorkspace().catch((error) => {
+    setStatus(`Cloud setup error: ${error.message}`, "warning");
   });
 }
 
@@ -3332,6 +3358,570 @@ function dedupeMarkers(markers) {
     seen.add(key);
     return true;
   });
+}
+
+function hasCloudUi() {
+  return Boolean(
+    ui.authState &&
+    ui.authEmail &&
+    ui.authPassword &&
+    ui.signUp &&
+    ui.signIn &&
+    ui.signOut &&
+    ui.saveCloud &&
+    ui.shareProject &&
+    ui.cloudProjects &&
+    ui.shareLinkOutput &&
+    ui.copyShareLink
+  );
+}
+
+async function initSupabaseWorkspace() {
+  if (!hasCloudUi()) {
+    return;
+  }
+
+  const supabaseGlobal = window.supabase;
+  if (!supabaseGlobal || typeof supabaseGlobal.createClient !== "function") {
+    ui.authState.textContent = "Supabase SDK failed to load.";
+    setCloudControlState(false);
+    return;
+  }
+
+  supabaseState.client = supabaseGlobal.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  bindCloudEventHandlers();
+  await restoreCloudSession();
+  setCloudAuthState();
+  setCloudControlState(Boolean(supabaseState.user));
+
+  await loadSharedProjectFromQuery();
+
+  if (supabaseState.user) {
+    await refreshCloudProjectList();
+  } else {
+    resetCloudProjectList("Sign in to load projects");
+  }
+
+  const listenerResult = supabaseState.client.auth.onAuthStateChange(async (_event, session) => {
+    supabaseState.user = session?.user || null;
+    if (!supabaseState.user) {
+      supabaseState.activeProjectId = null;
+      resetShareLink();
+    }
+    setCloudAuthState();
+    setCloudControlState(Boolean(supabaseState.user));
+
+    if (supabaseState.user) {
+      await refreshCloudProjectList();
+    } else {
+      resetCloudProjectList("Sign in to load projects");
+    }
+  });
+
+  supabaseState.authListener = listenerResult?.data?.subscription || null;
+}
+
+function bindCloudEventHandlers() {
+  ui.signUp.addEventListener("click", onCloudSignUpClick);
+  ui.signIn.addEventListener("click", onCloudSignInClick);
+  ui.signOut.addEventListener("click", onCloudSignOutClick);
+  ui.saveCloud.addEventListener("click", onSaveCloudProjectClick);
+  ui.shareProject.addEventListener("click", onShareProjectClick);
+  ui.copyShareLink.addEventListener("click", onCopyShareLinkClick);
+  ui.cloudProjects.addEventListener("change", onCloudProjectSelected);
+
+  ui.authPassword.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      onCloudSignInClick();
+    }
+  });
+}
+
+async function restoreCloudSession() {
+  if (!supabaseState.client) {
+    return;
+  }
+
+  const { data, error } = await supabaseState.client.auth.getSession();
+  if (error) {
+    setStatus(`Cloud auth warning: ${error.message}`, "warning");
+    return;
+  }
+
+  supabaseState.user = data?.session?.user || null;
+}
+
+async function onCloudSignUpClick() {
+  if (!ensureSupabaseReady()) {
+    return;
+  }
+
+  const credentials = readCloudCredentials();
+  if (!credentials) {
+    return;
+  }
+
+  const { email, password } = credentials;
+  const { data, error } = await supabaseState.client.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `${window.location.origin}/index.html`
+    }
+  });
+
+  if (error) {
+    setStatus(`Sign-up failed: ${formatSupabaseError(error)}`, "error");
+    return;
+  }
+
+  ui.authPassword.value = "";
+  window.text2scratchRum?.trackAccountCreated({ method: "email_password" });
+
+  if (data?.session?.user) {
+    supabaseState.user = data.session.user;
+    setStatus("Account created and signed in.", "success");
+  } else {
+    setStatus("Account created. Confirm your email, then sign in.", "success");
+  }
+
+  setCloudAuthState();
+  setCloudControlState(Boolean(supabaseState.user));
+}
+
+async function onCloudSignInClick() {
+  if (!ensureSupabaseReady()) {
+    return;
+  }
+
+  const credentials = readCloudCredentials();
+  if (!credentials) {
+    return;
+  }
+
+  const { email, password } = credentials;
+  const { data, error } = await supabaseState.client.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if (error) {
+    setStatus(`Sign-in failed: ${formatSupabaseError(error)}`, "error");
+    return;
+  }
+
+  ui.authPassword.value = "";
+  supabaseState.user = data?.user || null;
+  setCloudAuthState();
+  setCloudControlState(Boolean(supabaseState.user));
+  await refreshCloudProjectList();
+  setStatus("Signed in to cloud storage.", "success");
+}
+
+async function onCloudSignOutClick() {
+  if (!ensureSupabaseReady()) {
+    return;
+  }
+
+  const { error } = await supabaseState.client.auth.signOut();
+  if (error) {
+    setStatus(`Sign-out failed: ${formatSupabaseError(error)}`, "error");
+    return;
+  }
+
+  supabaseState.user = null;
+  supabaseState.activeProjectId = null;
+  setCloudAuthState();
+  setCloudControlState(false);
+  resetShareLink();
+  resetCloudProjectList("Sign in to load projects");
+  setStatus("Signed out.", "success");
+}
+
+async function onSaveCloudProjectClick() {
+  await saveProjectToCloud({ announce: true });
+}
+
+async function saveProjectToCloud(options = {}) {
+  const { announce = true } = options;
+  if (!ensureCloudSignedIn()) {
+    return null;
+  }
+
+  const projectPayload = {
+    owner_id: supabaseState.user.id,
+    title: getProjectName(),
+    source_text: getEditorValue(),
+    updated_at: new Date().toISOString()
+  };
+
+  let record = null;
+
+  if (supabaseState.activeProjectId) {
+    const updateResult = await supabaseState.client
+      .from(PROJECTS_TABLE)
+      .update(projectPayload)
+      .eq("id", supabaseState.activeProjectId)
+      .eq("owner_id", supabaseState.user.id)
+      .select("id,title,share_slug,is_public,updated_at")
+      .single();
+
+    if (!updateResult.error) {
+      record = updateResult.data;
+    } else if (!isMissingRowError(updateResult.error)) {
+      setStatus(`Cloud save failed: ${formatSupabaseError(updateResult.error)}`, "error");
+      return null;
+    } else {
+      supabaseState.activeProjectId = null;
+    }
+  }
+
+  if (!record) {
+    const insertResult = await supabaseState.client
+      .from(PROJECTS_TABLE)
+      .insert(projectPayload)
+      .select("id,title,share_slug,is_public,updated_at")
+      .single();
+
+    if (insertResult.error) {
+      setStatus(`Cloud save failed: ${formatSupabaseError(insertResult.error)}`, "error");
+      return null;
+    }
+
+    record = insertResult.data;
+  }
+
+  supabaseState.activeProjectId = record.id;
+  setShareLinkBySlug(record.share_slug || "");
+  await refreshCloudProjectList();
+
+  if (ui.cloudProjects) {
+    ui.cloudProjects.value = record.id;
+  }
+
+  if (announce) {
+    setStatus(`Saved "${record.title}" to cloud.`, "success");
+  }
+
+  return record.id;
+}
+
+async function onShareProjectClick() {
+  if (!ensureCloudSignedIn()) {
+    return;
+  }
+
+  let projectId = supabaseState.activeProjectId;
+  if (!projectId) {
+    projectId = await saveProjectToCloud({ announce: false });
+    if (!projectId) {
+      return;
+    }
+  }
+
+  const shareData = await assignProjectShareSlug(projectId);
+  if (!shareData) {
+    return;
+  }
+
+  setShareLinkBySlug(shareData.share_slug);
+  await refreshCloudProjectList();
+  window.text2scratchRum?.trackProjectShared({ project_id: projectId, shared: true });
+  setStatus("Share link created. Anyone with the link can load this project.", "success");
+}
+
+async function assignProjectShareSlug(projectId) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const slug = generateShareSlug();
+    const result = await supabaseState.client
+      .from(PROJECTS_TABLE)
+      .update({
+        is_public: true,
+        share_slug: slug,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", projectId)
+      .eq("owner_id", supabaseState.user.id)
+      .select("id,share_slug")
+      .single();
+
+    if (!result.error) {
+      return result.data;
+    }
+
+    if (!isDuplicateError(result.error)) {
+      setStatus(`Share failed: ${formatSupabaseError(result.error)}`, "error");
+      return null;
+    }
+  }
+
+  setStatus("Share failed: Could not create a unique share slug.", "error");
+  return null;
+}
+
+async function onCopyShareLinkClick() {
+  const link = ui.shareLinkOutput?.value?.trim();
+  if (!link) {
+    setStatus("No share link is available yet.", "warning");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(link);
+    setStatus("Share link copied to clipboard.", "success");
+  } catch (_error) {
+    ui.shareLinkOutput.focus();
+    ui.shareLinkOutput.select();
+    setStatus("Clipboard permission blocked. Press Ctrl+C to copy the selected link.", "warning");
+  }
+}
+
+async function onCloudProjectSelected() {
+  if (!ensureCloudSignedIn()) {
+    return;
+  }
+
+  const projectId = ui.cloudProjects?.value || "";
+  if (!projectId) {
+    return;
+  }
+
+  const { data, error } = await supabaseState.client
+    .from(PROJECTS_TABLE)
+    .select("id,title,source_text,share_slug")
+    .eq("id", projectId)
+    .eq("owner_id", supabaseState.user.id)
+    .single();
+
+  if (error) {
+    setStatus(`Load failed: ${formatSupabaseError(error)}`, "error");
+    return;
+  }
+
+  setEditorValue(data.source_text || "");
+  setProjectName(data.title || DEFAULT_PROJECT_NAME);
+  supabaseState.activeProjectId = data.id;
+  setShareLinkBySlug(data.share_slug || "");
+  setStatus(`Loaded "${data.title}" from cloud.`, "success");
+}
+
+async function refreshCloudProjectList() {
+  if (!ensureSupabaseReady() || !supabaseState.user) {
+    return;
+  }
+
+  const { data, error } = await supabaseState.client
+    .from(PROJECTS_TABLE)
+    .select("id,title,updated_at,is_public")
+    .eq("owner_id", supabaseState.user.id)
+    .order("updated_at", { ascending: false })
+    .limit(100);
+
+  if (error) {
+    setStatus(`Could not load cloud projects: ${formatSupabaseError(error)}`, "warning");
+    return;
+  }
+
+  resetCloudProjectList(data.length > 0 ? "Select a cloud project" : "No cloud projects yet");
+  ui.cloudProjects.disabled = false;
+
+  data.forEach((project) => {
+    const option = document.createElement("option");
+    option.value = project.id;
+    option.textContent = formatCloudProjectLabel(project);
+    ui.cloudProjects.appendChild(option);
+  });
+
+  if (supabaseState.activeProjectId) {
+    ui.cloudProjects.value = supabaseState.activeProjectId;
+  }
+}
+
+async function loadSharedProjectFromQuery() {
+  if (!ensureSupabaseReady()) {
+    return;
+  }
+
+  const url = new URL(window.location.href);
+  const shareSlug = (url.searchParams.get(SHARE_QUERY_PARAM) || "").trim();
+  if (!shareSlug) {
+    return;
+  }
+
+  const { data, error } = await supabaseState.client
+    .from(PROJECTS_TABLE)
+    .select("title,source_text,share_slug")
+    .eq("share_slug", shareSlug)
+    .eq("is_public", true)
+    .single();
+
+  if (error) {
+    setStatus(`Shared project error: ${formatSupabaseError(error)}`, "error");
+    return;
+  }
+
+  setEditorValue(data.source_text || "");
+  setProjectName(`${data.title || "shared_project"}_shared`);
+  supabaseState.activeProjectId = null;
+  setShareLinkBySlug(data.share_slug || shareSlug);
+  setStatus(`Loaded shared project "${data.title || "Untitled"}". Save it to keep your own copy.`, "success");
+}
+
+function ensureSupabaseReady() {
+  return Boolean(supabaseState.client);
+}
+
+function ensureCloudSignedIn() {
+  if (!ensureSupabaseReady()) {
+    setStatus("Cloud storage is not ready. Reload the page.", "warning");
+    return false;
+  }
+
+  if (!supabaseState.user) {
+    setStatus("Sign in first to use cloud save/share.", "warning");
+    return false;
+  }
+
+  return true;
+}
+
+function readCloudCredentials() {
+  const email = ui.authEmail?.value?.trim() || "";
+  const password = ui.authPassword?.value || "";
+
+  if (!email || !email.includes("@")) {
+    setStatus("Enter a valid email address.", "warning");
+    return null;
+  }
+
+  if (password.length < 6) {
+    setStatus("Enter a password with at least 6 characters.", "warning");
+    return null;
+  }
+
+  return { email, password };
+}
+
+function setCloudAuthState() {
+  if (!ui.authState) {
+    return;
+  }
+
+  if (supabaseState.user?.email) {
+    ui.authState.textContent = `Signed in as ${supabaseState.user.email}.`;
+    return;
+  }
+
+  ui.authState.textContent = "Not signed in.";
+}
+
+function setCloudControlState(isSignedIn) {
+  if (!hasCloudUi()) {
+    return;
+  }
+
+  ui.signOut.disabled = !isSignedIn;
+  ui.saveCloud.disabled = !isSignedIn;
+  ui.shareProject.disabled = !isSignedIn;
+  ui.cloudProjects.disabled = !isSignedIn;
+  ui.copyShareLink.disabled = !ui.shareLinkOutput.value.trim();
+}
+
+function resetCloudProjectList(placeholderText) {
+  if (!ui.cloudProjects) {
+    return;
+  }
+
+  ui.cloudProjects.innerHTML = "";
+  const option = document.createElement("option");
+  option.value = "";
+  option.textContent = placeholderText;
+  ui.cloudProjects.appendChild(option);
+  ui.cloudProjects.value = "";
+}
+
+function resetShareLink() {
+  setShareLinkBySlug("");
+}
+
+function setShareLinkBySlug(slug) {
+  if (!ui.shareLinkOutput) {
+    return;
+  }
+
+  if (!slug) {
+    ui.shareLinkOutput.value = "";
+    ui.copyShareLink.disabled = true;
+    return;
+  }
+
+  ui.shareLinkOutput.value = buildShareUrl(slug);
+  ui.copyShareLink.disabled = false;
+}
+
+function buildShareUrl(slug) {
+  const url = new URL(window.location.href);
+  url.search = "";
+  url.hash = "";
+  url.searchParams.set(SHARE_QUERY_PARAM, slug);
+  return url.toString();
+}
+
+function generateShareSlug() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  }
+
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`.slice(0, 12);
+}
+
+function formatCloudProjectLabel(project) {
+  const title = String(project?.title || "Untitled").trim() || "Untitled";
+  const timestamp = formatTimestamp(project?.updated_at);
+  const sharedLabel = project?.is_public ? " shared" : "";
+  return `${title}${sharedLabel} (${timestamp})`;
+}
+
+function formatTimestamp(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "unknown time";
+  }
+
+  return date.toLocaleString();
+}
+
+function formatSupabaseError(error) {
+  const message = String(error?.message || "Unknown Supabase error");
+  if (/relation .* does not exist/i.test(message)) {
+    return `Table "${PROJECTS_TABLE}" is missing. Run supabase-schema.sql in Supabase SQL Editor.`;
+  }
+  if (/row-level security|permission denied/i.test(message)) {
+    return "RLS policy blocked this request. Check your Supabase policies.";
+  }
+  if (/invalid login credentials/i.test(message)) {
+    return "Invalid email or password.";
+  }
+  if (/email not confirmed/i.test(message)) {
+    return "Email not confirmed yet. Check your inbox.";
+  }
+  return message;
+}
+
+function isMissingRowError(error) {
+  return String(error?.code || "") === "PGRST116" || /0 rows/i.test(String(error?.message || ""));
+}
+
+function isDuplicateError(error) {
+  return String(error?.code || "") === "23505" || /duplicate key/i.test(String(error?.message || ""));
 }
 
 function clamp(value, min, max) {

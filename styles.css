@@ -693,6 +693,66 @@ button {
   font-size: 1.04rem;
 }
 
+.cloud-panel .support-text {
+  margin-bottom: 0.45rem;
+}
+
+.cloud-auth-state {
+  margin: 0;
+  border-radius: 8px;
+  border: 1px solid #d7e1ec;
+  background: #f7fafc;
+  color: #49627c;
+  font-size: 0.82rem;
+  padding: 0.42rem 0.55rem;
+}
+
+.cloud-auth-grid {
+  margin-top: 0.55rem;
+  display: grid;
+  gap: 0.28rem;
+}
+
+.cloud-auth-grid label {
+  margin: 0;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #536a80;
+}
+
+.cloud-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.62rem;
+}
+
+.cloud-actions .primary-btn,
+.cloud-actions .secondary-btn {
+  min-height: 38px;
+  font-size: 0.78rem;
+  padding: 0 0.62rem;
+}
+
+.cloud-field {
+  margin-top: 0.62rem;
+}
+
+.cloud-share-row {
+  display: flex;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.cloud-share-row .text-input {
+  min-height: 38px;
+}
+
+.cloud-share-row .secondary-btn {
+  min-height: 38px;
+  flex: 0 0 auto;
+}
+
 .docs-manual {
   display: grid;
   gap: 0.9rem;
@@ -1285,6 +1345,15 @@ body.page-docs:not(.page-reference) .manual-section {
 
   .right-rail {
     grid-template-columns: 1fr;
+  }
+
+  .cloud-share-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cloud-share-row .secondary-btn {
+    width: 100%;
   }
 
   .manual-grid {
