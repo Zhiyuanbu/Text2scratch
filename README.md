@@ -13,6 +13,8 @@ editable text syntax.
 - Build Stage scripts and multiple sprite scripts in one project.
 - Edit project name directly from the editor toolbar.
 - Optional cloud save/share with Supabase auth and row-level security.
+- Username-based profile auth modal in converter UI (no dedicated login route required).
+- Community page for browsing public shared projects.
 
 ## File Formats
 
@@ -40,7 +42,9 @@ Cloud save/share uses Supabase from the browser (`index.html` + `app.js`).
 2. In Supabase Auth URL config:
    - Set `Site URL` to your deployed domain.
    - Add redirect URLs for local/dev/prod (for example `http://localhost:8080/**`).
-3. Update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `app.js` if your project values change.
+3. Update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `supabase-client.js` if your project values change.
+4. Optional: update the Auth confirmation template in Supabase using [`supabase-email-confirmation-template.html`](supabase-email-confirmation-template.html).
+5. If Bot Detection (hCaptcha) is enabled in Supabase, also set `HCAPTCHA_SITE_KEY` in `supabase-client.js`.
 
 Do not use Postgres connection strings or `service_role` keys in frontend code.
 
@@ -87,10 +91,15 @@ end
 
 - `index.html`: main converter/editor UI.
 - `app.js`: conversion logic, parser flow, import/export wiring.
+- `login.html`, `signup.html`: dedicated auth pages.
+- `auth.js`: auth page controller (sign in/sign up).
+- `supabase-client.js`: shared Supabase config and helpers.
 - `blocks.json`: source of truth for command mappings and syntax patterns.
 - `docs.html`: syntax guide and command reference.
 - `reference.html`: full command reference page.
+- `community.html`: public community browser for shared projects.
 - `terms.html`, `privacy.html`, `license.html`: legal/policy pages.
+- `supabase-email-confirmation-template.html`: styled HTML template for Supabase confirmation emails.
 
 ## License
 

@@ -1,0 +1,91 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Confirm Your text2scratch Account</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #071423;
+      font-family: Arial, sans-serif;
+      color: #dbeeff;
+    }
+    .wrap {
+      width: 100%;
+      padding: 24px 0;
+      background: radial-gradient(circle at 16% 14%, rgba(90, 221, 255, 0.2) 0%, rgba(7, 20, 35, 0) 54%), #071423;
+    }
+    .card {
+      width: min(620px, calc(100% - 32px));
+      margin: 0 auto;
+      border-radius: 16px;
+      border: 1px solid #2e5878;
+      background: linear-gradient(165deg, #0d2a43 0%, #0a1f34 100%);
+      padding: 28px;
+      box-shadow: 0 12px 32px rgba(2, 9, 16, 0.45);
+    }
+    .brand {
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #9fd9ff;
+      margin: 0 0 10px;
+    }
+    h1 {
+      margin: 0 0 12px;
+      font-size: 24px;
+      color: #ecf8ff;
+      line-height: 1.2;
+    }
+    p {
+      margin: 0 0 14px;
+      color: #c8e6fb;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+    .cta {
+      display: inline-block;
+      padding: 12px 18px;
+      border-radius: 10px;
+      background: linear-gradient(140deg, #95ebff 0%, #74ffce 100%);
+      color: #042132 !important;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 14px;
+      margin: 8px 0 16px;
+    }
+    .note {
+      margin-top: 8px;
+      padding: 12px;
+      border-radius: 10px;
+      border: 1px solid #3a6689;
+      background: rgba(5, 19, 31, 0.65);
+      font-size: 13px;
+      color: #add6f2;
+    }
+    .footer {
+      margin-top: 14px;
+      font-size: 12px;
+      color: #80aac8;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <p class="brand">text2scratch</p>
+      <h1>Confirm your account</h1>
+      <p>Welcome to text2scratch. Click the button below to confirm your email and unlock cloud save, share links, and community publishing.</p>
+      <p><a class="cta" href="{{ .ConfirmationURL }}">Confirm Email</a></p>
+      <p>If the button does not work, paste this link into your browser:</p>
+      <p><a href="{{ .ConfirmationURL }}" style="color:#8fe9ff">{{ .ConfirmationURL }}</a></p>
+      <div class="note">
+        Security note: This link expires based on your Supabase Auth settings. If you did not request this account, you can ignore this email.
+      </div>
+      <p class="footer">You received this message because a text2scratch account was created with this email.</p>
+    </div>
+  </div>
+</body>
+</html>

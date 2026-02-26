@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260222d">
+  <link rel="stylesheet" href="styles.css?v=20260226d">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-converter">
@@ -36,6 +36,11 @@
         <a href="index.html" aria-current="page">Converter</a>
         <a href="docs.html">Blocks Docs</a>
         <a href="reference.html">Full Reference</a>
+        <a href="community.html">Community</a>
+        <a href="#profile" id="profileMenuBtn" class="profile-nav-link" aria-label="Open profile menu">
+          <span id="profileAvatarBadge" class="profile-avatar-badge">?</span>
+          <span id="profileNavLabel">Profile</span>
+        </a>
         <a href="terms.html">Terms of Service</a>
         <a href="privacy.html">Privacy Policy</a>
         <a href="license.html">License</a>
@@ -51,6 +56,7 @@
             <p class="kicker">Converter Workspace</p>
             <h1>Write script text, convert, then run in Scratch</h1>
             <p>Use this page in order: write or import script, check output, then export your project file.</p>
+            <div id="sharedProjectNotice" class="shared-project-notice" hidden></div>
             <div class="intro-links">
               <a class="secondary-btn intro-link-btn" href="docs.html">Open Beginner Docs</a>
               <a class="secondary-btn intro-link-btn" href="reference.html">Open Command Reference</a>
@@ -181,19 +187,10 @@
 
           <section class="rail-note cloud-panel">
             <h2>Cloud Projects</h2>
-            <p class="support-text">Create an account, save project text, and generate a public share link with Supabase.</p>
+            <p class="support-text">Use Profile in the sidebar to sign in, then save and share projects here.</p>
             <p id="cloudAuthState" class="cloud-auth-state">Not signed in.</p>
 
-            <div class="cloud-auth-grid">
-              <label for="authEmailInput">Email</label>
-              <input id="authEmailInput" class="text-input" type="email" autocomplete="email" placeholder="you@example.com">
-              <label for="authPasswordInput">Password</label>
-              <input id="authPasswordInput" class="text-input" type="password" autocomplete="current-password" placeholder="At least 6 characters">
-            </div>
-
             <div class="cloud-actions">
-              <button id="signUpBtn" type="button" class="secondary-btn"><i class="fas fa-user-plus"></i> Create Account</button>
-              <button id="signInBtn" type="button" class="secondary-btn"><i class="fas fa-sign-in-alt"></i> Sign In</button>
               <button id="signOutBtn" type="button" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
             </div>
 
@@ -222,6 +219,86 @@
     </div>
   </div>
 
+  <div id="profileAuthModal" class="profile-auth-modal" hidden>
+    <button id="profileModalBackdrop" type="button" class="profile-auth-backdrop" aria-label="Close profile dialog"></button>
+    <section class="profile-auth-card" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+      <div class="profile-auth-head">
+        <div>
+          <p class="kicker">Account</p>
+          <h2 id="profileModalTitle">Profile and Authentication</h2>
+        </div>
+        <button id="profileModalClose" type="button" class="secondary-btn profile-close-btn" aria-label="Close profile dialog">
+          <i class="fas fa-times"></i>
+        </button>
+      </div>
+
+      <section id="profileGuestView" class="profile-auth-view">
+        <div class="profile-auth-tabs" role="tablist" aria-label="Authentication mode">
+          <button type="button" class="secondary-btn profile-tab-btn" id="profileTabLogin" data-auth-tab="login" role="tab" aria-selected="true">Login</button>
+          <button type="button" class="secondary-btn profile-tab-btn" id="profileTabSignup" data-auth-tab="signup" role="tab" aria-selected="false">Sign Up</button>
+          <button type="button" class="secondary-btn profile-tab-btn" id="profileTabReset" data-auth-tab="reset" role="tab" aria-selected="false">Reset Password</button>
+        </div>
+
+        <form id="profileLoginForm" class="profile-auth-form" novalidate>
+          <label for="profileLoginIdentifier">Username or Email</label>
+          <input id="profileLoginIdentifier" class="text-input" type="text" autocomplete="username" required>
+
+          <label for="profileLoginPassword">Password</label>
+          <input id="profileLoginPassword" class="text-input" type="password" autocomplete="current-password" required>
+
+          <button id="profileLoginSubmit" type="submit" class="primary-btn"><i class="fas fa-sign-in-alt"></i> Log In</button>
+        </form>
+
+        <form id="profileSignupForm" class="profile-auth-form" hidden novalidate>
+          <label for="profileSignupUsername">Username</label>
+          <input id="profileSignupUsername" class="text-input" type="text" autocomplete="username" minlength="3" maxlength="32" required>
+
+          <label for="profileSignupEmail">Email</label>
+          <input id="profileSignupEmail" class="text-input" type="email" autocomplete="email" required>
+
+          <label for="profileSignupPassword">Password</label>
+          <input id="profileSignupPassword" class="text-input" type="password" autocomplete="new-password" minlength="6" required>
+
+          <label for="profileSignupConfirm">Confirm Password</label>
+          <input id="profileSignupConfirm" class="text-input" type="password" autocomplete="new-password" minlength="6" required>
+
+          <button id="profileSignupSubmit" type="submit" class="primary-btn"><i class="fas fa-user-plus"></i> Create Account</button>
+        </form>
+
+        <form id="profileResetForm" class="profile-auth-form" hidden novalidate>
+          <label for="profileResetIdentifier">Username or Email</label>
+          <input id="profileResetIdentifier" class="text-input" type="text" autocomplete="username" required>
+          <button id="profileResetSubmit" type="submit" class="primary-btn"><i class="fas fa-key"></i> Send Reset Email</button>
+        </form>
+      </section>
+
+      <section id="profileUserView" class="profile-auth-view" hidden>
+        <article class="profile-user-summary">
+          <div class="profile-user-avatar" id="profileUserAvatar">U</div>
+          <div>
+            <p class="support-text">Signed in as</p>
+            <h3 id="profileUserDisplayName">User</h3>
+            <p id="profileUserEmail" class="support-text">email@example.com</p>
+          </div>
+        </article>
+
+        <div class="profile-user-actions">
+          <button id="profileSendResetBtn" type="button" class="secondary-btn"><i class="fas fa-envelope"></i> Email Password Reset</button>
+          <button id="profileSignOutModalBtn" type="button" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+          <button id="profileDeleteAccountBtn" type="button" class="secondary-btn danger-btn"><i class="fas fa-user-times"></i> Delete Account</button>
+        </div>
+      </section>
+
+      <form id="profileRecoveryForm" class="profile-auth-form" hidden novalidate>
+        <label for="profileRecoveryPassword">New Password</label>
+        <input id="profileRecoveryPassword" class="text-input" type="password" autocomplete="new-password" minlength="6" required>
+        <button id="profileRecoverySubmit" type="submit" class="primary-btn"><i class="fas fa-lock"></i> Update Password</button>
+      </form>
+
+      <p id="profileAuthStatus" class="auth-status status-info" role="status" aria-live="polite">Use username + password to continue.</p>
+    </section>
+  </div>
+
   <footer class="site-footer">
     <div class="container">
       <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
@@ -233,10 +310,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260222d" defer></script>
-  <script src="app.js?v=20260222d" type="module"></script>
+  <script src="common.js?v=20260226d" defer></script>
+  <script src="app.js?v=20260226b" type="module"></script>
 </body>
 </html>
+
+
 
 
 

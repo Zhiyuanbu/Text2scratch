@@ -13,7 +13,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260222d">
+  <link rel="stylesheet" href="styles.css?v=20260226d">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-docs">
@@ -35,6 +35,11 @@
         <a href="index.html">Converter</a>
         <a href="docs.html" aria-current="page">Blocks Docs</a>
         <a href="reference.html">Full Reference</a>
+        <a href="community.html">Community</a>
+        <a href="index.html#profile" class="profile-nav-link">
+          <span class="profile-avatar-badge">?</span>
+          <span>Profile</span>
+        </a>
         <a href="terms.html">Terms of Service</a>
         <a href="privacy.html">Privacy Policy</a>
         <a href="license.html">License</a>
@@ -46,159 +51,38 @@
     <div class="container">
       <main class="docs-manual">
         <section class="docs-banner">
-          <p class="kicker">Official Documentation</p>
-          <h1>Learn text2scratch from basics to full multi-sprite projects</h1>
-          <p>If this is your first time: start at section 6 (Beginner Walkthrough), copy the starter script, and test each step before changing names.</p>
-          <p>After your first successful export, return to sections 1-5 to understand the syntax rules and structure more deeply.</p>
-          <p>Use section 7 only when you already know what command you are looking for and need exact syntax quickly.</p>
+          <p class="kicker">Documentation</p>
+          <h1>Build Scratch projects from text without fighting syntax</h1>
+          <p>Use this guide in order the first time. After that, jump straight to sections you need. Every section includes copy-safe patterns and direct fixes for common parser errors.</p>
         </section>
 
         <nav class="manual-toc" aria-label="Documentation sections">
-          <a href="#syntax-basics">1. Syntax Basics</a>
-          <a href="#build-order">2. Build Order</a>
-          <a href="#at-syntax">3. @ Expressions</a>
-          <a href="#stage-coding">4. Stage Rules</a>
-          <a href="#multi-sprite">5. Multi-Sprite Template</a>
-          <a href="#deep-guide">6. Beginner Walkthrough</a>
-          <a href="#reference-tools">7. Command Reference</a>
+          <a href="#quick-start">1. Quick Start Path</a>
+          <a href="#syntax-basics">2. Syntax Basics</a>
+          <a href="#project-structure">3. Project Structure</a>
+          <a href="#at-syntax">4. Expressions and @ Usage</a>
+          <a href="#stage-coding">5. Stage and Sprite Rules</a>
+          <a href="#debug-guide">6. Debugging and Error Recovery</a>
+          <a href="#sharing-guide">7. Sharing and Community Flow</a>
+          <a href="#reference-tools">8. Command Reference</a>
         </nav>
 
-        <section id="syntax-basics" class="manual-section">
+        <section id="quick-start" class="manual-section">
           <div class="manual-head">
-            <h2>1. Syntax Basics</h2>
-            <p>These rules prevent most errors and make scripts readable.</p>
-          </div>
-
-          <div class="manual-grid">
-            <article class="manual-item">
-              <h3>One line = one command</h3>
-              <p>Each line becomes one Scratch action in generated blocks.</p>
-              <code class="guide-example">move 10</code>
-            </article>
-
-            <article class="manual-item">
-              <h3>Indent nested commands</h3>
-              <p>Loop or if content must be indented below its parent.</p>
-              <code class="guide-example">repeat 10
-  move 10
-end</code>
-            </article>
-
-            <article class="manual-item">
-              <h3>Close with end</h3>
-              <p>Every open control block needs a closing <code>end</code>.</p>
-              <code class="guide-example">if var(score) &gt; 5
-  say "Great"
-end</code>
-            </article>
-
-            <article class="manual-item">
-              <h3>Use quotes for sentence text</h3>
-              <p>If text has spaces, wrap it in quotes.</p>
-              <code class="guide-example">say "Hello team"</code>
-            </article>
-          </div>
-        </section>
-
-        <section id="build-order" class="manual-section">
-          <div class="manual-head">
-            <h2>2. Build Order</h2>
-            <p>Use this sequence to avoid memory overload and broken scripts.</p>
+            <h2>1. Quick Start Path</h2>
+            <p>Use this sequence when starting a new game or animation project.</p>
           </div>
 
           <ol class="workflow-list">
-            <li>Create shared data first: <code>make_var</code>, <code>make_list</code>, <code>make_broadcast</code>.</li>
-            <li>Write stage behavior in <code>stage_code =</code> ... <code>end</code>.</li>
-            <li>Add each sprite with <code>sprite = "Name"</code>.</li>
-            <li>Write sprite scripts in <code>name_code =</code> ... <code>end</code>.</li>
-            <li>Run conversion and fix any Problems before export.</li>
+            <li>Open converter and paste or write your script.</li>
+            <li>Add setup first: variables, lists, and broadcasts.</li>
+            <li>Place stage-only logic in <code>stage_code =</code> blocks.</li>
+            <li>Create each sprite with <code>sprite = "Name"</code> and <code>name_code =</code>.</li>
+            <li>Run export only after compiler output has no errors.</li>
           </ol>
-        </section>
-
-        <section id="at-syntax" class="manual-section">
-          <div class="manual-head">
-            <h2>3. @ Expression Syntax</h2>
-            <p><code>@</code> means "insert a value returned by another block".</p>
-          </div>
-
-          <div class="manual-grid">
-            <article class="manual-item">
-              <h3>Correct usage</h3>
-              <code class="guide-example">set_var score @var(best_score)</code>
-            </article>
-
-            <article class="manual-item">
-              <h3>Incorrect usage</h3>
-              <code class="guide-example">@var(score)</code>
-            </article>
-
-            <article class="manual-item">
-              <h3>Readable condition</h3>
-              <code class="guide-example">if var(score) &gt; 5
-  say "Great"
-end</code>
-            </article>
-          </div>
-        </section>
-
-        <section id="stage-coding" class="manual-section">
-          <div class="manual-head">
-            <h2>4. Stage Coding Rules</h2>
-            <p>Some Scratch blocks are sprite-only and cannot run on stage.</p>
-          </div>
-
-          <ul class="tips-list">
-            <li>Put stage scripts inside <code>stage_code =</code> only.</li>
-            <li>If a line is stage-incompatible, move it into a sprite code section.</li>
-            <li>Use broadcasts to coordinate stage and sprites cleanly.</li>
-          </ul>
-        </section>
-
-        <section id="multi-sprite" class="manual-section">
-          <div class="manual-head">
-            <h2>5. Multi-Sprite Template</h2>
-            <p>Use this as your starter file for most projects.</p>
-          </div>
-
-          <code class="guide-example">make_var score 0
-make_broadcast start_round
-
-stage_code =
-  when_flag_clicked
-  switch_backdrop_to backdrop1
-  broadcast start_round
-end
-
-sprite = "Cat"
-cat_code =
-  when_broadcast_received start_round
-  set_var score 0
-  repeat 5
-    move 10
-    change_var score 1
-  end
-end
-
-sprite = "Ball"
-ball_code =
-  when_broadcast_received start_round
-  if var(score) &gt; 3
-    say "Ready"
-  else
-    think "Wait"
-  end
-end</code>
-        </section>
-
-        <section id="deep-guide" class="manual-section">
-          <div class="manual-head">
-            <h2>6. Beginner Walkthrough (Copy, Test, Expand)</h2>
-            <p>This section assumes you are brand new. Follow each step exactly, test, then move to the next step.</p>
-          </div>
 
           <article class="manual-item">
-            <h3>Step 1: Paste this exact starter script</h3>
-            <p>Use this script first. Do not rename anything yet. Click Convert/Download only after this exact version works.</p>
+            <h3>Starter Script</h3>
             <code class="guide-example">make_var score 0
 make_broadcast game_start
 
@@ -217,92 +101,155 @@ cat_code =
   end
 end</code>
           </article>
+        </section>
 
-          <article class="manual-item">
-            <h3>Step 2: Understand what each part does</h3>
-            <ul class="tips-list">
-              <li><code>make_var score 0</code>: creates a variable named <code>score</code> starting at 0.</li>
-              <li><code>make_broadcast game_start</code>: creates a message that stage and sprites can share.</li>
-              <li><code>stage_code = ... end</code>: defines stage-only logic.</li>
-              <li><code>when_flag_clicked</code>: runs when green flag starts the project.</li>
-              <li><code>set_var score 0</code>: resets score every run (important).</li>
-              <li><code>broadcast game_start</code>: tells sprites to start their logic.</li>
-              <li><code>sprite = "Cat"</code>: starts a sprite section for Cat.</li>
-              <li><code>cat_code = ... end</code>: scripts that belong only to Cat.</li>
-              <li><code>forever ... end</code>: loop runs continuously.</li>
-            </ul>
-          </article>
+        <section id="syntax-basics" class="manual-section">
+          <div class="manual-head">
+            <h2>2. Syntax Basics</h2>
+            <p>These rules prevent nearly all parser failures.</p>
+          </div>
 
-          <article class="manual-item">
-            <h3>Step 3: Test checklist (must pass before step 4)</h3>
-            <ol class="workflow-list">
-              <li>Export and open the generated project in Scratch.</li>
-              <li>Click green flag once.</li>
-              <li>Confirm <code>score</code> increases by 1 every second.</li>
-              <li>Click green flag again and confirm score restarts from 0.</li>
-            </ol>
-            <p>If any item fails, do not continue. Fix this base first.</p>
-          </article>
-
-          <article class="manual-item">
-            <h3>Step 4: Add win behavior at score 10</h3>
-            <p>Replace only the Cat section with this:</p>
-            <code class="guide-example">cat_code =
-  when_broadcast_received game_start
-  forever
-    wait 1
-    change_var score 1
-    if var(score) >= 10
-      say "You win!"
-      stop_all
-    end
-  end
+          <div class="manual-grid">
+            <article class="manual-item">
+              <h3>One line = one command</h3>
+              <p>Keep each line focused. Do not chain commands on one line.</p>
+              <code class="guide-example">move 10</code>
+            </article>
+            <article class="manual-item">
+              <h3>Indent nested bodies</h3>
+              <p>Lines inside loops and conditions must be indented.</p>
+              <code class="guide-example">repeat 10
+  move 10
 end</code>
-            <p>Expected result: at score 10, Cat says "You win!" and the project stops.</p>
-          </article>
+            </article>
+            <article class="manual-item">
+              <h3>Always close with end</h3>
+              <p>If you open <code>if</code>, <code>repeat</code>, or <code>forever</code>, close it.</p>
+              <code class="guide-example">if var(score) &gt; 5
+  say "Ready"
+end</code>
+            </article>
+            <article class="manual-item">
+              <h3>Quote text with spaces</h3>
+              <p>Use quotes for labels and messages.</p>
+              <code class="guide-example">say "Game Over"</code>
+            </article>
+          </div>
+        </section>
 
-          <article class="manual-item">
-            <h3>Step 5: Add a second sprite safely</h3>
-            <p>Append this new section at the bottom:</p>
-            <code class="guide-example">sprite = "Ball"
-ball_code =
-  when_broadcast_received game_start
+        <section id="project-structure" class="manual-section">
+          <div class="manual-head">
+            <h2>3. Project Structure</h2>
+            <p>Use this template when multiple sprites and stage logic are involved.</p>
+          </div>
+
+          <code class="guide-example">make_var score 0
+make_broadcast round_start
+
+stage_code =
+  when_flag_clicked
+  set_var score 0
+  broadcast round_start
+end
+
+sprite = "Player"
+player_code =
+  when_broadcast_received round_start
   forever
     move 6
-    if on_edge_bounce
-      say "boing"
-    end
+  end
+end
+
+sprite = "Ball"
+ball_code =
+  when_broadcast_received round_start
+  if var(score) &gt; 5
+    say "Go"
   end
 end</code>
-            <p>Now both sprites start from the same broadcast. This is the basic multiplayer-script pattern.</p>
-          </article>
+        </section>
+
+        <section id="at-syntax" class="manual-section">
+          <div class="manual-head">
+            <h2>4. Expressions and @ Usage</h2>
+            <p><code>@</code> marks a nested expression. Expressions are values, not standalone lines.</p>
+          </div>
+
+          <div class="manual-grid">
+            <article class="manual-item">
+              <h3>Correct</h3>
+              <code class="guide-example">set_var score @var(best_score)</code>
+            </article>
+            <article class="manual-item">
+              <h3>Incorrect</h3>
+              <code class="guide-example">@var(score)</code>
+            </article>
+            <article class="manual-item">
+              <h3>Readable Conditions</h3>
+              <code class="guide-example">if var(score) &gt;= 10
+  broadcast win
+end</code>
+            </article>
+          </div>
+        </section>
+
+        <section id="stage-coding" class="manual-section">
+          <div class="manual-head">
+            <h2>5. Stage and Sprite Rules</h2>
+            <p>Stage and sprite targets do not support the same command set.</p>
+          </div>
+
+          <ul class="tips-list">
+            <li>Put only stage-compatible logic inside <code>stage_code =</code>.</li>
+            <li>Sprite motion/looks commands belong inside sprite code sections.</li>
+            <li>Use broadcasts to coordinate stage and sprite behaviors cleanly.</li>
+            <li>When in doubt, open Full Reference and filter by <strong>Works On</strong>.</li>
+          </ul>
+        </section>
+
+        <section id="debug-guide" class="manual-section">
+          <div class="manual-head">
+            <h2>6. Debugging and Error Recovery</h2>
+            <p>Use this loop when conversion fails or warnings pile up.</p>
+          </div>
+
+          <ol class="workflow-list">
+            <li>Fix every error from top to bottom before exporting again.</li>
+            <li>If parser says missing <code>end</code>, check nearest opened block above it.</li>
+            <li>If a command is unknown, verify spelling in Full Reference.</li>
+            <li>If stage incompatibility appears, move that line to sprite code.</li>
+            <li>Re-export only after errors are fully cleared.</li>
+          </ol>
 
           <article class="manual-item">
-            <h3>Step 6: Common beginner errors and exact fixes</h3>
+            <h3>Common Fix Patterns</h3>
             <ul class="tips-list">
-              <li>Error: "Unexpected end" or broken block tree. Fix: check every opened <code>if</code>, <code>repeat</code>, <code>forever</code> has a matching <code>end</code>.</li>
-              <li>Error: nothing happens when green flag starts. Fix: ensure stage has <code>when_flag_clicked</code> and it broadcasts the same name sprites listen to.</li>
-              <li>Error: score keeps old value on rerun. Fix: put <code>set_var score 0</code> in startup logic.</li>
-              <li>Error: command works in sprite but not stage. Fix: move sprite-only command into a sprite section.</li>
-              <li>Error: parser rejects text with spaces. Fix: wrap text in quotes, for example <code>say "Game Over"</code>.</li>
+              <li><strong>Unknown command</strong>: correct syntax or comment line out with <code>#</code>.</li>
+              <li><strong>Expression alone</strong>: embed reporter inside a real command input.</li>
+              <li><strong>Invalid else</strong>: ensure it is inside an <code>if</code> body and appears once.</li>
+              <li><strong>Stage incompatibility</strong>: move line into sprite section.</li>
             </ul>
           </article>
+        </section>
 
-          <article class="manual-item">
-            <h3>Step 7: How to debug quickly</h3>
-            <ol class="workflow-list">
-              <li>Comment out one section at a time (or temporarily remove it).</li>
-              <li>Run again and find the smallest section that causes failure.</li>
-              <li>Add that section back line-by-line until error returns.</li>
-              <li>Fix the exact line, then test end-to-end one more time.</li>
-            </ol>
-          </article>
+        <section id="sharing-guide" class="manual-section">
+          <div class="manual-head">
+            <h2>7. Sharing and Community Flow</h2>
+            <p>Publish safely and keep ownership boundaries clear.</p>
+          </div>
+
+          <ol class="workflow-list">
+            <li>Sign in from profile menu and save project to cloud.</li>
+            <li>Create share link only when script is stable.</li>
+            <li>Open community page to browse recent public projects.</li>
+            <li>Shared projects load read-only unless you are the creator.</li>
+          </ol>
         </section>
 
         <section id="reference-tools" class="manual-section">
           <div class="manual-head">
-            <h2>7. Command Reference</h2>
-            <p>Open the full command reference page for searchable syntax, filters, and section jump tools.</p>
+            <h2>8. Command Reference</h2>
+            <p>Need exact syntax fast? Use searchable reference with section jump and filters.</p>
           </div>
           <p class="support-text">
             Open:
@@ -321,7 +268,7 @@ end</code>
 
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260222d" defer></script>
+  <script src="common.js?v=20260226d" defer></script>
 </body>
 </html>
 

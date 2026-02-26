@@ -1,0 +1,125 @@
+@keyframes driftOne {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(-8px, -12px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes driftTwo {
+  0% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(10px, 14px, 0); }
+  100% { transform: translate3d(0, 0, 0); }
+}
+
+@keyframes ringSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulseHalo {
+  0% { opacity: 0.36; transform: scale(1); }
+  50% { opacity: 0.62; transform: scale(1.05); }
+  100% { opacity: 0.36; transform: scale(1); }
+}
+
+@keyframes growProgress {
+  0% { width: 12%; }
+  45% { width: 54%; }
+  80% { width: 82%; }
+  100% { width: 92%; }
+}
+
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.988);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+body::before {
+  animation: driftOne 14s ease-in-out infinite;
+}
+
+body::after {
+  animation: driftTwo 16s ease-in-out infinite;
+}
+
+.auth-orbit {
+  animation: pulseHalo 4.6s ease-in-out infinite;
+}
+
+.auth-orbit.orbit-b {
+  animation-delay: 0.65s;
+}
+
+.page-loader__ring {
+  animation: ringSpin 1s linear infinite;
+}
+
+.page-loader__bar > span {
+  animation: growProgress 1.9s cubic-bezier(0.2, 0.86, 0.24, 1) infinite alternate;
+}
+
+body.page-animate .site-content,
+body.page-animate .site-footer,
+body.page-animate .site-header {
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 360ms ease, transform 460ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+body.page-animate.page-ready .site-content,
+body.page-animate.page-ready .site-footer,
+body.page-animate.page-ready .site-header {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+body.page-leaving .site-content,
+body.page-leaving .site-footer {
+  opacity: 0.3;
+  transform: translateY(12px);
+  transition: opacity 240ms ease, transform 240ms ease;
+}
+
+body.page-ready .intro-strip,
+body.page-ready .editor-workbench,
+body.page-ready .rail-note,
+body.page-ready .manual-section,
+body.page-ready .auth-hero,
+body.page-ready .auth-card,
+body.page-ready .not-found-card,
+body.page-ready .hero-section,
+body.page-ready .legal-card {
+  animation: cardRise 540ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+body.page-ready .editor-workbench {
+  animation-delay: 70ms;
+}
+
+body.page-ready .rail-note:nth-of-type(2),
+body.page-ready .manual-section:nth-of-type(3) {
+  animation-delay: 90ms;
+}
+
+body.page-ready .rail-note:nth-of-type(3),
+body.page-ready .manual-section:nth-of-type(4) {
+  animation-delay: 150ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page-loader__bar > span {
+    width: 86%;
+  }
+}

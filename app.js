@@ -1,4 +1,15 @@
 
+import {
+  CLOUD_TABLE,
+  SHARE_QUERY_PARAM,
+  buildShareUrl,
+  createSupabaseClient,
+  formatSupabaseError,
+  getIndexPageUrl,
+  isDuplicateError,
+  isMissingRowError
+} from "./supabase-client.js";
+
 const STAGE_BACKDROP = {
   assetId: "6821a718a962852e3796b6273aaeb291",
   md5ext: "6821a718a962852e3796b6273aaeb291.svg",
@@ -41,6 +52,17 @@ const INDENT_UNIT = "  ";
 const MONACO_VS_PATH = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs";
 const MARKER_OWNER = "text2scratch-diagnostics";
 const DIAGNOSTIC_DEBOUNCE_MS = 220;
+const TOAST_LIFETIME_MS = 3600;
+const BLOCKING_DIAGNOSTIC_CODES = new Set([
+  "t2s.missing-end",
+  "t2s.unmatched-end",
+  "t2s.invalid-else",
+  "t2s.expression-standalone",
+  "t2s.unknown-command",
+  "t2s.stage-incompatible",
+  "t2s.at-format",
+  "t2s.problem"
+]);
 
 const STAGE_UNSUPPORTED_OPCODE_PREFIXES = [
   "motion_",
@@ -76,10 +98,6 @@ const STAGE_UNSUPPORTED_OPCODES = new Set([
 ]);
 
 const DEFAULT_PROJECT_NAME = "multi_sprite_project";
-const SUPABASE_URL = "https://ytsrvbrdxhyrazhnqohb.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
-const PROJECTS_TABLE = "projects";
-const SHARE_QUERY_PARAM = "share";
 const DEFAULT_MULTI_SPRITE_SAMPLE = [
   "# Stage setup",
   "make_var score 0",
@@ -127,16 +145,43 @@ const ui = {
   status: document.getElementById("status"),
   commands: document.getElementById("commandList"),
   authState: document.getElementById("cloudAuthState"),
-  authEmail: document.getElementById("authEmailInput"),
-  authPassword: document.getElementById("authPasswordInput"),
-  signUp: document.getElementById("signUpBtn"),
-  signIn: document.getElementById("signInBtn"),
   signOut: document.getElementById("signOutBtn"),
   saveCloud: document.getElementById("saveCloudBtn"),
   shareProject: document.getElementById("shareProjectBtn"),
   cloudProjects: document.getElementById("cloudProjectsSelect"),
   shareLinkOutput: document.getElementById("shareLinkOutput"),
-  copyShareLink: document.getElementById("copyShareLinkBtn")
+  copyShareLink: document.getElementById("copyShareLinkBtn"),
+  sharedProjectNotice: document.getElementById("sharedProjectNotice"),
+  profileMenuBtn: document.getElementById("profileMenuBtn"),
+  profileAvatarBadge: document.getElementById("profileAvatarBadge"),
+  profileNavLabel: document.getElementById("profileNavLabel"),
+  profileModal: document.getElementById("profileAuthModal"),
+  profileModalBackdrop: document.getElementById("profileModalBackdrop"),
+  profileModalClose: document.getElementById("profileModalClose"),
+  profileGuestView: document.getElementById("profileGuestView"),
+  profileUserView: document.getElementById("profileUserView"),
+  profileAuthStatus: document.getElementById("profileAuthStatus"),
+  profileTabLogin: document.getElementById("profileTabLogin"),
+  profileTabSignup: document.getElementById("profileTabSignup"),
+  profileTabReset: document.getElementById("profileTabReset"),
+  profileLoginForm: document.getElementById("profileLoginForm"),
+  profileSignupForm: document.getElementById("profileSignupForm"),
+  profileResetForm: document.getElementById("profileResetForm"),
+  profileRecoveryForm: document.getElementById("profileRecoveryForm"),
+  profileLoginIdentifier: document.getElementById("profileLoginIdentifier"),
+  profileLoginPassword: document.getElementById("profileLoginPassword"),
+  profileSignupUsername: document.getElementById("profileSignupUsername"),
+  profileSignupEmail: document.getElementById("profileSignupEmail"),
+  profileSignupPassword: document.getElementById("profileSignupPassword"),
+  profileSignupConfirm: document.getElementById("profileSignupConfirm"),
+  profileResetIdentifier: document.getElementById("profileResetIdentifier"),
+  profileRecoveryPassword: document.getElementById("profileRecoveryPassword"),
+  profileUserAvatar: document.getElementById("profileUserAvatar"),
+  profileUserDisplayName: document.getElementById("profileUserDisplayName"),
+  profileUserEmail: document.getElementById("profileUserEmail"),
+  profileSendResetBtn: document.getElementById("profileSendResetBtn"),
+  profileSignOutModalBtn: document.getElementById("profileSignOutModalBtn"),
+  profileDeleteAccountBtn: document.getElementById("profileDeleteAccountBtn")
 };
 
 let blockCatalog = null;
@@ -146,7 +191,12 @@ const editorState = {
   instance: null,
   monacoRef: null,
   diagnosticTimer: null,
-  codeActionsRegistered: false
+  codeActionsRegistered: false,
+  hoverRegistered: false
+};
+
+const toastState = {
+  host: null
 };
 
 const supabaseState = {
@@ -156,9 +206,21 @@ const supabaseState = {
   authListener: null
 };
 
+const authUiState = {
+  tab: "login"
+};
+
+const shareState = {
+  active: false,
+  readOnly: false,
+  ownerId: "",
+  ownerName: ""
+};
+
 init();
 
 async function init() {
+  ensureToastHost();
   await initEditor();
   setProjectName(DEFAULT_PROJECT_NAME);
 
@@ -170,6 +232,9 @@ async function init() {
 
     blockCatalog = await response.json();
     reverseCatalog = buildReverseCatalog(blockCatalog);
+    if (editorState.usingMonaco && editorState.monacoRef) {
+      registerEditorHoverProvider(editorState.monacoRef);
+    }
     setEditorValue(getSampleScript(blockCatalog));
     renderCommandList(blockCatalog);
     setStatus("Ready. Import SB3, edit text commands, then export as .sb3 or .t2sh.");
@@ -186,6 +251,10 @@ async function init() {
       setStatus("Block catalog is not loaded.", true);
       return;
     }
+    if (shareState.readOnly) {
+      setStatus("This shared project is read-only. Fork it first to edit sample content.", "warning");
+      return;
+    }
 
     setEditorValue(getSampleScript(blockCatalog));
     setProjectName(DEFAULT_PROJECT_NAME);
@@ -193,6 +262,7 @@ async function init() {
     scheduleDiagnosticsUpdate();
   });
 
+  initProfileAuthUi();
   initSupabaseWorkspace().catch((error) => {
     setStatus(`Cloud setup error: ${error.message}`, "warning");
   });
@@ -210,6 +280,14 @@ async function onExportClick() {
 async function exportSb3File() {
   if (!blockCatalog) {
     setStatus("Block catalog is not loaded.", true);
+    return;
+  }
+
+  const blocking = getBlockingDiagnostics();
+  if (blocking.length > 0) {
+    const first = blocking[0];
+    const lineInfo = Number.isFinite(first?.startLineNumber) ? `Line ${first.startLineNumber}: ` : "";
+    setStatus(`Conversion blocked due to syntax problems. ${lineInfo}${first.message}`, "error");
     return;
   }
 
@@ -319,6 +397,10 @@ function downloadBlob(blob, fileName) {
 
 function onUploadClick() {
   if (!ui.importInput) {
+    return;
+  }
+  if (shareState.readOnly) {
+    setStatus("This shared project is read-only. Fork it first before importing over it.", "warning");
     return;
   }
 
@@ -2610,6 +2692,7 @@ function initMonacoEditor() {
         registerText2ScratchLanguage(monacoRef);
         defineText2ScratchTheme(monacoRef);
         registerText2ScratchCodeActions(monacoRef);
+        registerEditorHoverProvider(monacoRef);
 
         editorState.instance = monacoRef.editor.create(ui.editorHost, {
           value: ui.input?.value || "",
@@ -2771,6 +2854,95 @@ function registerText2ScratchCodeActions(monacoRef) {
   });
 
   editorState.codeActionsRegistered = true;
+}
+
+function registerEditorHoverProvider(monacoRef) {
+  if (editorState.hoverRegistered) {
+    return;
+  }
+
+  monacoRef.languages.registerHoverProvider("text2scratch", {
+    provideHover(model, position) {
+      const lineText = model.getLineContent(position.lineNumber) || "";
+      const tokenInfo = findTokenAtColumn(lineText, position.column);
+      if (!tokenInfo) {
+        return null;
+      }
+
+      const hover = buildHoverInfo(tokenInfo.token);
+      if (!hover) {
+        return null;
+      }
+
+      return {
+        range: new monacoRef.Range(position.lineNumber, tokenInfo.startColumn, position.lineNumber, tokenInfo.endColumn),
+        contents: [
+          { value: `**${hover.title}**` },
+          { value: hover.syntax ? `\\`${hover.syntax}\\`` : "" },
+          { value: hover.description }
+        ].filter((item) => item.value && item.value.trim().length > 0)
+      };
+    }
+  });
+
+  editorState.hoverRegistered = true;
+}
+
+function findTokenAtColumn(lineText, column) {
+  const pattern = /@?[a-zA-Z_][a-zA-Z0-9_-]*/g;
+  let match = pattern.exec(lineText);
+  while (match) {
+    const start = match.index + 1;
+    const end = match.index + match[0].length + 1;
+    if (column >= start && column <= end) {
+      return {
+        token: match[0],
+        startColumn: start,
+        endColumn: end
+      };
+    }
+    match = pattern.exec(lineText);
+  }
+  return null;
+}
+
+function buildHoverInfo(rawToken) {
+  const token = String(rawToken || "").trim();
+  if (!token) {
+    return null;
+  }
+
+  const normalized = normalizeCommand(token.replace(/^@/, ""));
+  if (normalized === "stage_code") {
+    return {
+      title: "stage_code",
+      syntax: "stage_code =",
+      description: "Starts a Stage-only code section. Commands inside this section must be stage-compatible."
+    };
+  }
+
+  if (/_code$/.test(normalized)) {
+    return {
+      title: normalized,
+      syntax: `${normalized} =`,
+      description: "Starts a sprite code section. Use commands for the sprite target until closing with end."
+    };
+  }
+
+  const catalogCommands = blockCatalog?.commands || {};
+  const commandName = resolveCommand(normalized, blockCatalog || { commands: {} });
+  const definition = catalogCommands[commandName];
+  if (!definition) {
+    return null;
+  }
+
+  const description = (definition.description || "").trim() || "Scratch command supported by text2scratch.";
+  const syntax = definition.syntax || commandName;
+  return {
+    title: commandName,
+    syntax,
+    description
+  };
 }
 
 function buildQuickFixesForMarker(monacoRef, model, marker) {
@@ -3174,19 +3346,6 @@ function collectEditorHints(text) {
 
     const lineNumber = index + 1;
 
-    if (/^stage_code\s*=\s*$/i.test(trimmed)) {
-      markers.push({
-        severity: editorState.monacoRef.MarkerSeverity.Info,
-        message: "Stage section note: only stage-compatible blocks are allowed here.",
-        code: "t2s.stage-note",
-        source: "text2scratch",
-        startLineNumber: lineNumber,
-        startColumn: 1,
-        endLineNumber: lineNumber,
-        endColumn: Math.max(2, line.length + 1)
-      });
-    }
-
     if (trimmed.startsWith("@") && looksExpressionCall(trimmed.slice(1))) {
       markers.push({
         severity: editorState.monacoRef.MarkerSeverity.Warning,
@@ -3360,13 +3519,513 @@ function dedupeMarkers(markers) {
   });
 }
 
+function getBlockingDiagnostics() {
+  if (!editorState.monacoRef?.MarkerSeverity) {
+    try {
+      parseScript(getEditorValue(), blockCatalog);
+      return [];
+    } catch (error) {
+      return [{
+        message: String(error?.message || "Syntax error."),
+        startLineNumber: extractLineFromMessage(String(error?.message || "")) || 1
+      }];
+    }
+  }
+
+  const markers = buildDiagnostics(getEditorValue(), blockCatalog);
+  return markers.filter((marker) => {
+    if (!marker) {
+      return false;
+    }
+
+    if (marker.severity === editorState.monacoRef?.MarkerSeverity?.Error) {
+      return true;
+    }
+
+    return BLOCKING_DIAGNOSTIC_CODES.has(String(marker.code || ""));
+  });
+}
+
+function initProfileAuthUi() {
+  if (!ui.profileMenuBtn || !ui.profileModal || !ui.profileAuthStatus) {
+    return;
+  }
+
+  ui.profileMenuBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    openProfileModal();
+  });
+
+  ui.profileModalBackdrop?.addEventListener("click", closeProfileModal);
+  ui.profileModalClose?.addEventListener("click", closeProfileModal);
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !ui.profileModal.hidden) {
+      closeProfileModal();
+    }
+  });
+
+  ui.profileTabLogin?.addEventListener("click", () => setAuthTab("login"));
+  ui.profileTabSignup?.addEventListener("click", () => setAuthTab("signup"));
+  ui.profileTabReset?.addEventListener("click", () => setAuthTab("reset"));
+
+  ui.profileLoginForm?.addEventListener("submit", onProfileLoginSubmit);
+  ui.profileSignupForm?.addEventListener("submit", onProfileSignupSubmit);
+  ui.profileResetForm?.addEventListener("submit", onProfileResetSubmit);
+  ui.profileRecoveryForm?.addEventListener("submit", onProfileRecoverySubmit);
+  ui.profileSignOutModalBtn?.addEventListener("click", onCloudSignOutClick);
+  ui.profileSendResetBtn?.addEventListener("click", onProfileSendResetForCurrentUser);
+  ui.profileDeleteAccountBtn?.addEventListener("click", onProfileDeleteAccount);
+
+  if (isRecoverySession()) {
+    ui.profileRecoveryForm.hidden = false;
+    openProfileModal();
+    setProfileAuthStatus("Recovery mode detected. Set your new password.", "warning");
+  }
+
+  if (String(window.location.hash || "").toLowerCase() === "#profile") {
+    openProfileModal();
+  }
+
+  setAuthTab("login");
+  updateProfileUiState();
+}
+
+function isRecoverySession() {
+  const search = new URLSearchParams(window.location.search);
+  const hash = String(window.location.hash || "");
+  return search.get("mode") === "recovery" || hash.includes("type=recovery");
+}
+
+function openProfileModal() {
+  if (!ui.profileModal) {
+    return;
+  }
+
+  ui.profileModal.hidden = false;
+  document.body.classList.add("profile-modal-open");
+  updateProfileUiState();
+}
+
+function closeProfileModal() {
+  if (!ui.profileModal) {
+    return;
+  }
+
+  ui.profileModal.hidden = true;
+  document.body.classList.remove("profile-modal-open");
+
+  if (String(window.location.hash || "").toLowerCase() === "#profile") {
+    const url = new URL(window.location.href);
+    url.hash = "";
+    window.history.replaceState({}, "", url.toString());
+  }
+}
+
+function setAuthTab(tab) {
+  authUiState.tab = tab;
+
+  if (ui.profileLoginForm) {
+    ui.profileLoginForm.hidden = tab !== "login";
+  }
+  if (ui.profileSignupForm) {
+    ui.profileSignupForm.hidden = tab !== "signup";
+  }
+  if (ui.profileResetForm) {
+    ui.profileResetForm.hidden = tab !== "reset";
+  }
+
+  if (ui.profileTabLogin) {
+    ui.profileTabLogin.setAttribute("aria-selected", String(tab === "login"));
+  }
+  if (ui.profileTabSignup) {
+    ui.profileTabSignup.setAttribute("aria-selected", String(tab === "signup"));
+  }
+  if (ui.profileTabReset) {
+    ui.profileTabReset.setAttribute("aria-selected", String(tab === "reset"));
+  }
+}
+
+function setProfileAuthStatus(message, severity = "info") {
+  if (!ui.profileAuthStatus) {
+    return;
+  }
+
+  ui.profileAuthStatus.textContent = message;
+  ui.profileAuthStatus.classList.remove("status-info", "status-success", "status-warning", "status-error");
+  ui.profileAuthStatus.classList.add(`status-${severity}`);
+}
+
+function setProfileFormsEnabled(enabled) {
+  const forms = [ui.profileLoginForm, ui.profileSignupForm, ui.profileResetForm, ui.profileRecoveryForm]
+    .filter(Boolean);
+
+  forms.forEach((form) => {
+    [...form.querySelectorAll("input,button")].forEach((field) => {
+      if (field.id === "profileModalClose") {
+        return;
+      }
+      field.disabled = !enabled;
+    });
+  });
+}
+
+function updateProfileUiState() {
+  const user = supabaseState.user;
+  const signedIn = Boolean(user);
+
+  if (ui.profileGuestView) {
+    ui.profileGuestView.hidden = signedIn;
+  }
+  if (ui.profileUserView) {
+    ui.profileUserView.hidden = !signedIn;
+  }
+
+  if (signedIn && user) {
+    const displayName = getUserDisplayName(user);
+    const email = String(user.email || "");
+    const avatar = buildAvatarText(displayName || email || "U");
+
+    if (ui.profileUserDisplayName) {
+      ui.profileUserDisplayName.textContent = displayName || "User";
+    }
+    if (ui.profileUserEmail) {
+      ui.profileUserEmail.textContent = email || "No email";
+    }
+    if (ui.profileUserAvatar) {
+      ui.profileUserAvatar.textContent = avatar;
+    }
+    if (ui.profileAvatarBadge) {
+      ui.profileAvatarBadge.textContent = avatar;
+    }
+    if (ui.profileNavLabel) {
+      ui.profileNavLabel.textContent = displayName || "Profile";
+    }
+  } else {
+    if (ui.profileAvatarBadge) {
+      ui.profileAvatarBadge.textContent = "?";
+    }
+    if (ui.profileNavLabel) {
+      ui.profileNavLabel.textContent = "Profile";
+    }
+  }
+}
+
+async function onProfileLoginSubmit(event) {
+  event.preventDefault();
+  if (!ensureSupabaseReady()) {
+    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
+    return;
+  }
+
+  const identifier = String(ui.profileLoginIdentifier?.value || "").trim();
+  const password = String(ui.profileLoginPassword?.value || "");
+  if (!identifier || !password) {
+    setProfileAuthStatus("Enter username/email and password.", "warning");
+    return;
+  }
+
+  setProfileFormsEnabled(false);
+  try {
+    const email = await resolveEmailFromIdentifier(identifier);
+    const { error } = await supabaseState.client.auth.signInWithPassword({ email, password });
+    if (error) {
+      throw new Error(formatSupabaseError(error));
+    }
+
+    if (ui.profileLoginPassword) {
+      ui.profileLoginPassword.value = "";
+    }
+    setProfileAuthStatus("Signed in successfully.", "success");
+    setStatus("Signed in successfully.", "success");
+    closeProfileModal();
+  } catch (error) {
+    setProfileAuthStatus(`Login failed: ${error.message}`, "error");
+    setStatus(`Login failed: ${error.message}`, "error");
+  } finally {
+    setProfileFormsEnabled(true);
+  }
+}
+
+async function onProfileSignupSubmit(event) {
+  event.preventDefault();
+  if (!ensureSupabaseReady()) {
+    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
+    return;
+  }
+
+  const username = normalizeUsername(ui.profileSignupUsername?.value || "");
+  const email = String(ui.profileSignupEmail?.value || "").trim().toLowerCase();
+  const password = String(ui.profileSignupPassword?.value || "");
+  const confirm = String(ui.profileSignupConfirm?.value || "");
+
+  if (!isValidUsername(username)) {
+    setProfileAuthStatus("Username must be 3-32 characters: letters, numbers, underscores.", "warning");
+    return;
+  }
+  if (!email.includes("@")) {
+    setProfileAuthStatus("Enter a valid email address.", "warning");
+    return;
+  }
+  if (password.length < 6) {
+    setProfileAuthStatus("Password must be at least 6 characters.", "warning");
+    return;
+  }
+  if (password !== confirm) {
+    setProfileAuthStatus("Password confirmation does not match.", "warning");
+    return;
+  }
+
+  setProfileFormsEnabled(false);
+  try {
+    const available = await isUsernameAvailable(username);
+    if (!available) {
+      setProfileAuthStatus("Username is already taken. Choose another.", "warning");
+      return;
+    }
+
+    const { data, error } = await supabaseState.client.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${getIndexPageUrl()}?mode=login`,
+        data: { username }
+      }
+    });
+
+    if (error) {
+      throw new Error(formatSupabaseError(error));
+    }
+
+    if (data?.session?.user) {
+      setProfileAuthStatus("Account created and signed in.", "success");
+      setStatus("Account created and signed in.", "success");
+      closeProfileModal();
+      return;
+    }
+
+    setProfileAuthStatus("Account created. Check your email to confirm before login.", "success");
+    setStatus("Account created. Check your email to confirm before login.", "success");
+    setAuthTab("login");
+  } catch (error) {
+    setProfileAuthStatus(`Sign-up failed: ${error.message}`, "error");
+    setStatus(`Sign-up failed: ${error.message}`, "error");
+  } finally {
+    setProfileFormsEnabled(true);
+  }
+}
+
+async function onProfileResetSubmit(event) {
+  event.preventDefault();
+  if (!ensureSupabaseReady()) {
+    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
+    return;
+  }
+
+  const identifier = String(ui.profileResetIdentifier?.value || "").trim();
+  if (!identifier) {
+    setProfileAuthStatus("Enter your username or email.", "warning");
+    return;
+  }
+
+  setProfileFormsEnabled(false);
+  try {
+    const email = await resolveEmailFromIdentifier(identifier);
+    const { error } = await supabaseState.client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${getIndexPageUrl()}?mode=recovery`
+    });
+
+    if (error) {
+      throw new Error(formatSupabaseError(error));
+    }
+
+    setProfileAuthStatus("Password reset email sent. Check inbox and spam folder.", "success");
+    setStatus("Password reset email sent.", "success");
+  } catch (error) {
+    setProfileAuthStatus(`Reset failed: ${error.message}`, "error");
+    setStatus(`Reset failed: ${error.message}`, "error");
+  } finally {
+    setProfileFormsEnabled(true);
+  }
+}
+
+async function onProfileRecoverySubmit(event) {
+  event.preventDefault();
+  if (!ensureSupabaseReady()) {
+    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
+    return;
+  }
+
+  const newPassword = String(ui.profileRecoveryPassword?.value || "");
+  if (newPassword.length < 6) {
+    setProfileAuthStatus("New password must be at least 6 characters.", "warning");
+    return;
+  }
+
+  setProfileFormsEnabled(false);
+  try {
+    const { error } = await supabaseState.client.auth.updateUser({ password: newPassword });
+    if (error) {
+      throw new Error(formatSupabaseError(error));
+    }
+
+    setProfileAuthStatus("Password updated.", "success");
+    setStatus("Password updated successfully.", "success");
+    ui.profileRecoveryForm.hidden = true;
+    const cleanUrl = new URL(window.location.href);
+    cleanUrl.searchParams.delete("mode");
+    cleanUrl.hash = "";
+    window.history.replaceState({}, "", cleanUrl.toString());
+    closeProfileModal();
+  } catch (error) {
+    setProfileAuthStatus(`Password update failed: ${error.message}`, "error");
+    setStatus(`Password update failed: ${error.message}`, "error");
+  } finally {
+    setProfileFormsEnabled(true);
+  }
+}
+
+async function onProfileSendResetForCurrentUser() {
+  if (!ensureCloudSignedIn()) {
+    return;
+  }
+
+  const email = String(supabaseState.user?.email || "").trim();
+  if (!email) {
+    setProfileAuthStatus("Current account has no email. Reset cannot be sent.", "warning");
+    return;
+  }
+
+  try {
+    const { error } = await supabaseState.client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${getIndexPageUrl()}?mode=recovery`
+    });
+    if (error) {
+      throw new Error(formatSupabaseError(error));
+    }
+    setProfileAuthStatus("Password reset email sent.", "success");
+    setStatus("Password reset email sent.", "success");
+  } catch (error) {
+    setProfileAuthStatus(`Password reset failed: ${error.message}`, "error");
+    setStatus(`Password reset failed: ${error.message}`, "error");
+  }
+}
+
+async function onProfileDeleteAccount() {
+  if (!ensureCloudSignedIn()) {
+    return;
+  }
+
+  const confirmed = window.confirm("Delete your account and all cloud projects permanently?");
+  if (!confirmed) {
+    return;
+  }
+
+  try {
+    const { error } = await supabaseState.client.rpc("delete_current_account");
+    if (error) {
+      throw new Error(formatSupabaseError(error));
+    }
+
+    await supabaseState.client.auth.signOut();
+    supabaseState.user = null;
+    supabaseState.activeProjectId = null;
+    setCloudAuthState();
+    setCloudControlState(false);
+    updateProfileUiState();
+    resetShareLink();
+    resetCloudProjectList("Sign in to load projects");
+    setProfileAuthStatus("Account deleted.", "success");
+    setStatus("Account deleted successfully.", "success");
+    closeProfileModal();
+  } catch (error) {
+    setProfileAuthStatus(`Account deletion failed: ${error.message}`, "error");
+    setStatus(`Account deletion failed: ${error.message}`, "error");
+  }
+}
+
+async function resolveEmailFromIdentifier(identifier) {
+  const value = String(identifier || "").trim();
+  if (!value) {
+    throw new Error("Missing username or email.");
+  }
+
+  if (value.includes("@")) {
+    return value.toLowerCase();
+  }
+
+  const normalized = normalizeUsername(value);
+  if (!normalized) {
+    throw new Error("Invalid username.");
+  }
+
+  const { data, error } = await supabaseState.client.rpc("resolve_login_email", {
+    login_identifier: normalized
+  });
+
+  if (error) {
+    throw new Error(formatSupabaseError(error));
+  }
+  if (!data) {
+    throw new Error("Username not found.");
+  }
+
+  return String(data).toLowerCase();
+}
+
+function normalizeUsername(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "");
+}
+
+function isValidUsername(value) {
+  return /^[a-z0-9_]{3,32}$/.test(String(value || ""));
+}
+
+async function isUsernameAvailable(username) {
+  const normalized = normalizeUsername(username);
+  if (!isValidUsername(normalized)) {
+    return false;
+  }
+
+  const { data, error } = await supabaseState.client.rpc("is_username_available", {
+    candidate_username: normalized
+  });
+
+  if (error) {
+    throw new Error(formatSupabaseError(error));
+  }
+
+  return Boolean(data);
+}
+
+function getUserDisplayName(user) {
+  const fromMeta = String(user?.user_metadata?.username || "").trim();
+  if (fromMeta) {
+    return fromMeta;
+  }
+
+  const email = String(user?.email || "").trim();
+  if (email.includes("@")) {
+    return email.split("@")[0];
+  }
+
+  return "Profile";
+}
+
+function buildAvatarText(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "?";
+  }
+  return text[0].toUpperCase();
+}
+
 function hasCloudUi() {
   return Boolean(
     ui.authState &&
-    ui.authEmail &&
-    ui.authPassword &&
-    ui.signUp &&
-    ui.signIn &&
     ui.signOut &&
     ui.saveCloud &&
     ui.shareProject &&
@@ -3381,25 +4040,21 @@ async function initSupabaseWorkspace() {
     return;
   }
 
-  const supabaseGlobal = window.supabase;
-  if (!supabaseGlobal || typeof supabaseGlobal.createClient !== "function") {
-    ui.authState.textContent = "Supabase SDK failed to load.";
+  try {
+    supabaseState.client = createSupabaseClient();
+  } catch (error) {
+    ui.authState.textContent = error.message;
     setCloudControlState(false);
+    setProfileAuthStatus(error.message, "error");
+    updateProfileUiState();
     return;
   }
-
-  supabaseState.client = supabaseGlobal.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: true
-    }
-  });
 
   bindCloudEventHandlers();
   await restoreCloudSession();
   setCloudAuthState();
   setCloudControlState(Boolean(supabaseState.user));
+  updateProfileUiState();
 
   await loadSharedProjectFromQuery();
 
@@ -3415,8 +4070,15 @@ async function initSupabaseWorkspace() {
       supabaseState.activeProjectId = null;
       resetShareLink();
     }
+
+    if (shareState.active) {
+      const isOwner = Boolean(supabaseState.user?.id) && supabaseState.user.id === shareState.ownerId;
+      setSharedReadOnly(!isOwner);
+    }
+
     setCloudAuthState();
     setCloudControlState(Boolean(supabaseState.user));
+    updateProfileUiState();
 
     if (supabaseState.user) {
       await refreshCloudProjectList();
@@ -3429,20 +4091,11 @@ async function initSupabaseWorkspace() {
 }
 
 function bindCloudEventHandlers() {
-  ui.signUp.addEventListener("click", onCloudSignUpClick);
-  ui.signIn.addEventListener("click", onCloudSignInClick);
   ui.signOut.addEventListener("click", onCloudSignOutClick);
   ui.saveCloud.addEventListener("click", onSaveCloudProjectClick);
   ui.shareProject.addEventListener("click", onShareProjectClick);
   ui.copyShareLink.addEventListener("click", onCopyShareLinkClick);
   ui.cloudProjects.addEventListener("change", onCloudProjectSelected);
-
-  ui.authPassword.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      onCloudSignInClick();
-    }
-  });
 }
 
 async function restoreCloudSession() {
@@ -3452,78 +4105,11 @@ async function restoreCloudSession() {
 
   const { data, error } = await supabaseState.client.auth.getSession();
   if (error) {
-    setStatus(`Cloud auth warning: ${error.message}`, "warning");
+    setStatus(`Cloud auth warning: ${formatSupabaseError(error)}`, "warning");
     return;
   }
 
   supabaseState.user = data?.session?.user || null;
-}
-
-async function onCloudSignUpClick() {
-  if (!ensureSupabaseReady()) {
-    return;
-  }
-
-  const credentials = readCloudCredentials();
-  if (!credentials) {
-    return;
-  }
-
-  const { email, password } = credentials;
-  const { data, error } = await supabaseState.client.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `${window.location.origin}/index.html`
-    }
-  });
-
-  if (error) {
-    setStatus(`Sign-up failed: ${formatSupabaseError(error)}`, "error");
-    return;
-  }
-
-  ui.authPassword.value = "";
-  window.text2scratchRum?.trackAccountCreated({ method: "email_password" });
-
-  if (data?.session?.user) {
-    supabaseState.user = data.session.user;
-    setStatus("Account created and signed in.", "success");
-  } else {
-    setStatus("Account created. Confirm your email, then sign in.", "success");
-  }
-
-  setCloudAuthState();
-  setCloudControlState(Boolean(supabaseState.user));
-}
-
-async function onCloudSignInClick() {
-  if (!ensureSupabaseReady()) {
-    return;
-  }
-
-  const credentials = readCloudCredentials();
-  if (!credentials) {
-    return;
-  }
-
-  const { email, password } = credentials;
-  const { data, error } = await supabaseState.client.auth.signInWithPassword({
-    email,
-    password
-  });
-
-  if (error) {
-    setStatus(`Sign-in failed: ${formatSupabaseError(error)}`, "error");
-    return;
-  }
-
-  ui.authPassword.value = "";
-  supabaseState.user = data?.user || null;
-  setCloudAuthState();
-  setCloudControlState(Boolean(supabaseState.user));
-  await refreshCloudProjectList();
-  setStatus("Signed in to cloud storage.", "success");
 }
 
 async function onCloudSignOutClick() {
@@ -3541,9 +4127,11 @@ async function onCloudSignOutClick() {
   supabaseState.activeProjectId = null;
   setCloudAuthState();
   setCloudControlState(false);
+  updateProfileUiState();
   resetShareLink();
   resetCloudProjectList("Sign in to load projects");
-  setStatus("Signed out.", "success");
+  setProfileAuthStatus("Signed out.", "success");
+  setStatus("Signed out successfully.", "success");
 }
 
 async function onSaveCloudProjectClick() {
@@ -3555,9 +4143,14 @@ async function saveProjectToCloud(options = {}) {
   if (!ensureCloudSignedIn()) {
     return null;
   }
+  if (shareState.readOnly) {
+    setStatus("This shared project is read-only. Fork it first to edit and save.", "warning");
+    return null;
+  }
 
   const projectPayload = {
     owner_id: supabaseState.user.id,
+    owner_username: getUserDisplayName(supabaseState.user),
     title: getProjectName(),
     source_text: getEditorValue(),
     updated_at: new Date().toISOString()
@@ -3567,7 +4160,7 @@ async function saveProjectToCloud(options = {}) {
 
   if (supabaseState.activeProjectId) {
     const updateResult = await supabaseState.client
-      .from(PROJECTS_TABLE)
+      .from(CLOUD_TABLE)
       .update(projectPayload)
       .eq("id", supabaseState.activeProjectId)
       .eq("owner_id", supabaseState.user.id)
@@ -3586,7 +4179,7 @@ async function saveProjectToCloud(options = {}) {
 
   if (!record) {
     const insertResult = await supabaseState.client
-      .from(PROJECTS_TABLE)
+      .from(CLOUD_TABLE)
       .insert(projectPayload)
       .select("id,title,share_slug,is_public,updated_at")
       .single();
@@ -3618,6 +4211,10 @@ async function onShareProjectClick() {
   if (!ensureCloudSignedIn()) {
     return;
   }
+  if (shareState.readOnly) {
+    setStatus("Only the project creator can re-share this link. Fork it to create your own.", "warning");
+    return;
+  }
 
   let projectId = supabaseState.activeProjectId;
   if (!projectId) {
@@ -3642,7 +4239,7 @@ async function assignProjectShareSlug(projectId) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = generateShareSlug();
     const result = await supabaseState.client
-      .from(PROJECTS_TABLE)
+      .from(CLOUD_TABLE)
       .update({
         is_public: true,
         share_slug: slug,
@@ -3695,7 +4292,7 @@ async function onCloudProjectSelected() {
   }
 
   const { data, error } = await supabaseState.client
-    .from(PROJECTS_TABLE)
+    .from(CLOUD_TABLE)
     .select("id,title,source_text,share_slug")
     .eq("id", projectId)
     .eq("owner_id", supabaseState.user.id)
@@ -3710,6 +4307,7 @@ async function onCloudProjectSelected() {
   setProjectName(data.title || DEFAULT_PROJECT_NAME);
   supabaseState.activeProjectId = data.id;
   setShareLinkBySlug(data.share_slug || "");
+  clearSharedMode();
   setStatus(`Loaded "${data.title}" from cloud.`, "success");
 }
 
@@ -3719,7 +4317,7 @@ async function refreshCloudProjectList() {
   }
 
   const { data, error } = await supabaseState.client
-    .from(PROJECTS_TABLE)
+    .from(CLOUD_TABLE)
     .select("id,title,updated_at,is_public")
     .eq("owner_id", supabaseState.user.id)
     .order("updated_at", { ascending: false })
@@ -3757,8 +4355,8 @@ async function loadSharedProjectFromQuery() {
   }
 
   const { data, error } = await supabaseState.client
-    .from(PROJECTS_TABLE)
-    .select("title,source_text,share_slug")
+    .from(CLOUD_TABLE)
+    .select("id,title,source_text,share_slug,owner_id,owner_username")
     .eq("share_slug", shareSlug)
     .eq("is_public", true)
     .single();
@@ -3769,10 +4367,108 @@ async function loadSharedProjectFromQuery() {
   }
 
   setEditorValue(data.source_text || "");
-  setProjectName(`${data.title || "shared_project"}_shared`);
+  setProjectName(data.title || "shared_project");
   supabaseState.activeProjectId = null;
   setShareLinkBySlug(data.share_slug || shareSlug);
-  setStatus(`Loaded shared project "${data.title || "Untitled"}". Save it to keep your own copy.`, "success");
+
+  shareState.active = true;
+  shareState.ownerId = String(data.owner_id || "");
+  shareState.ownerName = String(data.owner_username || "").trim();
+  const isOwner = Boolean(supabaseState.user?.id) && supabaseState.user.id === shareState.ownerId;
+  setSharedReadOnly(!isOwner);
+  renderSharedProjectNotice(data.title || "Untitled");
+
+  const ownerLabel = shareState.ownerName || "Unknown creator";
+  if (isOwner) {
+    setStatus(`Loaded your shared project "${data.title || "Untitled"}".`, "success");
+  } else {
+    setStatus(`Loaded shared project "${data.title || "Untitled"}" by ${ownerLabel}. Editing is locked.`, "success");
+  }
+}
+
+function setSharedReadOnly(readOnly) {
+  shareState.readOnly = Boolean(readOnly);
+  if (editorState.instance && editorState.usingMonaco) {
+    editorState.instance.updateOptions({ readOnly: shareState.readOnly });
+  }
+  if (ui.input) {
+    ui.input.readOnly = shareState.readOnly;
+  }
+  if (ui.projectName) {
+    ui.projectName.readOnly = shareState.readOnly;
+  }
+  document.body.classList.toggle("shared-readonly", shareState.readOnly);
+  setCloudControlState(Boolean(supabaseState.user));
+}
+
+function renderSharedProjectNotice(projectTitle) {
+  if (!ui.sharedProjectNotice) {
+    return;
+  }
+
+  const creator = shareState.ownerName || "Unknown creator";
+  ui.sharedProjectNotice.hidden = false;
+  ui.sharedProjectNotice.classList.toggle("read-only", shareState.readOnly);
+
+  if (shareState.readOnly) {
+    ui.sharedProjectNotice.innerHTML = `
+      <p><strong>Shared Project:</strong> ${escapeHtml(projectTitle)} by ${escapeHtml(creator)}. This view is read-only.</p>
+      <button id="forkSharedProjectBtn" type="button" class="secondary-btn">Fork to Editable Copy</button>
+    `;
+
+    const forkBtn = document.getElementById("forkSharedProjectBtn");
+    forkBtn?.addEventListener("click", () => {
+      clearSharedMode();
+      setProjectName(`${sanitizeName(projectTitle, "project")}_fork`);
+      setStatus(`Forked "${projectTitle}" to an editable local copy.`, "success");
+    });
+    return;
+  }
+
+  ui.sharedProjectNotice.innerHTML = `<p><strong>Shared Project:</strong> ${escapeHtml(projectTitle)} by ${escapeHtml(creator)}. You are the creator, editing is enabled.</p>`;
+}
+
+function clearSharedMode() {
+  if (!shareState.active && !shareState.readOnly) {
+    return;
+  }
+
+  shareState.active = false;
+  shareState.readOnly = false;
+  shareState.ownerId = "";
+  shareState.ownerName = "";
+
+  if (ui.sharedProjectNotice) {
+    ui.sharedProjectNotice.hidden = true;
+    ui.sharedProjectNotice.innerHTML = "";
+  }
+
+  if (editorState.instance && editorState.usingMonaco) {
+    editorState.instance.updateOptions({ readOnly: false });
+  }
+  if (ui.input) {
+    ui.input.readOnly = false;
+  }
+  if (ui.projectName) {
+    ui.projectName.readOnly = false;
+  }
+  document.body.classList.remove("shared-readonly");
+  setCloudControlState(Boolean(supabaseState.user));
+
+  const url = new URL(window.location.href);
+  if (url.searchParams.has(SHARE_QUERY_PARAM)) {
+    url.searchParams.delete(SHARE_QUERY_PARAM);
+    window.history.replaceState({}, "", url.toString());
+  }
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function ensureSupabaseReady() {
@@ -3786,28 +4482,11 @@ function ensureCloudSignedIn() {
   }
 
   if (!supabaseState.user) {
-    setStatus("Sign in first to use cloud save/share.", "warning");
+    setStatus("Sign in first from the Profile menu.", "warning");
     return false;
   }
 
   return true;
-}
-
-function readCloudCredentials() {
-  const email = ui.authEmail?.value?.trim() || "";
-  const password = ui.authPassword?.value || "";
-
-  if (!email || !email.includes("@")) {
-    setStatus("Enter a valid email address.", "warning");
-    return null;
-  }
-
-  if (password.length < 6) {
-    setStatus("Enter a password with at least 6 characters.", "warning");
-    return null;
-  }
-
-  return { email, password };
 }
 
 function setCloudAuthState() {
@@ -3815,12 +4494,14 @@ function setCloudAuthState() {
     return;
   }
 
-  if (supabaseState.user?.email) {
-    ui.authState.textContent = `Signed in as ${supabaseState.user.email}.`;
+  if (supabaseState.user) {
+    const displayName = getUserDisplayName(supabaseState.user);
+    const email = String(supabaseState.user.email || "").trim();
+    ui.authState.textContent = email ? `Signed in as ${displayName} (${email}).` : `Signed in as ${displayName}.`;
     return;
   }
 
-  ui.authState.textContent = "Not signed in.";
+  ui.authState.textContent = "Not signed in. Open Profile menu to continue.";
 }
 
 function setCloudControlState(isSignedIn) {
@@ -3828,9 +4509,10 @@ function setCloudControlState(isSignedIn) {
     return;
   }
 
+  const canWrite = isSignedIn && !shareState.readOnly;
   ui.signOut.disabled = !isSignedIn;
-  ui.saveCloud.disabled = !isSignedIn;
-  ui.shareProject.disabled = !isSignedIn;
+  ui.saveCloud.disabled = !canWrite;
+  ui.shareProject.disabled = !canWrite;
   ui.cloudProjects.disabled = !isSignedIn;
   ui.copyShareLink.disabled = !ui.shareLinkOutput.value.trim();
 }
@@ -3867,14 +4549,6 @@ function setShareLinkBySlug(slug) {
   ui.copyShareLink.disabled = false;
 }
 
-function buildShareUrl(slug) {
-  const url = new URL(window.location.href);
-  url.search = "";
-  url.hash = "";
-  url.searchParams.set(SHARE_QUERY_PARAM, slug);
-  return url.toString();
-}
-
 function generateShareSlug() {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID().replace(/-/g, "").slice(0, 12);
@@ -3899,33 +4573,46 @@ function formatTimestamp(value) {
   return date.toLocaleString();
 }
 
-function formatSupabaseError(error) {
-  const message = String(error?.message || "Unknown Supabase error");
-  if (/relation .* does not exist/i.test(message)) {
-    return `Table "${PROJECTS_TABLE}" is missing. Run supabase-schema.sql in Supabase SQL Editor.`;
-  }
-  if (/row-level security|permission denied/i.test(message)) {
-    return "RLS policy blocked this request. Check your Supabase policies.";
-  }
-  if (/invalid login credentials/i.test(message)) {
-    return "Invalid email or password.";
-  }
-  if (/email not confirmed/i.test(message)) {
-    return "Email not confirmed yet. Check your inbox.";
-  }
-  return message;
-}
-
-function isMissingRowError(error) {
-  return String(error?.code || "") === "PGRST116" || /0 rows/i.test(String(error?.message || ""));
-}
-
-function isDuplicateError(error) {
-  return String(error?.code || "") === "23505" || /duplicate key/i.test(String(error?.message || ""));
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function ensureToastHost() {
+  if (toastState.host) {
+    return toastState.host;
+  }
+
+  const host = document.createElement("div");
+  host.className = "toast-stack";
+  host.setAttribute("aria-live", "polite");
+  host.setAttribute("aria-atomic", "false");
+  document.body.appendChild(host);
+  toastState.host = host;
+  return host;
+}
+
+function showToast(message, severity = "info") {
+  const text = String(message || "").trim();
+  if (!text) {
+    return;
+  }
+
+  const host = ensureToastHost();
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${severity}`;
+  toast.setAttribute("role", severity === "error" ? "alert" : "status");
+  toast.textContent = text.length > 220 ? `${text.slice(0, 220)}...` : text;
+  host.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+
+  window.setTimeout(() => {
+    toast.classList.remove("show");
+    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+    window.setTimeout(() => toast.remove(), 280);
+  }, TOAST_LIFETIME_MS);
 }
 
 function setStatus(message, isWarning = false) {
@@ -3952,4 +4639,8 @@ function setStatus(message, isWarning = false) {
   ui.status.classList.add(`status-${severity}`);
   ui.status.setAttribute("data-severity", severity);
   ui.status.setAttribute("aria-live", severity === "error" ? "assertive" : "polite");
+
+  if (severity !== "info" || /^Ready\./.test(message) === false) {
+    showToast(message, severity);
+  }
 }

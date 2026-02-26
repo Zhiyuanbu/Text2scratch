@@ -1,0 +1,62 @@
+.page-community .docs-banner.community-banner {
+  background: linear-gradient(128deg, rgba(18, 69, 85, 0.88) 0%, rgba(12, 34, 49, 0.94) 54%, rgba(11, 29, 43, 0.92) 100%);
+  border-color: rgba(149, 225, 255, 0.34);
+}
+
+.community-shell {
+  gap: 0.95rem;
+}
+
+.community-controls {
+  display: grid;
+  grid-template-columns: 1.7fr minmax(180px, 0.9fr) auto;
+  gap: 0.6rem;
+  align-items: end;
+}
+
+.community-search,
+.community-sort {
+  min-width: 0;
+}
+
+.community-results {
+  display: grid;
+  gap: 0.72rem;
+}
+
+.community-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 0.65rem;
+}
+
+.community-card {
+  border-radius: 14px;
+  border: 1px solid rgba(134, 212, 248, 0.25);
+  background: rgba(8, 25, 39, 0.78);
+  padding: 0.82rem;
+  display: grid;
+  gap: 0.58rem;
+  box-shadow: 0 10px 22px rgba(3, 12, 20, 0.26);
+}
+
+.community-card h3 {
+  font-size: 1rem;
+}
+
+.community-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.46rem;
+}
+
+.community-actions .primary-btn,
+.community-actions .secondary-btn {
+  width: 100%;
+}
+
+@media (max-width: 920px) {
+  .community-controls {
+    grid-template-columns: 1fr;
+  }
+}

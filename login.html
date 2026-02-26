@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch - 404 Not Found</title>
+  <title>text2scratch - Login</title>
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="styles.css?v=20260226d">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="page-not-found">
+<body class="page-auth" data-auth-mode="login">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
   <header class="site-header">
     <div class="container header-container">
@@ -50,46 +50,48 @@
 
   <div class="site-content">
     <div class="container">
-      <main id="mainContent" class="not-found-shell">
-        <section class="not-found-card">
-          <p class="kicker">Error 404</p>
-          <h1>Route not found. This page was never compiled.</h1>
-          <p>The URL does not match a valid text2scratch route. Use one of the known destinations below or return to converter workspace.</p>
-          <p class="support-text">If you opened an old shared link, ask the creator to generate a new one from the latest build.</p>
-
-          <div class="not-found-grid">
-            <pre class="not-found-code" aria-label="404 example script"><code>when_link_clicked
-  go_to "missing/page.html"
-  if exists(page) = false
-    say "404: route missing"
-    stop_all
-  end
-end</code></pre>
-
-            <article class="not-found-tip">
-              <h2>Recovery Steps</h2>
-              <ol class="workflow-list">
-                <li>Check URL spelling and route name.</li>
-                <li>Open converter and re-copy your share link.</li>
-                <li>Use docs/reference to rebuild quickly.</li>
-                <li>Try community page for public examples.</li>
-              </ol>
-            </article>
+      <main id="mainContent" class="auth-shell">
+        <section class="auth-hero">
+          <p class="kicker">Account Access</p>
+          <h1>Log in to your text2scratch cloud workspace</h1>
+          <p>Sign in to save scripts to Supabase and share project links.</p>
+          <div class="auth-hero-visual" aria-hidden="true">
+            <div class="auth-mascot-wrap">
+              <img src="logo.png" alt="">
+            </div>
+            <span class="auth-chip chip-one">Sprites</span>
+            <span class="auth-chip chip-two">Share</span>
+            <span class="auth-chip chip-three">Cloud Save</span>
+            <span class="auth-orbit orbit-a"></span>
+            <span class="auth-orbit orbit-b"></span>
           </div>
-
-          <div class="not-found-actions">
-            <a class="primary-btn" href="index.html"><i class="fas fa-home" aria-hidden="true"></i> Back to Converter</a>
-            <a class="secondary-btn" href="docs.html"><i class="fas fa-book" aria-hidden="true"></i> Open Docs</a>
-            <a class="secondary-btn" href="reference.html"><i class="fas fa-search" aria-hidden="true"></i> Open Reference</a>
-            <a class="secondary-btn" href="community.html"><i class="fas fa-users" aria-hidden="true"></i> Browse Community</a>
-          </div>
-
-          <ul class="pill-row not-found-pills" aria-label="404 hints">
-            <li class="pill">Check spelling in URL</li>
-            <li class="pill">Open converter workspace</li>
-            <li class="pill">Refresh share link</li>
-            <li class="pill">Use sidebar navigation</li>
+          <ul class="auth-feature-list">
+            <li>Use the same account across devices.</li>
+            <li>Load and update projects from the converter page.</li>
+            <li>Create public share links for collaborative testing.</li>
           </ul>
+        </section>
+
+        <section class="auth-card">
+          <h2>Login</h2>
+          <form id="authForm" class="auth-form" novalidate>
+            <label for="authEmailInput">Email</label>
+            <input id="authEmailInput" class="text-input" type="email" autocomplete="email" required>
+
+            <label for="authPasswordInput">Password</label>
+            <input id="authPasswordInput" class="text-input" type="password" autocomplete="current-password" required>
+
+            <div class="auth-captcha">
+              <p class="support-text">Security check</p>
+              <div id="hcaptchaMount" class="auth-captcha-frame"></div>
+              <p id="hcaptchaHint" class="support-text auth-captcha-hint"></p>
+            </div>
+
+            <button id="authSubmitBtn" type="submit" class="primary-btn"><i class="fas fa-sign-in-alt"></i> Log In</button>
+          </form>
+
+          <p class="support-text auth-links">Account access moved to the converter profile menu.</p>
+          <p id="authStatus" class="auth-status status-info" role="status" aria-live="polite">Enter credentials to continue.</p>
         </section>
       </main>
     </div>
@@ -101,9 +103,14 @@ end</code></pre>
     </div>
   </footer>
 
+  <script>window.location.replace("index.html#profile");</script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://js.hcaptcha.com/1/api.js?render=explicit" async defer></script>
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
   <script src="common.js?v=20260226d" defer></script>
+  <script src="auth.js?v=20260226a" type="module"></script>
 </body>
 </html>
+
 

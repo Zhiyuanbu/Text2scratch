@@ -503,6 +503,7 @@ function attachHandlers() {
   ui.reset.addEventListener("click", resetFilters);
 
   if (ui.jumpToggle && ui.jumpFrame) {
+    setJumpMenuOpen(false);
     ui.jumpToggle.addEventListener("click", toggleJumpMenu);
     document.addEventListener("click", handleOutsideJumpMenuClick);
     document.addEventListener("keydown", handleJumpMenuEscape);
@@ -519,7 +520,10 @@ function resetFilters() {
   render();
 }
 
-function toggleJumpMenu() {
+function toggleJumpMenu(event) {
+  if (event) {
+    event.preventDefault();
+  }
   const isOpen = ui.jumpToggle.getAttribute("aria-expanded") === "true";
   setJumpMenuOpen(!isOpen);
 }
