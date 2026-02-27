@@ -53,13 +53,15 @@ async function init() {
     return;
   }
 
+  const urlAuthState = await handleAuthActionFromUrl();
+
   const { data, error } = await supabaseClient.auth.getSession();
   if (error) {
     setStatus(`Auth warning: ${formatSupabaseError(error)}`, "warning");
   }
 
   const currentUser = data?.session?.user || null;
-  if (currentUser && mode === "login") {
+  if (currentUser && mode === "login" && !urlAuthState.handled) {
     const currentEmail = String(currentUser.email || "").trim();
     if (currentEmail) {
       setStatus(`Already signed in as ${currentEmail}.`, "success");
@@ -68,8 +70,8 @@ async function init() {
 
   await initHcaptchaIfEnabled();
   bindEventHandlers();
-  applyInitialViewMode();
-  showQueryFeedback();
+  applyInitialViewMode(urlAuthState.panel);
+  showQueryFeedback(urlAuthState.handled);
 }
 
 function bindEventHandlers() {
@@ -83,8 +85,13 @@ function bindEventHandlers() {
   }
 }
 
-function applyInitialViewMode() {
+function applyInitialViewMode(panelOverride = "") {
   if (mode !== "login") {
+    return;
+  }
+
+  if (panelOverride === "login" || panelOverride === "reset" || panelOverride === "recovery") {
+    setLoginPanel(panelOverride);
     return;
   }
 
@@ -123,7 +130,117 @@ function setLoginPanel(panel) {
 function isRecoverySession() {
   const search = new URLSearchParams(window.location.search);
   const hash = String(window.location.hash || "");
-  return search.get("mode") === "recovery" || hash.includes("type=recovery");
+  return search.get("mode") === "recovery"
+    || search.get("type") === "recovery"
+    || hash.includes("type=recovery");
+}
+
+async function handleAuthActionFromUrl() {
+  if (mode !== "login" || !supabaseClient) {
+    return { panel: null, handled: false };
+  }
+
+  const search = new URLSearchParams(window.location.search);
+  const hash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+  const tokenHash = String(search.get("token_hash") || "").trim();
+  const authCode = String(search.get("code") || "").trim();
+  const actionType = normalizeOtpType(search.get("type") || hash.get("type"));
+
+  if (tokenHash && actionType) {
+    try {
+      const { error } = await supabaseClient.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: actionType
+      });
+      if (error) {
+        throw error;
+      }
+
+      clearAuthUrlState();
+      if (actionType === "recovery") {
+        setStatus("Recovery link verified. Set your new password below.", "warning");
+        return { panel: "recovery", handled: true };
+      }
+
+      setStatus("Email verified. You can now sign in.", "success");
+      return { panel: "login", handled: true };
+    } catch (error) {
+      setStatus(`Verification failed: ${formatSupabaseError(error)}`, "error");
+      return { panel: "login", handled: true };
+    }
+  }
+
+  if (authCode) {
+    try {
+      const { error } = await supabaseClient.auth.exchangeCodeForSession(authCode);
+      if (error) {
+        throw error;
+      }
+
+      clearAuthUrlState();
+      if (actionType === "recovery" || search.get("mode") === "recovery") {
+        setStatus("Recovery link verified. Set your new password below.", "warning");
+        return { panel: "recovery", handled: true };
+      }
+
+      setStatus("Email verified. You can now sign in.", "success");
+      return { panel: "login", handled: true };
+    } catch (error) {
+      setStatus(`Verification failed: ${formatSupabaseError(error)}`, "error");
+      return { panel: "login", handled: true };
+    }
+  }
+
+  if (actionType === "recovery" || search.get("mode") === "recovery") {
+    return { panel: "recovery", handled: false };
+  }
+
+  return { panel: null, handled: false };
+}
+
+function normalizeOtpType(value) {
+  const type = String(value || "").trim().toLowerCase();
+  if (type === "signup" || type === "recovery" || type === "invite" || type === "email" || type === "email_change") {
+    return type;
+  }
+  return "";
+}
+
+function clearAuthUrlState() {
+  const url = new URL(window.location.href);
+  const searchKeys = [
+    "token_hash",
+    "type",
+    "code",
+    "mode",
+    "access_token",
+    "refresh_token",
+    "expires_at",
+    "expires_in",
+    "token_type"
+  ];
+
+  searchKeys.forEach((key) => {
+    url.searchParams.delete(key);
+  });
+
+  const hashParams = new URLSearchParams(String(url.hash || "").replace(/^#/, ""));
+  let hashChanged = false;
+  searchKeys.forEach((key) => {
+    if (hashParams.has(key)) {
+      hashParams.delete(key);
+      hashChanged = true;
+    }
+  });
+
+  if (hashChanged) {
+    const nextHash = hashParams.toString();
+    url.hash = nextHash ? `#${nextHash}` : "";
+  } else if (String(url.hash || "").includes("access_token=") || String(url.hash || "").includes("refresh_token=")) {
+    url.hash = "";
+  }
+
+  window.history.replaceState({}, "", url.toString());
 }
 
 async function onPrimarySubmit(event) {
@@ -330,10 +447,7 @@ async function onRecoverySubmit(event) {
       ui.recoveryConfirm.value = "";
     }
 
-    const cleanUrl = new URL(window.location.href);
-    cleanUrl.searchParams.delete("mode");
-    cleanUrl.hash = "";
-    window.history.replaceState({}, "", cleanUrl.toString());
+    clearAuthUrlState();
     setLoginPanel("login");
   } catch (error) {
     setStatus(`Password update failed: ${formatSupabaseError(error)}`, "error");
@@ -483,7 +597,11 @@ function setStatus(message, severity = "info") {
   ui.status.classList.add(`status-${severity}`);
 }
 
-function showQueryFeedback() {
+function showQueryFeedback(skip = false) {
+  if (skip) {
+    return;
+  }
+
   const params = new URLSearchParams(window.location.search);
   if (params.get("signup") === "success") {
     setStatus("Account created. Check your email to confirm, then log in.", "success");

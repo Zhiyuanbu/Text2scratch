@@ -2,6 +2,7 @@ const NAV_LINK_SELECTOR = "a[href]";
 const INTERNAL_EXTENSIONS = [".html", "/"];
 const SIDEBAR_BREAKPOINT = 960;
 const SIDEBAR_STORAGE_KEY = "text2scratch.sidebar.collapsed";
+const SIDEBAR_HASH_LINK_SELECTOR = ".main-nav a[href*='#']";
 const LOADER_MIN_VISIBLE_MS = 560;
 const LOADER_FAILSAFE_MS = 5000;
 const LOADER_MESSAGES = {
@@ -18,6 +19,7 @@ initCommonUi();
 function initCommonUi() {
   initPageLoader();
   initSidebar();
+  initSidebarHashLinks();
   initPageAnimation();
   initNavigationPrefetch();
   warmCommonAssets();
@@ -135,6 +137,7 @@ function initSidebar() {
   const toggle = document.getElementById("mobileMenuToggle");
   const header = document.querySelector(".site-header");
   const mainNav = document.querySelector(".main-nav");
+  const brand = document.querySelector(".brand");
 
   if (!toggle || !header || !mainNav) {
     return;
@@ -185,7 +188,7 @@ function initSidebar() {
     toggle.innerHTML = expanded ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
 
     const dock = ensureDockButton();
-    dock.hidden = mobile ? mobileOpen : !desktopCollapsed;
+    dock.hidden = mobile ? mobileOpen : true;
   };
 
   toggle.addEventListener("click", () => {
@@ -205,6 +208,17 @@ function initSidebar() {
       mobileOpen = false;
       syncSidebarLayout();
     }
+  });
+
+  brand?.addEventListener("click", (event) => {
+    if (isMobile() || !collapsed) {
+      return;
+    }
+
+    event.preventDefault();
+    collapsed = false;
+    persistSidebarPreference(collapsed);
+    syncSidebarLayout();
   });
 
   document.addEventListener("click", (event) => {
@@ -246,6 +260,38 @@ function initSidebar() {
   });
 
   syncSidebarLayout();
+}
+
+function initSidebarHashLinks() {
+  const currentPath = canonicalPath(window.location.pathname);
+  const links = document.querySelectorAll(SIDEBAR_HASH_LINK_SELECTOR);
+  links.forEach((link) => {
+    let url;
+    try {
+      url = new URL(link.getAttribute("href") || "", window.location.href);
+    } catch (_error) {
+      return;
+    }
+
+    if (!url.hash || url.origin !== window.location.origin) {
+      return;
+    }
+
+    if (canonicalPath(url.pathname) === currentPath) {
+      link.setAttribute("href", url.hash);
+    }
+  });
+}
+
+function canonicalPath(pathname) {
+  const value = String(pathname || "").trim();
+  if (!value || value === "/") {
+    return "/index.html";
+  }
+  if (value.endsWith("/")) {
+    return `${value}index.html`;
+  }
+  return value;
 }
 
 function persistSidebarPreference(collapsed) {

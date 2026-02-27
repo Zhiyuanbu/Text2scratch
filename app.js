@@ -6,6 +6,7 @@ import {
   createSupabaseClient,
   formatSupabaseError,
   getIndexPageUrl,
+  getLoginPageUrl,
   isDuplicateError,
   isMissingRowError
 } from "./supabase-client.js";
@@ -3672,7 +3673,7 @@ async function onProfileSendResetForCurrentUser() {
 
   try {
     const { error } = await supabaseState.client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getIndexPageUrl()}?mode=recovery`
+      redirectTo: `${getLoginPageUrl()}?mode=recovery`
     });
     if (error) {
       throw new Error(formatSupabaseError(error));
@@ -4199,7 +4200,7 @@ function ensureCloudSignedIn() {
   }
 
   if (!supabaseState.user) {
-    setStatus("Sign in first from Login page or profile menu links.", "warning");
+    setStatus("Sign in first from the Account page login links.", "warning");
     return false;
   }
 
@@ -4218,7 +4219,7 @@ function setCloudAuthState() {
     return;
   }
 
-  ui.authState.textContent = "Not signed in. Use Login/Sign Up from sidebar.";
+  ui.authState.textContent = "Not signed in. Open Account to log in or sign up.";
 }
 
 function setCloudControlState(isSignedIn) {
