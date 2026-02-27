@@ -12,6 +12,11 @@ body:not(.page-auth):not(.page-converter):not(.page-docs):not(.page-reference):n
   margin-top: 0.45rem;
 }
 
+.legal-heading-icon {
+  color: #9de8ff;
+  margin-right: 0.45rem;
+}
+
 .legal-card > p,
 .legal-card > ul,
 .legal-card > ol {
@@ -34,6 +39,24 @@ body:not(.page-auth):not(.page-converter):not(.page-docs):not(.page-reference):n
 
 .page-not-found .site-content {
   padding-top: calc(var(--header-height) + 2.4rem);
+}
+
+.page-not-found .site-content,
+.page-not-found .site-footer {
+  margin-left: 0;
+}
+
+.page-not-found .site-header {
+  width: 100%;
+  position: fixed;
+  inset: 0 0 auto 0;
+  border-right: 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.page-not-found .header-container {
+  grid-template-rows: auto;
+  align-items: center;
 }
 
 .not-found-shell {

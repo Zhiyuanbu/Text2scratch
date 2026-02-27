@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch - Privacy Policy</title>
+  <title>text2scratch - Confirm Email</title>
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -16,7 +16,8 @@
   <link rel="stylesheet" href="styles.css?v=20260227a">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body>
+<body class="page-auth page-confirmation">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
   <header class="site-header">
     <div class="container header-container">
       <a class="brand" href="index.html">
@@ -38,7 +39,7 @@
         <a href="community.html#community"><span class="nav-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span class="nav-label">Community</span></a>
         <a href="account.html#account"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
         <a href="terms.html#terms"><span class="nav-icon"><i class="fas fa-file-contract" aria-hidden="true"></i></span><span class="nav-label">Terms of Service</span></a>
-        <a href="privacy.html#privacy" aria-current="page"><span class="nav-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span><span class="nav-label">Privacy Policy</span></a>
+        <a href="privacy.html#privacy"><span class="nav-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span><span class="nav-label">Privacy Policy</span></a>
         <a href="license.html#license"><span class="nav-icon"><i class="fas fa-scale-balanced" aria-hidden="true"></i></span><span class="nav-label">License</span></a>
       </nav>
     </div>
@@ -46,32 +47,39 @@
 
   <div class="site-content">
     <div class="container">
-      <section class="hero-section">
-        <h1><i class="fas fa-user-shield legal-heading-icon" aria-hidden="true"></i>Privacy Policy</h1>
-        <p>Last updated: February 19, 2026</p>
-      </section>
+      <main id="mainContent" class="auth-shell">
+        <section class="auth-hero">
+          <p class="kicker">Confirm Account</p>
+          <h1>Verifying your secure email link</h1>
+          <p>This page validates email verification and password-recovery links before sending you back to login.</p>
+          <div class="auth-hero-visual" aria-hidden="true">
+            <div class="auth-mascot-wrap">
+              <img src="logo.png" alt="">
+            </div>
+            <span class="auth-chip chip-one">Email Verify</span>
+            <span class="auth-chip chip-two">Recovery Link</span>
+            <span class="auth-chip chip-three">Safe Redirect</span>
+            <span class="auth-orbit orbit-a"></span>
+            <span class="auth-orbit orbit-b"></span>
+          </div>
+          <ul class="auth-feature-list">
+            <li>Handles verification links with or without explicit type values.</li>
+            <li>Routes recovery links to password reset mode automatically.</li>
+            <li>Shows clear status before redirecting.</li>
+          </ul>
+        </section>
 
-      <article class="card legal-card">
-        <h2>1. Local Processing</h2>
-        <p>text2scratch converts scripts to <code>.sb3</code> in your browser.</p>
-        <p>If you use cloud features (account, save, share), project text is stored in Supabase under your account and may be read by others only when you generate a public share link.</p>
+        <section class="auth-card">
+          <h2>Confirmation Status</h2>
+          <p class="support-text">Hold on while we validate your link.</p>
+          <p id="confirmStatus" class="auth-status status-info" role="status" aria-live="polite">Checking confirmation link...</p>
 
-        <h2>2. Files and Downloads</h2>
-        <p>Generated <code>.sb3</code> and <code>.t2sh</code> files are created locally and downloaded directly to your device.</p>
-
-        <h2>3. Third-Party Services</h2>
-        <p>This site loads frontend libraries from CDNs, including JSZip (for file packaging), Monaco Editor (for the code editor), Supabase (authentication and project storage), and Datadog Browser RUM (for monitoring).</p>
-        <p>Datadog RUM may collect performance metrics, JavaScript errors, page views, and sampled session replay data. Input fields are masked by default using <code>mask-user-input</code>.</p>
-
-        <h2>4. Imported Files</h2>
-        <p>When you import <code>.sb3</code> or <code>.t2sh</code> files, conversion happens in-browser. Imported project content is not uploaded by this app.</p>
-
-        <h2>5. Hosting Logs</h2>
-        <p>If hosted on GitHub Pages or another host, the host may collect standard HTTP logs (IP address, user-agent, timestamps) according to the host's own policy.</p>
-
-        <h2>6. Contact</h2>
-        <p>If you deploy this project publicly, add your own contact details and any required regional privacy disclosures.</p>
-      </article>
+          <div class="auth-links auth-link-row">
+            <a id="confirmLoginLink" class="primary-btn" href="login.html"><i class="fas fa-sign-in-alt"></i> Open Login</a>
+            <a id="confirmSignupLink" class="secondary-btn" href="signup.html"><i class="fas fa-user-plus"></i> Open Sign Up</a>
+          </div>
+        </section>
+      </main>
     </div>
   </div>
 
@@ -81,13 +89,11 @@
     </div>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
   <script src="common.js?v=20260227a" defer></script>
+  <script src="confirm.js?v=20260227a" type="module"></script>
 </body>
 </html>
-
-
-
-
 

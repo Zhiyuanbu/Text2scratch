@@ -30,14 +30,14 @@
 
           <tr>
             <td align="left" style="padding:4px 26px 18px 26px;">
-              <a href="{{ .SiteURL }}/login.html?mode=verify&type={{ .EmailActionType }}&token_hash={{ .TokenHash }}" style="display:inline-block;padding:12px 19px;border-radius:10px;background:linear-gradient(140deg,#95ebff 0%,#74ffce 100%);color:#042132;text-decoration:none;font-weight:700;font-size:14px;">Verify Email</a>
+              <a href="{{ .SiteURL }}/confirm.html?mode=verify&type={{ .EmailActionType }}&token_hash={{ .TokenHash }}" style="display:inline-block;padding:12px 19px;border-radius:10px;background:linear-gradient(140deg,#95ebff 0%,#74ffce 100%);color:#042132;text-decoration:none;font-weight:700;font-size:14px;">Verify Email</a>
             </td>
           </tr>
 
           <tr>
             <td style="padding:0 26px;">
               <p style="margin:0 0 10px 0;color:#beddF4;font-size:13px;line-height:1.5;">If the button does not work, copy this link into your browser:</p>
-              <p style="margin:0 0 16px 0;word-break:break-word;"><a href="{{ .SiteURL }}/login.html?mode=verify&type={{ .EmailActionType }}&token_hash={{ .TokenHash }}" style="color:#8fe9ff;text-decoration:underline;">{{ .SiteURL }}/login.html?mode=verify&type={{ .EmailActionType }}&token_hash={{ .TokenHash }}</a></p>
+              <p style="margin:0 0 16px 0;word-break:break-word;"><a href="{{ .SiteURL }}/confirm.html?mode=verify&type={{ .EmailActionType }}&token_hash={{ .TokenHash }}" style="color:#8fe9ff;text-decoration:underline;">{{ .SiteURL }}/confirm.html?mode=verify&type={{ .EmailActionType }}&token_hash={{ .TokenHash }}</a></p>
             </td>
           </tr>
 
@@ -64,3 +64,4 @@
   </table>
 </body>
 </html>
+

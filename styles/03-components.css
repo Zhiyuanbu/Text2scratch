@@ -58,6 +58,7 @@
   font-weight: 600;
   line-height: 1;
   white-space: nowrap;
+  max-width: 100%;
   cursor: pointer;
   transition:
     transform var(--transition-fast),
@@ -267,6 +268,18 @@ select.text-input {
 
 .auth-status {
   padding: 0.75rem 0.9rem;
+}
+
+.status-toast-mirror {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  clip: rect(0, 0, 0, 0) !important;
+  border: 0 !important;
+  background: transparent !important;
 }
 
 #status {

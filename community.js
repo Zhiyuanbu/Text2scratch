@@ -45,7 +45,7 @@ async function loadCommunityProjects() {
   }
 
   ui.refresh.disabled = true;
-  ui.grid.innerHTML = '<p class="empty-state">Loading community projects...</p>';
+  ui.grid.innerHTML = '<p class="support-text">Loading community projects...</p>';
 
   try {
     const { data, error } = await supabaseClient
@@ -93,7 +93,7 @@ function render() {
   ui.grid.innerHTML = "";
   if (filtered.length === 0) {
     const empty = document.createElement("p");
-    empty.className = "empty-state";
+    empty.className = "support-text";
     empty.textContent = "No community projects match your current filters.";
     ui.grid.appendChild(empty);
     return;
@@ -191,11 +191,16 @@ function renderError(message) {
     return;
   }
 
+  notify(message, "error");
   ui.stats.innerHTML = "";
   ui.grid.innerHTML = "";
 
   const error = document.createElement("p");
-  error.className = "empty-state";
-  error.textContent = message;
+  error.className = "support-text";
+  error.textContent = "Could not load community projects right now.";
   ui.grid.appendChild(error);
+}
+
+function notify(message, severity = "info") {
+  window.text2scratchToast?.show?.(message, severity);
 }

@@ -1,9 +1,9 @@
 import {
+  getConfirmPageUrl,
   createSupabaseClient,
   formatSupabaseError,
   getHcaptchaSiteKey,
-  getIndexPageUrl,
-  getLoginPageUrl
+  getIndexPageUrl
 } from "./supabase-client.js";
 
 const ui = {
@@ -30,6 +30,9 @@ const ui = {
 };
 
 const mode = document.body?.dataset?.authMode === "signup" ? "signup" : "login";
+const CAPTCHA_CACHE_KEY = "text2scratch.hcaptcha.token";
+const CAPTCHA_CACHE_MAX_AGE_MS = 20 * 60 * 1000;
+const OTP_TYPES = new Set(["signup", "recovery", "invite", "email", "email_change", "magiclink"]);
 
 let supabaseClient = null;
 let hcaptchaWidgetId = null;
@@ -45,11 +48,18 @@ async function init() {
     return;
   }
 
+  ui.status.classList.add("status-toast-mirror");
+
   try {
     supabaseClient = createSupabaseClient();
   } catch (error) {
     setStatus(error.message, "error");
     setFormEnabled(false);
+    return;
+  }
+
+  if (mode === "login" && shouldUseConfirmationPage()) {
+    window.location.replace(buildConfirmationPageUrl());
     return;
   }
 
@@ -110,6 +120,29 @@ function applyInitialViewMode(panelOverride = "") {
   setLoginPanel("login");
 }
 
+function shouldUseConfirmationPage() {
+  const search = new URLSearchParams(window.location.search);
+  if (String(search.get("mode") || "").trim().toLowerCase() !== "verify") {
+    return false;
+  }
+
+  const tokenHash = String(search.get("token_hash") || "").trim();
+  const authCode = String(search.get("code") || "").trim();
+  return Boolean(tokenHash || authCode);
+}
+
+function buildConfirmationPageUrl() {
+  const url = new URL(getConfirmPageUrl());
+  const current = new URL(window.location.href);
+
+  current.searchParams.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
+
+  url.hash = current.hash;
+  return url.toString();
+}
+
 function setLoginPanel(panel) {
   activeLoginPanel = panel;
 
@@ -144,20 +177,13 @@ async function handleAuthActionFromUrl() {
   const hash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
   const tokenHash = String(search.get("token_hash") || "").trim();
   const authCode = String(search.get("code") || "").trim();
-  const actionType = normalizeOtpType(search.get("type") || hash.get("type"));
+  const actionType = normalizeOtpType(search.get("type") || hash.get("type")) || inferOtpTypeFromMode(search.get("mode"));
 
-  if (tokenHash && actionType) {
+  if (tokenHash) {
     try {
-      const { error } = await supabaseClient.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: actionType
-      });
-      if (error) {
-        throw error;
-      }
-
+      const resolvedType = await verifyOtpFromLink(tokenHash, actionType, search.get("mode"));
       clearAuthUrlState();
-      if (actionType === "recovery") {
+      if (resolvedType === "recovery") {
         setStatus("Recovery link verified. Set your new password below.", "warning");
         return { panel: "recovery", handled: true };
       }
@@ -200,10 +226,55 @@ async function handleAuthActionFromUrl() {
 
 function normalizeOtpType(value) {
   const type = String(value || "").trim().toLowerCase();
-  if (type === "signup" || type === "recovery" || type === "invite" || type === "email" || type === "email_change") {
-    return type;
+  return OTP_TYPES.has(type) ? type : "";
+}
+
+function inferOtpTypeFromMode(modeValue) {
+  const modeText = String(modeValue || "").trim().toLowerCase();
+  if (modeText === "recovery") {
+    return "recovery";
   }
   return "";
+}
+
+async function verifyOtpFromLink(tokenHash, actionType = "", modeHint = "") {
+  const candidates = buildCandidateOtpTypesFromLink(actionType, modeHint);
+  let lastError = null;
+
+  for (const candidate of candidates) {
+    const { error } = await supabaseClient.auth.verifyOtp({
+      token_hash: tokenHash,
+      type: candidate
+    });
+
+    if (!error) {
+      return candidate;
+    }
+
+    lastError = error;
+  }
+
+  throw lastError || new Error("Verification failed.");
+}
+
+function buildCandidateOtpTypesFromLink(actionType = "", modeHint = "") {
+  if (actionType) {
+    return [actionType];
+  }
+
+  const modeText = String(modeHint || "").trim().toLowerCase();
+  const candidates = [];
+  if (modeText === "recovery") {
+    candidates.push("recovery");
+  }
+
+  candidates.push("signup", "email", "invite", "magiclink", "email_change");
+
+  if (modeText !== "recovery") {
+    candidates.push("recovery");
+  }
+
+  return [...new Set(candidates)];
 }
 
 function clearAuthUrlState() {
@@ -297,6 +368,9 @@ async function handleSignIn() {
 
   const { error } = await supabaseClient.auth.signInWithPassword(payload);
   if (error) {
+    if (isCaptchaError(error)) {
+      clearStoredCaptchaToken();
+    }
     setStatus(`Sign-in failed: ${formatSupabaseError(error)}`, "error");
     resetCaptcha();
     return;
@@ -339,7 +413,7 @@ async function handleSignUp() {
   }
 
   const options = {
-    emailRedirectTo: `${getLoginPageUrl()}?mode=login`,
+    emailRedirectTo: `${getConfirmPageUrl()}?mode=verify`,
     data: { username }
   };
 
@@ -359,6 +433,9 @@ async function handleSignUp() {
   });
 
   if (error) {
+    if (isCaptchaError(error)) {
+      clearStoredCaptchaToken();
+    }
     setStatus(`Sign-up failed: ${formatSupabaseError(error)}`, "error");
     resetCaptcha();
     return;
@@ -398,15 +475,30 @@ async function onResetSubmit(event) {
   setFormEnabled(false);
   try {
     const email = await resolveEmailFromIdentifier(identifier);
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getLoginPageUrl()}?mode=recovery`
-    });
+    const options = {
+      redirectTo: `${getConfirmPageUrl()}?mode=recovery`
+    };
+
+    if (hcaptchaRequired) {
+      const token = getHcaptchaToken();
+      if (!token) {
+        setStatus("Complete the captcha before requesting password reset.", "warning");
+        return;
+      }
+      options.captchaToken = token;
+    }
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, options);
     if (error) {
       throw error;
     }
 
     setStatus("Password reset email sent. Check inbox/spam.", "success");
   } catch (error) {
+    if (isCaptchaError(error)) {
+      clearStoredCaptchaToken();
+      resetCaptcha();
+    }
     setStatus(`Reset failed: ${formatSupabaseError(error)}`, "error");
   } finally {
     setFormEnabled(true);
@@ -526,14 +618,32 @@ async function initHcaptchaIfEnabled() {
     return;
   }
 
-  ui.hcaptchaHint.textContent = mode === "signup"
-    ? "Complete captcha before creating an account."
-    : "Complete captcha before signing in.";
+  const cachedToken = getStoredCaptchaToken();
+  ui.hcaptchaHint.textContent = cachedToken
+    ? "Captcha verified recently. Reusing saved verification unless it expires."
+    : mode === "signup"
+      ? "Complete captcha before creating an account."
+      : "Complete captcha before signing in.";
 
   try {
     await waitForHcaptcha();
     hcaptchaWidgetId = window.hcaptcha.render(ui.hcaptchaMount, {
-      sitekey: siteKey
+      sitekey: siteKey,
+      callback: (token) => {
+        saveCaptchaToken(token);
+        if (ui.hcaptchaHint) {
+          ui.hcaptchaHint.textContent = "Captcha verified. You can continue without solving it again for a short time.";
+        }
+      },
+      "expired-callback": () => {
+        clearStoredCaptchaToken();
+        if (ui.hcaptchaHint) {
+          ui.hcaptchaHint.textContent = "Captcha expired. Complete it again before submitting.";
+        }
+      },
+      "error-callback": () => {
+        clearStoredCaptchaToken();
+      }
     });
   } catch (_error) {
     setStatus("hCaptcha failed to load. Check your site key and allowed domain.", "warning");
@@ -542,17 +652,83 @@ async function initHcaptchaIfEnabled() {
 
 function getHcaptchaToken() {
   if (typeof window.hcaptcha === "object" && hcaptchaWidgetId !== null) {
-    return String(window.hcaptcha.getResponse(hcaptchaWidgetId) || "").trim();
+    const currentToken = String(window.hcaptcha.getResponse(hcaptchaWidgetId) || "").trim();
+    if (currentToken) {
+      saveCaptchaToken(currentToken);
+      return currentToken;
+    }
   }
 
   const fallback = document.querySelector("textarea[name='h-captcha-response']");
-  return String(fallback?.value || "").trim();
+  const fallbackToken = String(fallback?.value || "").trim();
+  if (fallbackToken) {
+    saveCaptchaToken(fallbackToken);
+    return fallbackToken;
+  }
+
+  return getStoredCaptchaToken();
 }
 
 function resetCaptcha() {
   if (typeof window.hcaptcha === "object" && hcaptchaWidgetId !== null) {
     window.hcaptcha.reset(hcaptchaWidgetId);
   }
+}
+
+function saveCaptchaToken(token) {
+  const value = String(token || "").trim();
+  if (!value) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(CAPTCHA_CACHE_KEY, JSON.stringify({
+      token: value,
+      savedAt: Date.now()
+    }));
+  } catch (_error) {
+    // Ignore storage write failures.
+  }
+}
+
+function getStoredCaptchaToken() {
+  try {
+    const raw = window.localStorage.getItem(CAPTCHA_CACHE_KEY);
+    if (!raw) {
+      return "";
+    }
+
+    const parsed = JSON.parse(raw);
+    const token = String(parsed?.token || "").trim();
+    const savedAt = Number(parsed?.savedAt || 0);
+    if (!token || !Number.isFinite(savedAt)) {
+      clearStoredCaptchaToken();
+      return "";
+    }
+
+    if (Date.now() - savedAt > CAPTCHA_CACHE_MAX_AGE_MS) {
+      clearStoredCaptchaToken();
+      return "";
+    }
+
+    return token;
+  } catch (_error) {
+    clearStoredCaptchaToken();
+    return "";
+  }
+}
+
+function clearStoredCaptchaToken() {
+  try {
+    window.localStorage.removeItem(CAPTCHA_CACHE_KEY);
+  } catch (_error) {
+    // Ignore storage cleanup failures.
+  }
+}
+
+function isCaptchaError(error) {
+  const message = String(error?.message || "");
+  return /\bcaptcha\b/i.test(message);
 }
 
 function waitForHcaptcha() {
@@ -595,6 +771,10 @@ function setStatus(message, severity = "info") {
   ui.status.textContent = message;
   ui.status.classList.remove("status-info", "status-success", "status-warning", "status-error");
   ui.status.classList.add(`status-${severity}`);
+
+  if (severity !== "info" || /^Use this page to log in after email verification\./.test(message) === false) {
+    window.text2scratchToast?.show?.(message, severity);
+  }
 }
 
 function showQueryFeedback(skip = false) {
@@ -605,8 +785,12 @@ function showQueryFeedback(skip = false) {
   const params = new URLSearchParams(window.location.search);
   if (params.get("signup") === "success") {
     setStatus("Account created. Check your email to confirm, then log in.", "success");
+  } else if (params.get("verified") === "1" && params.get("mode") === "recovery") {
+    setStatus("Recovery link verified. Set your new password below.", "warning");
   } else if (params.get("signed_out") === "1") {
     setStatus("Signed out.", "success");
+  } else if (params.get("verified") === "1") {
+    setStatus("Email verified. You can now sign in.", "success");
   }
 
   if (mode === "login" && params.get("mode") === "login") {

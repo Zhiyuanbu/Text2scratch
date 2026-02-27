@@ -42,6 +42,10 @@ export function getLoginPageUrl() {
   return new URL("login.html", window.location.href).toString();
 }
 
+export function getConfirmPageUrl() {
+  return new URL("confirm.html", window.location.href).toString();
+}
+
 export function getSignupPageUrl() {
   return new URL("signup.html", window.location.href).toString();
 }

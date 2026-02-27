@@ -69,6 +69,10 @@
     left: 0.78rem;
   }
 
+  body.sidebar-collapsed .sidebar-dock-toggle {
+    left: 0.78rem;
+  }
+
   .main-nav {
     gap: 0.26rem;
   }
@@ -165,6 +169,22 @@
   .cloud-actions {
     grid-template-columns: 1fr;
   }
+
+  .auth-form .primary-btn,
+  .auth-form .secondary-btn,
+  .auth-link-row .primary-btn,
+  .auth-link-row .secondary-btn,
+  .control-actions .secondary-btn,
+  .cloud-actions .primary-btn,
+  .cloud-actions .secondary-btn,
+  .community-actions .primary-btn,
+  .community-actions .secondary-btn {
+    width: 100%;
+  }
+
+  .auth-link-row > * {
+    flex: 1 1 100%;
+  }
 }
 
 @media (max-width: 560px) {
@@ -212,6 +232,12 @@
   .site-content {
     padding-bottom: 1.45rem;
   }
+
+  .toast-stack {
+    right: 0.7rem;
+    bottom: 0.7rem;
+    width: calc(100vw - 1.4rem);
+  }
 }
 
 @media (max-width: 420px) {
@@ -227,6 +253,10 @@
     width: 40px;
     height: 40px;
     top: 0.6rem;
+    left: 0.6rem;
+  }
+
+  body.sidebar-collapsed .sidebar-dock-toggle {
     left: 0.6rem;
   }
 

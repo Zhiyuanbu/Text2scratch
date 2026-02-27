@@ -1,7 +1,7 @@
 import {
   createSupabaseClient,
   formatSupabaseError,
-  getLoginPageUrl
+  getConfirmPageUrl
 } from "./supabase-client.js";
 
 const ui = {
@@ -15,6 +15,8 @@ const ui = {
   deleteAccount: document.getElementById("accountDeleteBtn"),
   status: document.getElementById("accountStatus")
 };
+const CAPTCHA_CACHE_KEY = "text2scratch.hcaptcha.token";
+const CAPTCHA_CACHE_MAX_AGE_MS = 20 * 60 * 1000;
 
 let supabaseClient = null;
 let currentUser = null;
@@ -27,6 +29,8 @@ async function init() {
   if (!ui.status) {
     return;
   }
+
+  ui.status.classList.add("status-toast-mirror");
 
   try {
     supabaseClient = createSupabaseClient();
@@ -113,9 +117,16 @@ async function onSendResetClick() {
 
   setActionsEnabled(false);
   try {
-    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getLoginPageUrl()}?mode=recovery`
-    });
+    const options = {
+      redirectTo: `${getConfirmPageUrl()}?mode=recovery`
+    };
+
+    const cachedCaptchaToken = readCachedCaptchaToken();
+    if (cachedCaptchaToken) {
+      options.captchaToken = cachedCaptchaToken;
+    }
+
+    const { error } = await supabaseClient.auth.resetPasswordForEmail(email, options);
 
     if (error) {
       throw error;
@@ -202,6 +213,7 @@ function setStatus(message, severity = "info") {
   ui.status.textContent = message;
   ui.status.classList.remove("status-info", "status-success", "status-warning", "status-error");
   ui.status.classList.add(`status-${severity}`);
+  window.text2scratchToast?.show?.(message, severity);
 }
 
 function getUserDisplayName(user) {
@@ -224,4 +236,28 @@ function buildAvatarText(value) {
     return "?";
   }
   return text[0].toUpperCase();
+}
+
+function readCachedCaptchaToken() {
+  try {
+    const raw = window.localStorage.getItem(CAPTCHA_CACHE_KEY);
+    if (!raw) {
+      return "";
+    }
+
+    const parsed = JSON.parse(raw);
+    const token = String(parsed?.token || "").trim();
+    const savedAt = Number(parsed?.savedAt || 0);
+    if (!token || !Number.isFinite(savedAt)) {
+      return "";
+    }
+
+    if (Date.now() - savedAt > CAPTCHA_CACHE_MAX_AGE_MS) {
+      return "";
+    }
+
+    return token;
+  } catch (_error) {
+    return "";
+  }
 }

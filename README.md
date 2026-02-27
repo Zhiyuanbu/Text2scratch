@@ -13,7 +13,7 @@ editable text syntax.
 - Build Stage scripts and multiple sprite scripts in one project.
 - Edit project name directly from the editor toolbar.
 - Optional cloud save/share with Supabase auth and row-level security.
-- Username-based profile auth modal in converter UI (no dedicated login route required).
+- Dedicated auth routes for login, signup, and email confirmation.
 - Community page for browsing public shared projects.
 
 ## File Formats
@@ -91,7 +91,7 @@ end
 
 - `index.html`: main converter/editor UI.
 - `app.js`: conversion logic, parser flow, import/export wiring.
-- `login.html`, `signup.html`: dedicated auth pages.
+- `login.html`, `signup.html`, `confirm.html`: dedicated auth pages.
 - `auth.js`: auth page controller (sign in/sign up).
 - `supabase-client.js`: shared Supabase config and helpers.
 - `blocks.json`: source of truth for command mappings and syntax patterns.

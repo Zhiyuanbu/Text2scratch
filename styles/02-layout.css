@@ -6,6 +6,28 @@ body {
   isolation: isolate;
 }
 
+.layout-no-sidebar {
+  --sidebar-offset: 0px;
+}
+
+.layout-no-sidebar .site-content,
+.layout-no-sidebar .site-footer {
+  margin-left: 0;
+}
+
+.layout-no-sidebar .site-header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  width: 100%;
+  border-right: 0;
+  border-bottom: 1px solid var(--line-faint);
+}
+
+.layout-no-sidebar .header-container {
+  grid-template-rows: auto;
+  align-items: center;
+}
+
 body.sidebar-collapsed {
   --sidebar-offset: var(--sidebar-peek);
 }
@@ -153,10 +175,11 @@ body.sidebar-collapsed .site-header {
 }
 
 body.sidebar-collapsed .header-container {
-  grid-template-rows: auto;
+  grid-template-rows: auto auto minmax(0, 1fr);
   justify-items: center;
   align-content: start;
-  padding-inline: 0.44rem;
+  padding-inline: 0.32rem;
+  gap: 0.6rem;
 }
 
 body.sidebar-collapsed .brand {
@@ -164,10 +187,34 @@ body.sidebar-collapsed .brand {
   width: 100%;
 }
 
-body.sidebar-collapsed .brand-text,
-body.sidebar-collapsed .mobile-menu-toggle,
-body.sidebar-collapsed .main-nav {
+body.sidebar-collapsed .brand-text {
   display: none;
+}
+
+body.sidebar-collapsed .mobile-menu-toggle {
+  display: none;
+}
+
+body.sidebar-collapsed .main-nav {
+  display: grid;
+  width: 100%;
+  gap: 0.36rem;
+  padding-right: 0;
+}
+
+body.sidebar-collapsed .main-nav a {
+  justify-content: center;
+  gap: 0;
+  padding: 0.62rem 0.3rem;
+}
+
+body.sidebar-collapsed .main-nav .nav-label {
+  display: none;
+}
+
+body.sidebar-collapsed .main-nav .nav-icon {
+  width: auto;
+  font-size: 1.02rem;
 }
 
 .mobile-menu-toggle {
@@ -192,7 +239,7 @@ body.sidebar-collapsed .main-nav {
 .sidebar-dock-toggle {
   position: fixed;
   top: 1rem;
-  left: 1rem;
+  left: 0.95rem;
   width: 45px;
   height: 45px;
   border-radius: 12px;
@@ -205,6 +252,11 @@ body.sidebar-collapsed .main-nav {
   z-index: 230;
   box-shadow: var(--shadow-md);
   cursor: pointer;
+  transition: left var(--transition-fast), background var(--transition-fast);
+}
+
+body.sidebar-collapsed .sidebar-dock-toggle {
+  left: calc(var(--sidebar-peek) + 0.62rem);
 }
 
 .sidebar-dock-toggle:hover,

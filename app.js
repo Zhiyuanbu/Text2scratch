@@ -5,8 +5,8 @@ import {
   buildShareUrl,
   createSupabaseClient,
   formatSupabaseError,
+  getConfirmPageUrl,
   getIndexPageUrl,
-  getLoginPageUrl,
   isDuplicateError,
   isMissingRowError
 } from "./supabase-client.js";
@@ -54,6 +54,8 @@ const MONACO_VS_PATH = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.5
 const MARKER_OWNER = "text2scratch-diagnostics";
 const DIAGNOSTIC_DEBOUNCE_MS = 220;
 const TOAST_LIFETIME_MS = 3600;
+const CAPTCHA_CACHE_KEY = "text2scratch.hcaptcha.token";
+const CAPTCHA_CACHE_MAX_AGE_MS = 20 * 60 * 1000;
 const BLOCKING_DIAGNOSTIC_CODES = new Set([
   "t2s.missing-end",
   "t2s.unmatched-end",
@@ -3672,9 +3674,16 @@ async function onProfileSendResetForCurrentUser() {
   }
 
   try {
-    const { error } = await supabaseState.client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getLoginPageUrl()}?mode=recovery`
-    });
+    const options = {
+      redirectTo: `${getConfirmPageUrl()}?mode=recovery`
+    };
+
+    const cachedCaptchaToken = readCachedCaptchaToken();
+    if (cachedCaptchaToken) {
+      options.captchaToken = cachedCaptchaToken;
+    }
+
+    const { error } = await supabaseState.client.auth.resetPasswordForEmail(email, options);
     if (error) {
       throw new Error(formatSupabaseError(error));
     }
@@ -3739,6 +3748,30 @@ function buildAvatarText(value) {
     return "?";
   }
   return text[0].toUpperCase();
+}
+
+function readCachedCaptchaToken() {
+  try {
+    const raw = window.localStorage.getItem(CAPTCHA_CACHE_KEY);
+    if (!raw) {
+      return "";
+    }
+
+    const parsed = JSON.parse(raw);
+    const token = String(parsed?.token || "").trim();
+    const savedAt = Number(parsed?.savedAt || 0);
+    if (!token || !Number.isFinite(savedAt)) {
+      return "";
+    }
+
+    if (Date.now() - savedAt > CAPTCHA_CACHE_MAX_AGE_MS) {
+      return "";
+    }
+
+    return token;
+  } catch (_error) {
+    return "";
+  }
 }
 
 function hasCloudUi() {
