@@ -155,27 +155,11 @@ const ui = {
   profileMenuBtn: document.getElementById("profileMenuBtn"),
   profileAvatarBadge: document.getElementById("profileAvatarBadge"),
   profileNavLabel: document.getElementById("profileNavLabel"),
-  profileModal: document.getElementById("profileAuthModal"),
-  profileModalBackdrop: document.getElementById("profileModalBackdrop"),
-  profileModalClose: document.getElementById("profileModalClose"),
+  profileFlyout: document.getElementById("profileFlyout"),
+  profileFlyoutClose: document.getElementById("profileFlyoutClose"),
   profileGuestView: document.getElementById("profileGuestView"),
   profileUserView: document.getElementById("profileUserView"),
   profileAuthStatus: document.getElementById("profileAuthStatus"),
-  profileTabLogin: document.getElementById("profileTabLogin"),
-  profileTabSignup: document.getElementById("profileTabSignup"),
-  profileTabReset: document.getElementById("profileTabReset"),
-  profileLoginForm: document.getElementById("profileLoginForm"),
-  profileSignupForm: document.getElementById("profileSignupForm"),
-  profileResetForm: document.getElementById("profileResetForm"),
-  profileRecoveryForm: document.getElementById("profileRecoveryForm"),
-  profileLoginIdentifier: document.getElementById("profileLoginIdentifier"),
-  profileLoginPassword: document.getElementById("profileLoginPassword"),
-  profileSignupUsername: document.getElementById("profileSignupUsername"),
-  profileSignupEmail: document.getElementById("profileSignupEmail"),
-  profileSignupPassword: document.getElementById("profileSignupPassword"),
-  profileSignupConfirm: document.getElementById("profileSignupConfirm"),
-  profileResetIdentifier: document.getElementById("profileResetIdentifier"),
-  profileRecoveryPassword: document.getElementById("profileRecoveryPassword"),
   profileUserAvatar: document.getElementById("profileUserAvatar"),
   profileUserDisplayName: document.getElementById("profileUserDisplayName"),
   profileUserEmail: document.getElementById("profileUserEmail"),
@@ -206,8 +190,8 @@ const supabaseState = {
   authListener: null
 };
 
-const authUiState = {
-  tab: "login"
+const profileMenuState = {
+  open: false
 };
 
 const shareState = {
@@ -2873,12 +2857,13 @@ function registerEditorHoverProvider(monacoRef) {
       if (!hover) {
         return null;
       }
+      const syntaxSnippet = hover.syntax ? "`" + hover.syntax + "`" : "";
 
       return {
         range: new monacoRef.Range(position.lineNumber, tokenInfo.startColumn, position.lineNumber, tokenInfo.endColumn),
         contents: [
           { value: `**${hover.title}**` },
-          { value: hover.syntax ? `\\`${hover.syntax}\\`` : "" },
+          { value: syntaxSnippet },
           { value: hover.description }
         ].filter((item) => item.value && item.value.trim().length > 0)
       };
@@ -3547,102 +3532,79 @@ function getBlockingDiagnostics() {
 }
 
 function initProfileAuthUi() {
-  if (!ui.profileMenuBtn || !ui.profileModal || !ui.profileAuthStatus) {
+  if (!ui.profileMenuBtn || !ui.profileFlyout || !ui.profileAuthStatus) {
     return;
   }
 
   ui.profileMenuBtn.addEventListener("click", (event) => {
     event.preventDefault();
-    openProfileModal();
+    event.stopPropagation();
+    setProfileFlyoutOpen(!profileMenuState.open);
   });
 
-  ui.profileModalBackdrop?.addEventListener("click", closeProfileModal);
-  ui.profileModalClose?.addEventListener("click", closeProfileModal);
+  ui.profileFlyoutClose?.addEventListener("click", () => {
+    setProfileFlyoutOpen(false);
+  });
+
+  document.addEventListener("click", (event) => {
+    if (!profileMenuState.open) {
+      return;
+    }
+
+    const target = event.target;
+    if (!(target instanceof Element)) {
+      return;
+    }
+
+    if (target.closest("#profileFlyout") || target.closest("#profileMenuBtn")) {
+      return;
+    }
+
+    setProfileFlyoutOpen(false);
+  });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && !ui.profileModal.hidden) {
-      closeProfileModal();
+    if (event.key === "Escape" && profileMenuState.open) {
+      setProfileFlyoutOpen(false);
     }
   });
 
-  ui.profileTabLogin?.addEventListener("click", () => setAuthTab("login"));
-  ui.profileTabSignup?.addEventListener("click", () => setAuthTab("signup"));
-  ui.profileTabReset?.addEventListener("click", () => setAuthTab("reset"));
-
-  ui.profileLoginForm?.addEventListener("submit", onProfileLoginSubmit);
-  ui.profileSignupForm?.addEventListener("submit", onProfileSignupSubmit);
-  ui.profileResetForm?.addEventListener("submit", onProfileResetSubmit);
-  ui.profileRecoveryForm?.addEventListener("submit", onProfileRecoverySubmit);
-  ui.profileSignOutModalBtn?.addEventListener("click", onCloudSignOutClick);
+  ui.profileSignOutModalBtn?.addEventListener("click", async () => {
+    await onCloudSignOutClick();
+    setProfileFlyoutOpen(false);
+  });
   ui.profileSendResetBtn?.addEventListener("click", onProfileSendResetForCurrentUser);
   ui.profileDeleteAccountBtn?.addEventListener("click", onProfileDeleteAccount);
 
-  if (isRecoverySession()) {
-    ui.profileRecoveryForm.hidden = false;
-    openProfileModal();
-    setProfileAuthStatus("Recovery mode detected. Set your new password.", "warning");
-  }
-
+  setProfileFlyoutOpen(false);
   if (String(window.location.hash || "").toLowerCase() === "#profile") {
-    openProfileModal();
+    setProfileFlyoutOpen(true);
   }
 
-  setAuthTab("login");
   updateProfileUiState();
+  if (supabaseState.user) {
+    setProfileAuthStatus("Account menu ready.", "success");
+  } else {
+    setProfileAuthStatus("Use Login or Sign Up to access cloud features.", "info");
+  }
 }
 
-function isRecoverySession() {
-  const search = new URLSearchParams(window.location.search);
-  const hash = String(window.location.hash || "");
-  return search.get("mode") === "recovery" || hash.includes("type=recovery");
-}
-
-function openProfileModal() {
-  if (!ui.profileModal) {
+function setProfileFlyoutOpen(open) {
+  if (!ui.profileFlyout) {
     return;
   }
 
-  ui.profileModal.hidden = false;
-  document.body.classList.add("profile-modal-open");
-  updateProfileUiState();
-}
+  profileMenuState.open = Boolean(open);
+  ui.profileFlyout.hidden = !profileMenuState.open;
+  document.body.classList.toggle("profile-flyout-open", profileMenuState.open);
+  ui.profileMenuBtn?.setAttribute("aria-expanded", String(profileMenuState.open));
 
-function closeProfileModal() {
-  if (!ui.profileModal) {
-    return;
-  }
-
-  ui.profileModal.hidden = true;
-  document.body.classList.remove("profile-modal-open");
-
-  if (String(window.location.hash || "").toLowerCase() === "#profile") {
+  if (profileMenuState.open) {
+    updateProfileUiState();
+  } else if (String(window.location.hash || "").toLowerCase() === "#profile") {
     const url = new URL(window.location.href);
     url.hash = "";
     window.history.replaceState({}, "", url.toString());
-  }
-}
-
-function setAuthTab(tab) {
-  authUiState.tab = tab;
-
-  if (ui.profileLoginForm) {
-    ui.profileLoginForm.hidden = tab !== "login";
-  }
-  if (ui.profileSignupForm) {
-    ui.profileSignupForm.hidden = tab !== "signup";
-  }
-  if (ui.profileResetForm) {
-    ui.profileResetForm.hidden = tab !== "reset";
-  }
-
-  if (ui.profileTabLogin) {
-    ui.profileTabLogin.setAttribute("aria-selected", String(tab === "login"));
-  }
-  if (ui.profileTabSignup) {
-    ui.profileTabSignup.setAttribute("aria-selected", String(tab === "signup"));
-  }
-  if (ui.profileTabReset) {
-    ui.profileTabReset.setAttribute("aria-selected", String(tab === "reset"));
   }
 }
 
@@ -3654,20 +3616,6 @@ function setProfileAuthStatus(message, severity = "info") {
   ui.profileAuthStatus.textContent = message;
   ui.profileAuthStatus.classList.remove("status-info", "status-success", "status-warning", "status-error");
   ui.profileAuthStatus.classList.add(`status-${severity}`);
-}
-
-function setProfileFormsEnabled(enabled) {
-  const forms = [ui.profileLoginForm, ui.profileSignupForm, ui.profileResetForm, ui.profileRecoveryForm]
-    .filter(Boolean);
-
-  forms.forEach((form) => {
-    [...form.querySelectorAll("input,button")].forEach((field) => {
-      if (field.id === "profileModalClose") {
-        return;
-      }
-      field.disabled = !enabled;
-    });
-  });
 }
 
 function updateProfileUiState() {
@@ -3708,180 +3656,6 @@ function updateProfileUiState() {
     if (ui.profileNavLabel) {
       ui.profileNavLabel.textContent = "Profile";
     }
-  }
-}
-
-async function onProfileLoginSubmit(event) {
-  event.preventDefault();
-  if (!ensureSupabaseReady()) {
-    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
-    return;
-  }
-
-  const identifier = String(ui.profileLoginIdentifier?.value || "").trim();
-  const password = String(ui.profileLoginPassword?.value || "");
-  if (!identifier || !password) {
-    setProfileAuthStatus("Enter username/email and password.", "warning");
-    return;
-  }
-
-  setProfileFormsEnabled(false);
-  try {
-    const email = await resolveEmailFromIdentifier(identifier);
-    const { error } = await supabaseState.client.auth.signInWithPassword({ email, password });
-    if (error) {
-      throw new Error(formatSupabaseError(error));
-    }
-
-    if (ui.profileLoginPassword) {
-      ui.profileLoginPassword.value = "";
-    }
-    setProfileAuthStatus("Signed in successfully.", "success");
-    setStatus("Signed in successfully.", "success");
-    closeProfileModal();
-  } catch (error) {
-    setProfileAuthStatus(`Login failed: ${error.message}`, "error");
-    setStatus(`Login failed: ${error.message}`, "error");
-  } finally {
-    setProfileFormsEnabled(true);
-  }
-}
-
-async function onProfileSignupSubmit(event) {
-  event.preventDefault();
-  if (!ensureSupabaseReady()) {
-    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
-    return;
-  }
-
-  const username = normalizeUsername(ui.profileSignupUsername?.value || "");
-  const email = String(ui.profileSignupEmail?.value || "").trim().toLowerCase();
-  const password = String(ui.profileSignupPassword?.value || "");
-  const confirm = String(ui.profileSignupConfirm?.value || "");
-
-  if (!isValidUsername(username)) {
-    setProfileAuthStatus("Username must be 3-32 characters: letters, numbers, underscores.", "warning");
-    return;
-  }
-  if (!email.includes("@")) {
-    setProfileAuthStatus("Enter a valid email address.", "warning");
-    return;
-  }
-  if (password.length < 6) {
-    setProfileAuthStatus("Password must be at least 6 characters.", "warning");
-    return;
-  }
-  if (password !== confirm) {
-    setProfileAuthStatus("Password confirmation does not match.", "warning");
-    return;
-  }
-
-  setProfileFormsEnabled(false);
-  try {
-    const available = await isUsernameAvailable(username);
-    if (!available) {
-      setProfileAuthStatus("Username is already taken. Choose another.", "warning");
-      return;
-    }
-
-    const { data, error } = await supabaseState.client.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${getIndexPageUrl()}?mode=login`,
-        data: { username }
-      }
-    });
-
-    if (error) {
-      throw new Error(formatSupabaseError(error));
-    }
-
-    if (data?.session?.user) {
-      setProfileAuthStatus("Account created and signed in.", "success");
-      setStatus("Account created and signed in.", "success");
-      closeProfileModal();
-      return;
-    }
-
-    setProfileAuthStatus("Account created. Check your email to confirm before login.", "success");
-    setStatus("Account created. Check your email to confirm before login.", "success");
-    setAuthTab("login");
-  } catch (error) {
-    setProfileAuthStatus(`Sign-up failed: ${error.message}`, "error");
-    setStatus(`Sign-up failed: ${error.message}`, "error");
-  } finally {
-    setProfileFormsEnabled(true);
-  }
-}
-
-async function onProfileResetSubmit(event) {
-  event.preventDefault();
-  if (!ensureSupabaseReady()) {
-    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
-    return;
-  }
-
-  const identifier = String(ui.profileResetIdentifier?.value || "").trim();
-  if (!identifier) {
-    setProfileAuthStatus("Enter your username or email.", "warning");
-    return;
-  }
-
-  setProfileFormsEnabled(false);
-  try {
-    const email = await resolveEmailFromIdentifier(identifier);
-    const { error } = await supabaseState.client.auth.resetPasswordForEmail(email, {
-      redirectTo: `${getIndexPageUrl()}?mode=recovery`
-    });
-
-    if (error) {
-      throw new Error(formatSupabaseError(error));
-    }
-
-    setProfileAuthStatus("Password reset email sent. Check inbox and spam folder.", "success");
-    setStatus("Password reset email sent.", "success");
-  } catch (error) {
-    setProfileAuthStatus(`Reset failed: ${error.message}`, "error");
-    setStatus(`Reset failed: ${error.message}`, "error");
-  } finally {
-    setProfileFormsEnabled(true);
-  }
-}
-
-async function onProfileRecoverySubmit(event) {
-  event.preventDefault();
-  if (!ensureSupabaseReady()) {
-    setProfileAuthStatus("Supabase client is not ready. Reload and retry.", "error");
-    return;
-  }
-
-  const newPassword = String(ui.profileRecoveryPassword?.value || "");
-  if (newPassword.length < 6) {
-    setProfileAuthStatus("New password must be at least 6 characters.", "warning");
-    return;
-  }
-
-  setProfileFormsEnabled(false);
-  try {
-    const { error } = await supabaseState.client.auth.updateUser({ password: newPassword });
-    if (error) {
-      throw new Error(formatSupabaseError(error));
-    }
-
-    setProfileAuthStatus("Password updated.", "success");
-    setStatus("Password updated successfully.", "success");
-    ui.profileRecoveryForm.hidden = true;
-    const cleanUrl = new URL(window.location.href);
-    cleanUrl.searchParams.delete("mode");
-    cleanUrl.hash = "";
-    window.history.replaceState({}, "", cleanUrl.toString());
-    closeProfileModal();
-  } catch (error) {
-    setProfileAuthStatus(`Password update failed: ${error.message}`, "error");
-    setStatus(`Password update failed: ${error.message}`, "error");
-  } finally {
-    setProfileFormsEnabled(true);
   }
 }
 
@@ -3937,68 +3711,11 @@ async function onProfileDeleteAccount() {
     resetCloudProjectList("Sign in to load projects");
     setProfileAuthStatus("Account deleted.", "success");
     setStatus("Account deleted successfully.", "success");
-    closeProfileModal();
+    setProfileFlyoutOpen(false);
   } catch (error) {
     setProfileAuthStatus(`Account deletion failed: ${error.message}`, "error");
     setStatus(`Account deletion failed: ${error.message}`, "error");
   }
-}
-
-async function resolveEmailFromIdentifier(identifier) {
-  const value = String(identifier || "").trim();
-  if (!value) {
-    throw new Error("Missing username or email.");
-  }
-
-  if (value.includes("@")) {
-    return value.toLowerCase();
-  }
-
-  const normalized = normalizeUsername(value);
-  if (!normalized) {
-    throw new Error("Invalid username.");
-  }
-
-  const { data, error } = await supabaseState.client.rpc("resolve_login_email", {
-    login_identifier: normalized
-  });
-
-  if (error) {
-    throw new Error(formatSupabaseError(error));
-  }
-  if (!data) {
-    throw new Error("Username not found.");
-  }
-
-  return String(data).toLowerCase();
-}
-
-function normalizeUsername(value) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "");
-}
-
-function isValidUsername(value) {
-  return /^[a-z0-9_]{3,32}$/.test(String(value || ""));
-}
-
-async function isUsernameAvailable(username) {
-  const normalized = normalizeUsername(username);
-  if (!isValidUsername(normalized)) {
-    return false;
-  }
-
-  const { data, error } = await supabaseState.client.rpc("is_username_available", {
-    candidate_username: normalized
-  });
-
-  if (error) {
-    throw new Error(formatSupabaseError(error));
-  }
-
-  return Boolean(data);
 }
 
 function getUserDisplayName(user) {
@@ -4482,7 +4199,7 @@ function ensureCloudSignedIn() {
   }
 
   if (!supabaseState.user) {
-    setStatus("Sign in first from the Profile menu.", "warning");
+    setStatus("Sign in first from Login page or profile menu links.", "warning");
     return false;
   }
 
@@ -4501,7 +4218,7 @@ function setCloudAuthState() {
     return;
   }
 
-  ui.authState.textContent = "Not signed in. Open Profile menu to continue.";
+  ui.authState.textContent = "Not signed in. Use Login/Sign Up from sidebar.";
 }
 
 function setCloudControlState(isSignedIn) {

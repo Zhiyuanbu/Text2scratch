@@ -202,18 +202,11 @@
     align-items: flex-start;
   }
 
-  .profile-auth-card {
-    width: calc(100vw - 0.7rem);
+  .profile-flyout {
+    top: 0.7rem;
+    left: 0.7rem;
+    width: calc(100vw - 1.4rem);
     padding: 0.78rem;
-  }
-
-  .profile-auth-tabs {
-    display: grid;
-    grid-template-columns: 1fr;
-  }
-
-  .profile-tab-btn {
-    width: 100%;
   }
 
   .site-content {
@@ -239,6 +232,12 @@
 
   .site-header {
     width: calc(100vw - 1.1rem);
+  }
+
+  .profile-flyout {
+    top: 0.6rem;
+    left: 0.6rem;
+    width: calc(100vw - 1.2rem);
   }
 
   .header-container {

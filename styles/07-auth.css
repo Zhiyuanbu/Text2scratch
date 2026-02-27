@@ -169,3 +169,17 @@
 .auth-links a:focus-visible {
   color: #ffe8bd;
 }
+
+.auth-link-row {
+  justify-content: space-between;
+}
+
+.auth-link-row .text-link {
+  font-size: 0.87rem;
+}
+
+#resetForm,
+#recoveryForm {
+  border-top: 1px solid rgba(255, 203, 133, 0.26);
+  padding-top: 0.8rem;
+}
