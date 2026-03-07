@@ -51,14 +51,22 @@ init().catch((error) => {
 });
 
 async function init() {
+  const catalog = await loadCatalog();
+  renderAliases(catalog.aliases || {});
+  renderCatalog(catalog.commands || {});
+}
+
+async function loadCatalog() {
+  if (window.TEXT2SCRATCH_BLOCKS?.commands) {
+    return window.TEXT2SCRATCH_BLOCKS;
+  }
+
   const response = await fetch("../blocks.json", { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`);
   }
 
-  const catalog = await response.json();
-  renderAliases(catalog.aliases || {});
-  renderCatalog(catalog.commands || {});
+  return response.json();
 }
 
 function renderAliases(aliases) {

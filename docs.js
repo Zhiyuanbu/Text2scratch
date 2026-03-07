@@ -147,23 +147,37 @@ init();
 
 async function init() {
   try {
-    const response = await fetch("blocks.json", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Failed to load blocks.json (${response.status})`);
+    if (!ui.root || !ui.search || !ui.kind || !ui.scope || !ui.target || !ui.sort || !ui.reset || !ui.stats || !ui.extensionNav) {
+      throw new Error("Reference UI is missing required elements.");
     }
 
-    const catalog = await response.json();
+    const catalog = await loadCatalog();
     blockEntries = normalizeEntries(catalog);
     populateScopeFilter(blockEntries);
     attachHandlers();
     render();
   } catch (error) {
-    ui.root.innerHTML = "";
-    const fallback = document.createElement("p");
-    fallback.className = "empty-state";
-    fallback.textContent = `Failed to load docs: ${error.message}`;
-    ui.root.appendChild(fallback);
+    if (ui.root) {
+      ui.root.innerHTML = "";
+      const fallback = document.createElement("p");
+      fallback.className = "empty-state";
+      fallback.textContent = `Failed to load docs: ${error.message}`;
+      ui.root.appendChild(fallback);
+    }
   }
+}
+
+async function loadCatalog() {
+  if (window.TEXT2SCRATCH_BLOCKS?.commands) {
+    return window.TEXT2SCRATCH_BLOCKS;
+  }
+
+  const response = await fetch("blocks.json", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Failed to load blocks.json (${response.status})`);
+  }
+
+  return response.json();
 }
 
 function normalizeEntries(catalog) {
@@ -962,8 +976,18 @@ async function copyToClipboard(text, button) {
       copyWithFallback(text);
     }
     button.textContent = "Copied";
+    window.text2scratchToast?.show?.({
+      severity: "success",
+      title: "Copied",
+      description: "Reference text copied to the clipboard."
+    });
   } catch (_error) {
     button.textContent = "Copy failed";
+    window.text2scratchToast?.show?.({
+      severity: "error",
+      title: "Copy failed",
+      description: "Clipboard access was not available."
+    });
   }
 
   setTimeout(() => {

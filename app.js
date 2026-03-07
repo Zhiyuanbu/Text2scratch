@@ -211,12 +211,7 @@ async function init() {
   setProjectName(DEFAULT_PROJECT_NAME);
 
   try {
-    const response = await fetch("blocks.json", { cache: "no-store" });
-    if (!response.ok) {
-      throw new Error(`Could not load blocks.json (${response.status})`);
-    }
-
-    blockCatalog = await response.json();
+    blockCatalog = await loadBlockCatalog();
     reverseCatalog = buildReverseCatalog(blockCatalog);
     if (editorState.usingMonaco && editorState.monacoRef) {
       registerEditorHoverProvider(editorState.monacoRef);
@@ -252,6 +247,19 @@ async function init() {
   initSupabaseWorkspace().catch((error) => {
     setStatus(`Cloud setup error: ${error.message}`, "warning");
   });
+}
+
+async function loadBlockCatalog() {
+  if (window.TEXT2SCRATCH_BLOCKS?.commands) {
+    return window.TEXT2SCRATCH_BLOCKS;
+  }
+
+  const response = await fetch("blocks.json", { cache: "no-store" });
+  if (!response.ok) {
+    throw new Error(`Could not load blocks.json (${response.status})`);
+  }
+
+  return response.json();
 }
 
 async function onExportClick() {

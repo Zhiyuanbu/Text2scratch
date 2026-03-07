@@ -219,7 +219,7 @@ end</pre>
 
     <section>
       <h2>6. Implementation notes</h2>
-      <pre>- The browser app fetches ../blocks.json and uses it as the syntax catalog.
+      <pre>- The browser app uses the generated command catalog bundle first and falls back to ../blocks.json when needed.
 - The converter UI lives on ../converter.html and is powered by ../app.js.
 - The search reference UI lives on ../reference.html and is powered by ../docs.js.
 - Auth and cloud save are optional and use Supabase from the browser.
@@ -249,6 +249,7 @@ end</pre>
     </section>
   </main>
 
-  <script src="index.js" type="module"></script>
+  <script src="../blocks-data.js?v=20260307b"></script>
+  <script src="index.js?v=20260307b" type="module"></script>
 </body>
 </html>

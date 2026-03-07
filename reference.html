@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="new-styles.css?v=20260307a">
+  <link rel="stylesheet" href="new-styles.css?v=20260307b">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-docs page-reference">
@@ -40,7 +40,7 @@
         <a href="docs.html#docs"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Docs</span></a>
         <a href="reference.html#reference" aria-current="page"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Reference</span></a>
         <a href="community.html#community"><span class="nav-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span class="nav-label">Community</span></a>
-        <a href="account.html#account"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
+        <a href="account.html"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
         <a href="dev/"><span class="nav-icon"><i class="fas fa-terminal" aria-hidden="true"></i></span><span class="nav-label">Dev</span></a>
       </nav>
     </div>
@@ -50,9 +50,23 @@
     <div class="container">
       <main id="mainContent" class="docs-shell reference-shell">
         <section id="reference" class="docs-banner" data-reveal>
-          <p class="kicker">Full reference</p>
-          <h1>Search every supported command, inspect exact syntax, and copy working examples.</h1>
-          <p class="lede">Use this page when you already know the concept and want precise syntax, target compatibility, opcode details, or example usage without reading the full guide.</p>
+          <div class="reference-top-grid">
+            <div>
+              <p class="kicker">Full reference</p>
+              <h1>Search every supported command, inspect exact syntax, and copy working examples.</h1>
+              <p class="lede">Use this page when you already know the concept and want precise syntax, target compatibility, opcode details, or example usage without reading the full guide.</p>
+            </div>
+
+            <aside class="reference-mini-panel">
+              <h3>Fast path</h3>
+              <p>Use guided docs for onboarding, this page for exact lookup, and <a href="dev/">/dev</a> for deterministic plain-text output.</p>
+              <div class="portal-chip-row">
+                <span class="pill">Search syntax</span>
+                <span class="pill">Filter by target</span>
+                <span class="pill">Copy examples</span>
+              </div>
+            </aside>
+          </div>
         </section>
 
         <section class="manual-section" data-reveal>
@@ -143,8 +157,10 @@
 
           <div class="reference-layout">
             <div class="reference-results-column">
-              <div id="stats" class="stats-line"></div>
-              <div id="docRoot" class="doc-root"></div>
+              <div id="stats" class="stats-line"><span>Loading command catalog...</span></div>
+              <div id="docRoot" class="doc-root">
+                <p class="empty-state">Loading searchable command reference...</p>
+              </div>
             </div>
 
             <aside class="reference-sidebar">
@@ -193,6 +209,7 @@
         <a href="converter.html">Converter</a>
         <a href="docs.html#docs">Docs</a>
         <a href="community.html#community">Community</a>
+        <a href="settings.html">Settings</a>
         <a href="dev/">Dev</a>
         <a href="terms.html#terms">Terms</a>
         <a href="privacy.html#privacy">Privacy</a>
@@ -205,7 +222,8 @@
 
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260307a" defer></script>
-  <script src="docs.js?v=20260307a" type="module"></script>
+  <script src="common.js?v=20260307b" defer></script>
+  <script src="blocks-data.js?v=20260307b"></script>
+  <script src="docs.js?v=20260307b" type="module"></script>
 </body>
 </html>

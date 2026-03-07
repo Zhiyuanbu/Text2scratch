@@ -7,6 +7,12 @@ const LOADER_MIN_VISIBLE_MS = 560;
 const LOADER_FAILSAFE_MS = 5000;
 const TOAST_LIFETIME_MS = 3500;
 const REVEAL_ROOT_MARGIN = "0px 0px -10% 0px";
+const THEME_STORAGE_KEY = "text2scratch.theme";
+const MOTION_STORAGE_KEY = "text2scratch.motion";
+const DEFAULT_THEME_MODE = "system";
+const DEFAULT_MOTION_MODE = "system";
+const SUPPORTED_THEME_MODES = new Set(["light", "dark", "system"]);
+const SUPPORTED_MOTION_MODES = new Set(["full", "reduced", "system"]);
 const LOADER_MESSAGES = {
   default: "Preparing text2scratch...",
   home: "Loading product overview...",
@@ -14,6 +20,8 @@ const LOADER_MESSAGES = {
   docs: "Loading syntax documentation...",
   auth: "Securing account portal...",
   account: "Loading account workspace...",
+  settings: "Loading appearance preferences...",
+  profile: "Loading profile workspace...",
   community: "Loading community projects...",
   legal: "Opening policy archive...",
   error: "Recovering the missing route..."
@@ -21,10 +29,25 @@ const LOADER_MESSAGES = {
 const toastState = {
   host: null
 };
+const themeState = {
+  mode: DEFAULT_THEME_MODE,
+  resolved: "light",
+  mediaQuery: null,
+  toggle: null,
+  subscribers: new Set()
+};
+const motionState = {
+  mode: DEFAULT_MOTION_MODE,
+  reduced: false,
+  mediaQuery: null,
+  subscribers: new Set()
+};
 
 initCommonUi();
 
 function initCommonUi() {
+  initThemeSystem();
+  initMotionSystem();
   initGlobalToast();
   initPageLoader();
   initSidebar();
@@ -32,6 +55,7 @@ function initCommonUi() {
   initPageAnimation();
   initRevealObserver();
   initNavigationPrefetch();
+  initUtilityDock();
   warmCommonAssets();
 }
 
@@ -137,6 +161,12 @@ function getLoaderMessage(pathname) {
   if (route.includes("community")) {
     return LOADER_MESSAGES.community;
   }
+  if (route.includes("profile")) {
+    return LOADER_MESSAGES.profile;
+  }
+  if (route.includes("settings")) {
+    return LOADER_MESSAGES.settings;
+  }
   if (route.includes("account")) {
     return LOADER_MESSAGES.account;
   }
@@ -158,6 +188,194 @@ function initGlobalToast() {
     show: showToast,
     dismissAll: dismissAllToasts
   };
+}
+
+function initThemeSystem() {
+  if (typeof window === "undefined" || !document.documentElement) {
+    return;
+  }
+
+  themeState.mediaQuery = window.matchMedia?.("(prefers-color-scheme: dark)") || null;
+  window.text2scratchTheme = {
+    getMode: () => themeState.mode,
+    getResolvedMode: () => themeState.resolved,
+    setMode: setThemeMode,
+    cycleMode: cycleThemeMode,
+    subscribe: subscribeToThemeChanges
+  };
+
+  applyThemeMode(readStoredPreference(THEME_STORAGE_KEY, DEFAULT_THEME_MODE), false);
+
+  if (themeState.mediaQuery) {
+    const onMediaChange = () => {
+      if (themeState.mode === "system") {
+        applyThemeMode("system", false);
+      }
+    };
+
+    if (typeof themeState.mediaQuery.addEventListener === "function") {
+      themeState.mediaQuery.addEventListener("change", onMediaChange);
+    } else if (typeof themeState.mediaQuery.addListener === "function") {
+      themeState.mediaQuery.addListener(onMediaChange);
+    }
+  }
+}
+
+function initMotionSystem() {
+  if (typeof window === "undefined" || !document.documentElement) {
+    return;
+  }
+
+  motionState.mediaQuery = window.matchMedia?.("(prefers-reduced-motion: reduce)") || null;
+  window.text2scratchMotion = {
+    getMode: () => motionState.mode,
+    prefersReducedMotion: () => motionState.reduced,
+    setMode: setMotionMode,
+    subscribe: subscribeToMotionChanges
+  };
+
+  applyMotionMode(readStoredPreference(MOTION_STORAGE_KEY, DEFAULT_MOTION_MODE), false);
+
+  if (motionState.mediaQuery) {
+    const onMediaChange = () => {
+      if (motionState.mode === "system") {
+        applyMotionMode("system", false);
+      }
+    };
+
+    if (typeof motionState.mediaQuery.addEventListener === "function") {
+      motionState.mediaQuery.addEventListener("change", onMediaChange);
+    } else if (typeof motionState.mediaQuery.addListener === "function") {
+      motionState.mediaQuery.addListener(onMediaChange);
+    }
+  }
+}
+
+function readStoredPreference(storageKey, fallbackValue) {
+  try {
+    return String(window.localStorage.getItem(storageKey) || fallbackValue).trim().toLowerCase() || fallbackValue;
+  } catch (_error) {
+    return fallbackValue;
+  }
+}
+
+function applyThemeMode(mode, persist = true) {
+  const nextMode = SUPPORTED_THEME_MODES.has(mode) ? mode : DEFAULT_THEME_MODE;
+  const resolved = nextMode === "system"
+    ? (themeState.mediaQuery?.matches ? "dark" : "light")
+    : nextMode;
+
+  themeState.mode = nextMode;
+  themeState.resolved = resolved;
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.themePreference = nextMode;
+  document.documentElement.style.colorScheme = resolved;
+
+  if (persist) {
+    writeStoredPreference(THEME_STORAGE_KEY, nextMode);
+  }
+
+  syncThemeToggle();
+  notifySubscribers(themeState.subscribers, {
+    mode: nextMode,
+    resolved
+  }, "text2scratch:themechange");
+}
+
+function setThemeMode(mode) {
+  applyThemeMode(mode, true);
+  return {
+    mode: themeState.mode,
+    resolved: themeState.resolved
+  };
+}
+
+function cycleThemeMode() {
+  const nextMode = themeState.resolved === "dark" ? "light" : "dark";
+  return setThemeMode(nextMode);
+}
+
+function subscribeToThemeChanges(callback) {
+  if (typeof callback !== "function") {
+    return () => {};
+  }
+
+  themeState.subscribers.add(callback);
+  callback({
+    mode: themeState.mode,
+    resolved: themeState.resolved
+  });
+
+  return () => {
+    themeState.subscribers.delete(callback);
+  };
+}
+
+function applyMotionMode(mode, persist = true) {
+  const nextMode = SUPPORTED_MOTION_MODES.has(mode) ? mode : DEFAULT_MOTION_MODE;
+  const reduced = nextMode === "system"
+    ? Boolean(motionState.mediaQuery?.matches)
+    : nextMode === "reduced";
+
+  motionState.mode = nextMode;
+  motionState.reduced = reduced;
+  document.documentElement.dataset.motion = reduced ? "reduced" : "full";
+  document.documentElement.dataset.motionPreference = nextMode;
+
+  if (persist) {
+    writeStoredPreference(MOTION_STORAGE_KEY, nextMode);
+  }
+
+  notifySubscribers(motionState.subscribers, {
+    mode: nextMode,
+    reduced
+  }, "text2scratch:motionchange");
+}
+
+function setMotionMode(mode) {
+  applyMotionMode(mode, true);
+  return {
+    mode: motionState.mode,
+    reduced: motionState.reduced
+  };
+}
+
+function subscribeToMotionChanges(callback) {
+  if (typeof callback !== "function") {
+    return () => {};
+  }
+
+  motionState.subscribers.add(callback);
+  callback({
+    mode: motionState.mode,
+    reduced: motionState.reduced
+  });
+
+  return () => {
+    motionState.subscribers.delete(callback);
+  };
+}
+
+function writeStoredPreference(storageKey, value) {
+  try {
+    window.localStorage.setItem(storageKey, value);
+  } catch (_error) {
+    // Ignore local storage failures.
+  }
+}
+
+function notifySubscribers(subscribers, detail, eventName) {
+  subscribers.forEach((callback) => {
+    try {
+      callback(detail);
+    } catch (_error) {
+      // Ignore subscriber failures.
+    }
+  });
+
+  window.dispatchEvent(new CustomEvent(eventName, {
+    detail
+  }));
 }
 
 function ensureToastHost() {
@@ -379,6 +597,57 @@ function initSidebar() {
   syncSidebarLayout();
 }
 
+function initUtilityDock() {
+  if (!document.body || window.location.pathname.includes("/dev/")) {
+    return;
+  }
+
+  let dock = document.querySelector(".utility-dock");
+  if (!dock) {
+    dock = document.createElement("div");
+    dock.className = "utility-dock";
+    dock.innerHTML = `
+      <button type="button" class="theme-toggle" data-theme-toggle aria-live="polite">
+        <span class="theme-toggle__icon" aria-hidden="true"><i class="fas fa-circle-half-stroke"></i></span>
+        <span class="theme-toggle__label">Theme</span>
+      </button>
+      <a class="utility-link" href="settings.html">
+        <i class="fas fa-gear" aria-hidden="true"></i>
+        <span>Settings</span>
+      </a>
+    `;
+    document.body.appendChild(dock);
+  }
+
+  const toggle = dock.querySelector("[data-theme-toggle]");
+  if (!toggle) {
+    return;
+  }
+
+  themeState.toggle = toggle;
+  toggle.addEventListener("click", cycleThemeMode);
+  syncThemeToggle();
+}
+
+function syncThemeToggle() {
+  if (!themeState.toggle) {
+    return;
+  }
+
+  const nextLabel = themeState.resolved === "dark" ? "Switch to light mode" : "Switch to dark mode";
+  const modeLabel = themeState.mode === "system"
+    ? `System (${capitalize(themeState.resolved)})`
+    : capitalize(themeState.mode);
+
+  themeState.toggle.dataset.mode = themeState.resolved;
+  themeState.toggle.setAttribute("aria-label", `${nextLabel}. Current theme: ${modeLabel}.`);
+  themeState.toggle.title = `${nextLabel}. Current theme: ${modeLabel}.`;
+  themeState.toggle.querySelector(".theme-toggle__label").textContent = modeLabel;
+  themeState.toggle.querySelector(".theme-toggle__icon").innerHTML = themeState.resolved === "dark"
+    ? '<i class="fas fa-sun" aria-hidden="true"></i>'
+    : '<i class="fas fa-moon" aria-hidden="true"></i>';
+}
+
 function applySidebarLinkA11yLabels(mainNav) {
   const links = [...mainNav.querySelectorAll("a[href]")];
   links.forEach((link) => {
@@ -503,7 +772,7 @@ function initNavigationPrefetch() {
 }
 
 function warmCommonAssets() {
-  if (window.fetch) {
+  if (window.fetch && !window.TEXT2SCRATCH_BLOCKS) {
     fetch("blocks.json", { cache: "force-cache" }).catch(() => {});
   }
 }
@@ -550,4 +819,12 @@ function escapeHtml(value) {
 
 function stripHash(value) {
   return value.split("#")[0];
+}
+
+function capitalize(value) {
+  const text = String(value || "").trim();
+  if (!text) {
+    return "";
+  }
+  return `${text[0].toUpperCase()}${text.slice(1)}`;
 }

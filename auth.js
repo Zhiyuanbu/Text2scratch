@@ -74,7 +74,9 @@ async function init() {
   if (currentUser && mode === "login" && !urlAuthState.handled) {
     const currentEmail = String(currentUser.email || "").trim();
     if (currentEmail) {
-      setStatus(`Already signed in as ${currentEmail}.`, "success");
+      setStatus(`Already signed in as ${currentEmail}.`, "success", {
+        toast: false
+      });
     }
   }
 
@@ -767,10 +769,14 @@ function setFormEnabled(enabled) {
   });
 }
 
-function setStatus(message, severity = "info") {
+function setStatus(message, severity = "info", options = {}) {
   ui.status.textContent = message;
   ui.status.classList.remove("status-info", "status-success", "status-warning", "status-error");
   ui.status.classList.add(`status-${severity}`);
+
+  if (options.toast === false) {
+    return;
+  }
 
   if (severity !== "info" || /^Use this page to log in after email verification\./.test(message) === false) {
     window.text2scratchToast?.show?.(message, severity);
