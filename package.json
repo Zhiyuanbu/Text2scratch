@@ -1,0 +1,41 @@
+{
+  "name": "text2scratch",
+  "version": "1.0.0",
+  "private": true,
+  "description": "`text2scratch` is a static web app that converts text commands into Scratch 3 projects (`.sb3`) and can reverse-import existing Scratch projects back into editable text syntax.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Zhiyuanbu/Text2scratch.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/Zhiyuanbu/Text2scratch/issues"
+  },
+  "homepage": "https://github.com/Zhiyuanbu/Text2scratch#readme",
+  "dependencies": {
+    "@fontsource/inter": "^5.2.8",
+    "@supabase/supabase-js": "^2.98.0",
+    "lucide-react": "^0.577.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.1",
+    "@types/node": "^25.3.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.7.0",
+    "tailwindcss": "^4.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1"
+  }
+}

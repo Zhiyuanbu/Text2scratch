@@ -611,7 +611,7 @@ function initUtilityDock() {
         <span class="theme-toggle__icon" aria-hidden="true"><i class="fas fa-circle-half-stroke"></i></span>
         <span class="theme-toggle__label">Theme</span>
       </button>
-      <a class="utility-link" href="settings.html">
+      <a class="utility-link" href="dashboard.html#appearance">
         <i class="fas fa-gear" aria-hidden="true"></i>
         <span>Settings</span>
       </a>

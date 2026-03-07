@@ -2,157 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch - Create Account</title>
-  <meta name="description" content="Create a text2scratch account for cloud saves, share links, and a cleaner cross-device workflow.">
-  <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
-  <link rel="shortcut icon" href="favicon-32x32.png?v=20260222c">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png?v=20260222c">
-  <link rel="manifest" href="site.webmanifest?v=20260222c">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="new-styles.css?v=20260307b">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>text2scratch | Sign up</title>
+  <meta name="description" content="Create a text2scratch account with a polished signup flow and manage profile, appearance, and security from one dashboard.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="manifest" href="site.webmanifest">
 </head>
-<body class="page-auth" data-auth-mode="signup">
-  <a class="skip-link" href="#mainContent">Skip to main content</a>
-
-  <header class="site-header">
-    <div class="container header-container">
-      <a class="brand" href="index.html" aria-label="text2scratch home">
-        <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
-        <span class="brand-text">
-          <strong>text2scratch</strong>
-          <small>Scratch authoring in text form</small>
-        </span>
-      </a>
-
-      <button id="mobileMenuToggle" class="mobile-menu-toggle" aria-expanded="false" aria-label="Toggle navigation menu">
-        <i class="fas fa-bars"></i>
-      </button>
-
-      <nav class="main-nav" aria-label="Primary navigation">
-        <a href="index.html"><span class="nav-icon"><i class="fas fa-house" aria-hidden="true"></i></span><span class="nav-label">Home</span></a>
-        <a href="converter.html"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
-        <a href="docs.html#docs"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Docs</span></a>
-        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Reference</span></a>
-        <a href="community.html#community"><span class="nav-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span class="nav-label">Community</span></a>
-        <a href="account.html"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
-      </nav>
-    </div>
-  </header>
-
-  <div class="site-content">
-    <div class="container">
-      <main id="mainContent" class="auth-layout">
-        <section class="auth-spotlight auth-spotlight--premium" data-reveal>
-          <p class="kicker">Create your workspace</p>
-          <h1>Set up a serious account for Scratch projects written as code-like text.</h1>
-          <p class="lede">Accounts are optional, but useful when you want cloud save, cleaner collaboration, and a stable profile across devices and sessions.</p>
-
-          <div class="auth-proof-strip" aria-label="Account benefits">
-            <span class="pill">Saved snapshots</span>
-            <span class="pill">Project sharing</span>
-            <span class="pill">Profile + settings pages</span>
-          </div>
-
-          <div class="auth-meta-grid">
-            <article class="auth-proof-card">
-              <h3>Keep classroom and home work aligned</h3>
-              <p>Start a project in one browser, open it later elsewhere, and keep the same identity and saved drafts.</p>
-            </article>
-            <article class="auth-proof-card">
-              <h3>Reduce setup friction</h3>
-              <p>Use a stable username, cleaner cloud workflow, and a dedicated account area for profile and appearance settings.</p>
-            </article>
-          </div>
-
-          <div class="reference-mini-panel">
-            <h3>What you still get without an account</h3>
-            <ul class="checklist">
-              <li>Full converter access.</li>
-              <li>Import and export for <code>.sb3</code> and <code>.t2sh</code>.</li>
-              <li>Docs, reference, and plain-text <code>/dev</code> guidance.</li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="auth-card auth-card--premium" data-reveal>
-          <nav class="auth-switch" aria-label="Authentication pages">
-            <a class="auth-switch__link" href="login.html">Log-in</a>
-            <a class="auth-switch__link" href="signup.html" aria-current="page">Sign-up</a>
-          </nav>
-
-          <div class="auth-panel-heading">
-            <p class="eyebrow">Create account</p>
-            <h2>Sign up for cloud save and a full account dashboard</h2>
-            <p class="support-text">Choose a username carefully. It becomes the main identity label across your account overview, profile page, and shared project flow.</p>
-          </div>
-
-          <form id="authForm" class="auth-form" novalidate>
-            <label for="authUsernameInput">Username</label>
-            <input id="authUsernameInput" class="text-input" type="text" autocomplete="username" minlength="3" maxlength="32" required>
-            <p class="field-help">Use 3 to 32 characters. Lowercase letters, numbers, and underscores work best.</p>
-
-            <label for="authEmailInput">Email</label>
-            <input id="authEmailInput" class="text-input" type="email" autocomplete="email" required>
-
-            <label for="authPasswordInput">Password</label>
-            <input id="authPasswordInput" class="text-input" type="password" autocomplete="new-password" minlength="6" required>
-
-            <label for="authConfirmPasswordInput">Confirm password</label>
-            <input id="authConfirmPasswordInput" class="text-input" type="password" autocomplete="new-password" minlength="6" required>
-
-            <div class="auth-captcha">
-              <p class="support-text">Security check</p>
-              <div id="hcaptchaMount" class="auth-captcha-frame"></div>
-              <p id="hcaptchaHint" class="support-text auth-captcha-hint"></p>
-            </div>
-
-            <button id="authSubmitBtn" type="submit" class="primary-btn"><i class="fas fa-user-plus" aria-hidden="true"></i> Create Account</button>
-          </form>
-
-          <div class="auth-link-row">
-            <a class="text-link" href="login.html">Already have an account? Log in</a>
-            <a class="text-link" href="account.html">Preview the account area</a>
-            <a class="text-link" href="reference.html#reference">Need exact syntax first?</a>
-          </div>
-
-          <p id="authStatus" class="auth-status status-info" role="status" aria-live="polite">Create an account to enable cloud save and sharing.</p>
-        </section>
-      </main>
-    </div>
-  </div>
-
-  <footer class="site-footer">
-    <div class="container footer-grid">
-      <div class="footer-brand">
-        <img src="logo.png" alt="" aria-hidden="true">
-        <div>
-          <strong>text2scratch</strong>
-          <small>Text-based Scratch authoring and export</small>
-        </div>
-      </div>
-
-      <nav class="footer-links" aria-label="Footer links">
-        <a href="login.html">Log in</a>
-        <a href="account.html">Account overview</a>
-        <a href="settings.html">Settings</a>
-        <a href="terms.html#terms">Terms</a>
-      </nav>
-
-      <p class="footer-meta">Copyright 2026 text2scratch. Convert readable commands into Scratch projects.</p>
-    </div>
-  </footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://js.hcaptcha.com/1/api.js?render=explicit" async defer></script>
-  <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
-  <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260307b" defer></script>
-  <script src="auth.js?v=20260307b" type="module"></script>
+<body>
+  <div id="app" data-page="signup"></div>
+  <script type="module" src="/src/entry.tsx"></script>
 </body>
 </html>

@@ -1,117 +1,102 @@
 # text2scratch
 
-`text2scratch` is a static web app that converts text commands into Scratch 3
-projects (`.sb3`) and can reverse-import existing Scratch projects back into
-editable text syntax.
+`text2scratch` is a developer-focused Scratch authoring tool. It combines a
+high-end product website, guided syntax docs, a searchable command reference,
+and a browser-based workspace that exports real Scratch `.sb3` files from plain
+text.
 
-## Highlights
+## Current stack
 
-- Write text commands and export a valid Scratch 3 `.sb3` project.
-- Import existing `.sb3` files, including projects not created by text2scratch.
-- Convert imported blocks back into editable text2scratch syntax.
-- Save and reload fast `.t2sh` session files.
-- Build Stage scripts and multiple sprite scripts in one project.
-- Edit project name directly from the editor toolbar.
-- Optional cloud save/share with Supabase auth and row-level security.
-- Dedicated auth routes for login, signup, and email confirmation.
-- Community page for browsing public shared projects.
+- Vite for local development and production builds
+- React + TypeScript for the marketing, auth, docs, reference, and dashboard UI
+- Tailwind CSS for the new website surface
+- Supabase browser auth for login, signup, password recovery, and profile data
+- GitHub Actions workflow for GitHub Pages deployment
 
-## File Formats
+## Main routes
 
-- `.sb3`: Standard Scratch project archive.
-- `.t2sh`: Compressed text2scratch session (`session.json` in a deflated
-  container).
+- `index.html`: premium landing page
+- `docs.html`: guided onboarding docs
+- `reference.html`: searchable full syntax reference
+- `login.html`: login flow
+- `signup.html`: signup flow
+- `dashboard.html`: unified account, profile, appearance, and security surface
+- `converter.html`: main text-to-Scratch workspace
+- `dev/index.html`: plain-text developer and AI reference
 
-## Run Locally
+Deprecated routes stay in place as redirects:
 
-The app fetches `blocks.json`, so run it through a local web server.
+- `account.html` -> `dashboard.html#overview`
+- `profile.html` -> `dashboard.html#profile`
+- `settings.html` -> `dashboard.html#appearance`
+- `home.html` -> `index.html`
+
+## Local development
+
+Install dependencies:
 
 ```bash
-python -m http.server 8080
-# or
-npx serve .
+npm install
 ```
 
-Open `http://localhost:8080`.
+Start the Vite dev server:
 
-The app now opens on the Home page first. Use `converter.html` for the working
-editor and `dev/` for the plain technical reference.
-
-## Supabase Setup
-
-Cloud save/share uses Supabase from the browser (`index.html` + `app.js`).
-
-1. In Supabase SQL Editor, run [`supabase-schema.sql`](supabase-schema.sql).
-2. In Supabase Auth URL config:
-   - Set `Site URL` to your deployed domain.
-   - Add redirect URLs for local/dev/prod (for example `http://localhost:8080/**`).
-3. Update `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` in `supabase-client.js` if your project values change.
-4. Optional: update the Auth confirmation template in Supabase using [`supabase-email-confirmation-template.html`](supabase-email-confirmation-template.html).
-5. If Bot Detection (hCaptcha) is enabled in Supabase, also set `HCAPTCHA_SITE_KEY` in `supabase-client.js`.
-
-Do not use Postgres connection strings or `service_role` keys in frontend code.
-
-## Quick Workflow
-
-1. Create data (`make_var`, `make_list`, `make_broadcast`) if needed.
-2. Add Stage scripts in `stage_code =` ... `end`.
-3. Add sprite sections with `sprite = "Name"` and `<sprite>_code =` ... `end`.
-4. Export to `.sb3` for Scratch or `.t2sh` for fast restore.
-
-## `@` Expression Syntax
-
-- `@` forces expression mode inside an input slot.
-- Example: `set_var score @var(best_score)`.
-- Do not place expression lines by themselves.
-
-## Example (Stage + Multiple Sprites)
-
-```txt
-make_var score 0
-make_broadcast start_round
-
-stage_code =
-  when_flag_clicked
-  broadcast start_round
-end
-
-sprite = "Cat"
-cat_code =
-  when_broadcast_received start_round
-  set_var score 1
-end
-
-sprite = "Ball"
-ball_code =
-  when_broadcast_received start_round
-  if var(score) > 0
-    say "Game started"
-  end
-end
+```bash
+npm run dev
 ```
 
-## Project Files
+Useful commands:
 
-- `index.html`: public landing page / product overview.
-- `converter.html`: main converter/editor UI.
-- `dev/index.html`: plain technical reference for AI and advanced users.
-- `app.js`: conversion logic, parser flow, import/export wiring.
-- `login.html`, `signup.html`, `confirm.html`: dedicated auth pages.
-- `auth.js`: auth page controller (sign in/sign up).
-- `supabase-client.js`: shared Supabase config and helpers.
-- `blocks.json`: source of truth for command mappings and syntax patterns.
-- `docs.html`: syntax guide and command reference.
-- `reference.html`: full command reference page.
-- `community.html`: public community browser for shared projects.
-- `terms.html`, `privacy.html`, `license.html`: legal/policy pages.
-- `supabase-email-confirmation-template.html`: styled HTML template for Supabase confirmation emails.
+```bash
+npm run typecheck
+npm run build
+npm run preview
+```
 
-## License
+## GitHub Pages deployment
 
-This project uses a custom non-commercial attribution license:
+The repo now includes `.github/workflows/deploy.yml`.
 
-- Non-commercial use, modification, and redistribution are allowed.
-- Visible attribution to `text2scratch` is required.
-- Commercial use requires prior written permission.
+Deployment flow:
 
-See `LICENSE` and `license.html` for full terms.
+1. Push to `main`.
+2. GitHub Actions runs `npm ci`, `npm run typecheck`, and `npm run build`.
+3. The built `dist/` output is deployed to GitHub Pages.
+
+The Vite `base` path is derived automatically from `GITHUB_REPOSITORY` during
+the GitHub Actions build, so the same config works locally and on Pages.
+
+## Product workflow
+
+1. Read the guided docs if you are new to the syntax.
+2. Use the reference page when you need exact command lookup.
+3. Author or import projects in `converter.html`.
+4. Export `.sb3` for Scratch or `.t2sh` for a fast restore-friendly session.
+5. Use the dashboard for account, theme, and security actions.
+
+## Auth and Supabase notes
+
+The frontend expects a Supabase project with:
+
+- browser-safe publishable credentials
+- a `profiles` table or equivalent profile fallback behavior
+- RPCs used by the dashboard/auth flow such as username availability and login
+  resolution
+
+Current frontend configuration lives in:
+
+- `src/lib/supabase.ts` for the React/TypeScript app
+- `supabase-client.js` for the legacy workspace and remaining static pages
+
+If your Supabase project values change, update the relevant client file or set:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_PUBLISHABLE_KEY`
+
+Do not use service-role keys in frontend code.
+
+## Notes on the workspace
+
+The converter is still the existing production workspace and retains its legacy
+JavaScript runtime so import/export behavior is preserved while the website,
+docs, auth flow, and dashboard run on the new TypeScript/Tailwind stack.
