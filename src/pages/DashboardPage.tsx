@@ -10,8 +10,10 @@ import {
   SunMedium,
   UserRound
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "../components/AppShell";
+import { HcaptchaPanel } from "../components/HcaptchaPanel";
+import { isCaptchaError, type HcaptchaController } from "../lib/hcaptcha";
 import { buildAvatarLabel, formatDate, formatDateTime } from "../lib/supabase";
 import { useAuth, useTheme, useToast } from "../providers/AppProviders";
 
@@ -28,6 +30,7 @@ export function DashboardPage() {
   const { user, profile, isLoading, updateUsername, sendPasswordResetForCurrentUser, signOut, deleteCurrentAccount } = useAuth();
   const { mode, setMode } = useTheme();
   const { pushToast } = useToast();
+  const captchaRef = useRef<HcaptchaController | null>(null);
   const [tab, setTab] = useState<DashboardTab>(() => readTabFromHash());
   const [username, setUsername] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -75,13 +78,17 @@ export function DashboardPage() {
   const sendReset = async () => {
     setIsPending(true);
     try {
-      await sendPasswordResetForCurrentUser();
+      const captchaToken = requireCaptchaToken(captchaRef.current, "sending a reset email");
+      await sendPasswordResetForCurrentUser(captchaToken);
       pushToast({
         title: "Reset email sent",
         description: "Check your inbox for the password recovery link.",
         variant: "success"
       });
     } catch (error) {
+      if (isCaptchaError(error)) {
+        captchaRef.current?.reset({ clearCache: true });
+      }
       pushToast({
         title: "Reset failed",
         description: error instanceof Error ? error.message : "Something went wrong.",
@@ -296,6 +303,11 @@ export function DashboardPage() {
                   <div className="rounded-[2rem] border border-black/10 bg-white/90 p-7 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Security</p>
                     <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Recovery and session controls.</h2>
+                    <HcaptchaPanel
+                      className="mt-8"
+                      controllerRef={captchaRef}
+                      actionLabel="sending a reset email"
+                    />
                     <div className="mt-8 flex flex-wrap gap-3">
                       <button
                         type="button"
@@ -494,6 +506,19 @@ function SkeletonCard() {
       </div>
     </div>
   );
+}
+
+function requireCaptchaToken(controller: HcaptchaController | null, actionLabel: string) {
+  if (!controller?.isRequired) {
+    return undefined;
+  }
+
+  const token = controller.getToken();
+  if (!token) {
+    throw new Error(`Complete the captcha before ${actionLabel}.`);
+  }
+
+  return token;
 }
 
 function readTabFromHash(): DashboardTab {

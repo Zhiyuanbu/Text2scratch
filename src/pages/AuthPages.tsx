@@ -1,22 +1,52 @@
 import type { FormEvent, ReactNode } from "react";
 import { Eye, EyeOff, KeyRound, ShieldCheck, Sparkles, UserRound } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { HcaptchaPanel } from "../components/HcaptchaPanel";
 import { AppShell } from "../components/AppShell";
+import { isCaptchaError, type HcaptchaController } from "../lib/hcaptcha";
+import { buildLoginUrl } from "../lib/supabase";
 import { useAuth, useToast } from "../providers/AppProviders";
 
+type LoginMode = "signin" | "reset" | "recovery";
+
 export function LoginPage() {
-  const { user, signIn, sendPasswordReset } = useAuth();
+  const { user, signIn, signOut, sendPasswordReset, updatePassword } = useAuth();
   const { pushToast } = useToast();
-  const [mode, setMode] = useState<"signin" | "reset">("signin");
+  const captchaRef = useRef<HcaptchaController | null>(null);
+  const [mode, setMode] = useState<LoginMode>(() => readLoginModeFromUrl());
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [recoveryPassword, setRecoveryPassword] = useState("");
+  const [recoveryConfirm, setRecoveryConfirm] = useState("");
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
-    if (user) {
+    if (shouldUseConfirmationPage()) {
+      window.location.replace(buildConfirmationPageUrl());
+      return;
+    }
+
+    const initialMode = readLoginModeFromUrl();
+    setMode(initialMode);
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("verified") === "1") {
+      pushToast({
+        title: initialMode === "recovery" ? "Recovery link verified" : "Email verified",
+        description: initialMode === "recovery"
+          ? "Set a new password to finish recovery."
+          : "Your email is confirmed. You can sign in now.",
+        variant: "success"
+      });
+      clearQueryFeedback();
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && mode !== "recovery") {
       window.location.replace("dashboard.html");
     }
-  }, [user]);
+  }, [mode, user]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -24,7 +54,8 @@ export function LoginPage() {
 
     try {
       if (mode === "signin") {
-        await signIn(identifier, password);
+        const captchaToken = requireCaptchaToken(captchaRef.current, "signing in");
+        await signIn(identifier, password, captchaToken);
         pushToast({
           title: "Signed in",
           description: "Your session is ready. Opening the dashboard now.",
@@ -33,17 +64,44 @@ export function LoginPage() {
         window.setTimeout(() => {
           window.location.assign("dashboard.html");
         }, 300);
-      } else {
-        await sendPasswordReset(identifier);
+        return;
+      }
+
+      if (mode === "reset") {
+        const captchaToken = requireCaptchaToken(captchaRef.current, "requesting password reset");
+        await sendPasswordReset(identifier, captchaToken);
         pushToast({
           title: "Password reset sent",
           description: "Check your inbox for the recovery link.",
           variant: "success"
         });
+        return;
       }
-    } catch (error) {
+
+      if (recoveryPassword.length < 6) {
+        throw new Error("New password must be at least 6 characters.");
+      }
+      if (recoveryPassword !== recoveryConfirm) {
+        throw new Error("New password confirmation must match.");
+      }
+
+      await updatePassword(recoveryPassword);
+      await signOut();
+      setRecoveryPassword("");
+      setRecoveryConfirm("");
+      clearRecoveryState();
+      setMode("signin");
       pushToast({
-        title: mode === "signin" ? "Login failed" : "Reset failed",
+        title: "Password updated",
+        description: "Your password has been changed. Sign in with the new password.",
+        variant: "success"
+      });
+    } catch (error) {
+      if (isCaptchaError(error)) {
+        captchaRef.current?.reset({ clearCache: true });
+      }
+      pushToast({
+        title: mode === "signin" ? "Login failed" : mode === "reset" ? "Reset failed" : "Password update failed",
         description: error instanceof Error ? error.message : "Something went wrong.",
         variant: "error"
       });
@@ -56,48 +114,92 @@ export function LoginPage() {
     <AppShell page="login">
       <AuthFrame
         page="login"
-        badge="Secure account access"
-        title="Access your workspace without the rushed, throwaway auth flow."
-        description="Use your email or username to sign in. The dashboard consolidates profile, appearance, and security management into one place after login."
-        accent="Sign in"
+        badge={mode === "recovery" ? "Recovery session" : "Secure account access"}
+        title={mode === "recovery"
+          ? "Set a new password to finish the recovery flow."
+          : "Access your workspace without the rushed, throwaway auth flow."}
+        description={mode === "recovery"
+          ? "The recovery link has already handled identity verification. Choose a new password and return to the normal sign-in flow."
+          : "Use your email or username to sign in. The dashboard consolidates profile, appearance, and security management into one place after login."}
+        accent={mode === "recovery" ? "Recovery" : "Sign in"}
         sideTitle="What you unlock"
         sideItems={[
           "Cloud save and cross-device project access.",
           "A single dashboard for profile, appearance, and security.",
-          "Top-fixed toasts and clearer feedback for account actions."
+          "Top-fixed toasts and restored captcha protection for auth actions."
         ]}
       >
         <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
           <AuthSwitch current="login" />
 
-          <div className="mt-6 inline-flex rounded-full border border-black/10 bg-slate-100 p-1 dark:border-white/10 dark:bg-white/10">
-            <button
-              type="button"
-              onClick={() => setMode("signin")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "signin" ? "bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("reset")}
-              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "reset" ? "bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}
-            >
-              Reset password
-            </button>
-          </div>
+          {mode !== "recovery" ? (
+            <div className="mt-6 inline-flex rounded-full border border-black/10 bg-slate-100 p-1 dark:border-white/10 dark:bg-white/10">
+              <button
+                type="button"
+                onClick={() => setMode("signin")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "signin" ? "bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("reset")}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${mode === "reset" ? "bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white" : "text-slate-600 dark:text-slate-300"}`}
+              >
+                Reset password
+              </button>
+            </div>
+          ) : (
+            <div className="mt-6 rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-3 text-sm leading-7 text-sky-800 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200">
+              Recovery links already verify identity. Set a new password below, then return to normal sign-in.
+            </div>
+          )}
 
           <form className="mt-8 grid gap-5" onSubmit={onSubmit}>
-            <TextField
-              label={mode === "signin" ? "Email or username" : "Account email or username"}
-              value={identifier}
-              onChange={setIdentifier}
-              placeholder="you@example.com or username"
-              autoComplete="username"
-            />
+            {mode === "signin" || mode === "reset" ? (
+              <TextField
+                label={mode === "signin" ? "Email or username" : "Account email or username"}
+                value={identifier}
+                onChange={setIdentifier}
+                placeholder="you@example.com or username"
+                autoComplete="username"
+              />
+            ) : null}
 
             {mode === "signin" ? (
-              <PasswordField value={password} onChange={setPassword} autoComplete="current-password" />
+              <PasswordField
+                label="Password"
+                value={password}
+                onChange={setPassword}
+                autoComplete="current-password"
+                placeholder="Enter your password"
+              />
+            ) : null}
+
+            {mode === "recovery" ? (
+              <>
+                <PasswordField
+                  label="New password"
+                  value={recoveryPassword}
+                  onChange={setRecoveryPassword}
+                  autoComplete="new-password"
+                  placeholder="Choose a new password"
+                />
+                <PasswordField
+                  label="Confirm new password"
+                  value={recoveryConfirm}
+                  onChange={setRecoveryConfirm}
+                  autoComplete="new-password"
+                  placeholder="Repeat the new password"
+                />
+              </>
+            ) : null}
+
+            {mode !== "recovery" ? (
+              <HcaptchaPanel
+                controllerRef={captchaRef}
+                actionLabel={mode === "signin" ? "signing in" : "requesting password reset"}
+              />
             ) : null}
 
             <button
@@ -105,7 +207,13 @@ export function LoginPage() {
               disabled={isPending}
               className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
             >
-              {isPending ? "Working..." : mode === "signin" ? "Log in" : "Send reset link"}
+              {isPending
+                ? "Working..."
+                : mode === "signin"
+                  ? "Log in"
+                  : mode === "reset"
+                    ? "Send reset link"
+                    : "Update password"}
             </button>
           </form>
         </div>
@@ -117,6 +225,7 @@ export function LoginPage() {
 export function SignupPage() {
   const { user, signUp } = useAuth();
   const { pushToast } = useToast();
+  const captchaRef = useRef<HcaptchaController | null>(null);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -133,7 +242,8 @@ export function SignupPage() {
     setIsPending(true);
 
     try {
-      const result = await signUp({ username, email, password });
+      const captchaToken = requireCaptchaToken(captchaRef.current, "creating an account");
+      const result = await signUp({ username, email, password, captchaToken });
       pushToast({
         title: "Account created",
         description: result.needsEmailVerification
@@ -142,16 +252,13 @@ export function SignupPage() {
         variant: "success"
       });
 
-      if (result.needsEmailVerification) {
-        window.setTimeout(() => {
-          window.location.assign("login.html");
-        }, 400);
-      } else {
-        window.setTimeout(() => {
-          window.location.assign("dashboard.html");
-        }, 400);
-      }
+      window.setTimeout(() => {
+        window.location.assign(result.needsEmailVerification ? buildLoginUrl() : "dashboard.html");
+      }, 400);
     } catch (error) {
+      if (isCaptchaError(error)) {
+        captchaRef.current?.reset({ clearCache: true });
+      }
       pushToast({
         title: "Signup failed",
         description: error instanceof Error ? error.message : "Something went wrong.",
@@ -174,7 +281,7 @@ export function SignupPage() {
         sideItems={[
           "A single account hub instead of separate profile and settings pages.",
           "Consistent top navigation with login and signup always available.",
-          "Cleaner validation and feedback throughout the auth flow."
+          "Captcha-protected auth requests with clearer feedback."
         ]}
       >
         <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
@@ -196,7 +303,15 @@ export function SignupPage() {
               type="email"
               autoComplete="email"
             />
-            <PasswordField value={password} onChange={setPassword} autoComplete="new-password" />
+            <PasswordField
+              label="Password"
+              value={password}
+              onChange={setPassword}
+              autoComplete="new-password"
+              placeholder="Create a password"
+            />
+
+            <HcaptchaPanel controllerRef={captchaRef} actionLabel="creating an account" />
 
             <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
               Usernames are normalized to lowercase letters, numbers, and underscores. Email confirmation may be required depending on your Supabase auth settings.
@@ -251,7 +366,7 @@ function AuthFrame({
 
         <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-1">
           <BenefitCard icon={<KeyRound className="h-5 w-5" />} title={sideTitle} items={sideItems} />
-          <BenefitStat icon={<Sparkles className="h-5 w-5" />} title="Premium flow" description="Minimal, high-contrast surfaces with immediate top-fixed feedback." />
+          <BenefitStat icon={<Sparkles className="h-5 w-5" />} title="Protected requests" description="hCaptcha is back for sign-in, signup, and reset requests in the new flow." />
           <BenefitStat icon={<UserRound className="h-5 w-5" />} title="Unified dashboard" description="Account, profile, appearance, and security are handled in one destination after auth." />
         </div>
       </div>
@@ -312,26 +427,30 @@ function TextField({
 }
 
 function PasswordField({
+  label,
   value,
   onChange,
-  autoComplete
+  autoComplete,
+  placeholder
 }: {
+  label: string;
   value: string;
   onChange: (value: string) => void;
   autoComplete?: string;
+  placeholder: string;
 }) {
   const [visible, setVisible] = useState(false);
 
   return (
     <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-      Password
+      {label}
       <span className="relative">
         <input
           type={visible ? "text" : "password"}
           value={value}
           autoComplete={autoComplete}
           onChange={(event) => onChange(event.target.value)}
-          placeholder="Enter your password"
+          placeholder={placeholder}
           className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3.5 pr-12 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
           required
         />
@@ -390,4 +509,65 @@ function BenefitStat({
       <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{description}</p>
     </article>
   );
+}
+
+function requireCaptchaToken(controller: HcaptchaController | null, actionLabel: string) {
+  if (!controller?.isRequired) {
+    return undefined;
+  }
+
+  const token = controller.getToken();
+  if (!token) {
+    throw new Error(`Complete the captcha before ${actionLabel}.`);
+  }
+
+  return token;
+}
+
+function readLoginModeFromUrl(): LoginMode {
+  const search = new URLSearchParams(window.location.search);
+  const hash = String(window.location.hash || "");
+  if (search.get("mode") === "recovery" || search.get("type") === "recovery" || hash.includes("type=recovery")) {
+    return "recovery";
+  }
+  if (search.get("mode") === "reset") {
+    return "reset";
+  }
+  return "signin";
+}
+
+function shouldUseConfirmationPage() {
+  const search = new URLSearchParams(window.location.search);
+  if (String(search.get("mode") || "").trim().toLowerCase() !== "verify") {
+    return false;
+  }
+
+  return Boolean(String(search.get("token_hash") || "").trim() || String(search.get("code") || "").trim());
+}
+
+function buildConfirmationPageUrl() {
+  const current = new URL(window.location.href);
+  const url = new URL("confirm.html", window.location.href);
+  current.searchParams.forEach((value, key) => {
+    url.searchParams.set(key, value);
+  });
+  url.hash = current.hash;
+  return url.toString();
+}
+
+function clearQueryFeedback() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("verified");
+  window.history.replaceState({}, "", url.toString());
+}
+
+function clearRecoveryState() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("mode");
+  url.searchParams.delete("type");
+  url.searchParams.delete("verified");
+  url.searchParams.delete("code");
+  url.searchParams.delete("token_hash");
+  url.hash = "";
+  window.history.replaceState({}, "", url.toString());
 }

@@ -76,6 +76,171 @@
   }
 }
 
+@layer components {
+  .code-editor {
+    min-height: 520px;
+  }
+
+  .code-editor.ready {
+    min-height: 540px;
+  }
+
+  .script-fallback {
+    display: none;
+    min-height: 520px;
+    font-family: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  .script-fallback.visible {
+    display: block;
+  }
+
+  .workspace-status,
+  .auth-inline-status,
+  .shared-project-notice {
+    border-radius: 1.25rem;
+    padding: 1rem 1.1rem;
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+
+  .workspace-status {
+    white-space: pre-wrap;
+    font-family: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  .shared-project-notice {
+    border: 1px solid rgba(14, 165, 233, 0.22);
+    background: rgba(14, 165, 233, 0.08);
+    color: #0f172a;
+  }
+
+  .shared-project-notice.read-only {
+    border-color: rgba(59, 130, 246, 0.2);
+  }
+
+  .shared-project-notice p {
+    margin: 0;
+  }
+
+  .secondary-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid rgba(15, 23, 42, 0.1);
+    padding: 0.75rem 1.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #334155;
+    transition: transform 150ms ease, border-color 150ms ease, color 150ms ease, background-color 150ms ease;
+  }
+
+  .secondary-btn:hover {
+    transform: translateY(-1px);
+    border-color: rgba(15, 23, 42, 0.18);
+    color: #0f172a;
+  }
+
+  .status-info,
+  .auth-inline-status.status-info,
+  .workspace-status.status-info {
+    background: rgba(14, 165, 233, 0.1);
+    color: #0c4a6e;
+  }
+
+  .status-success,
+  .auth-inline-status.status-success,
+  .workspace-status.status-success {
+    background: rgba(16, 185, 129, 0.12);
+    color: #065f46;
+  }
+
+  .status-warning,
+  .auth-inline-status.status-warning,
+  .workspace-status.status-warning {
+    background: rgba(245, 158, 11, 0.14);
+    color: #92400e;
+  }
+
+  .status-error,
+  .auth-inline-status.status-error,
+  .workspace-status.status-error {
+    background: rgba(244, 63, 94, 0.12);
+    color: #9f1239;
+  }
+
+  .command-list {
+    max-height: 420px;
+    overflow: auto;
+  }
+
+  .command-list li {
+    color: #475569;
+  }
+
+  .command-list .command-section {
+    margin-top: 0.6rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+    padding-top: 0.6rem;
+    color: #0f172a;
+    font-weight: 700;
+  }
+
+  .command-list .syntax {
+    color: #0f172a;
+    font-family: "IBM Plex Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  [data-theme="dark"] .secondary-btn {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .secondary-btn:hover {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: white;
+  }
+
+  [data-theme="dark"] .shared-project-notice {
+    background: rgba(14, 165, 233, 0.14);
+    color: #e2e8f0;
+  }
+
+  [data-theme="dark"] .command-list li {
+    color: #cbd5e1;
+  }
+
+  [data-theme="dark"] .command-list .command-section,
+  [data-theme="dark"] .command-list .syntax {
+    color: #f8fafc;
+  }
+
+  [data-theme="dark"] .status-info,
+  [data-theme="dark"] .auth-inline-status.status-info,
+  [data-theme="dark"] .workspace-status.status-info {
+    color: #bae6fd;
+  }
+
+  [data-theme="dark"] .status-success,
+  [data-theme="dark"] .auth-inline-status.status-success,
+  [data-theme="dark"] .workspace-status.status-success {
+    color: #a7f3d0;
+  }
+
+  [data-theme="dark"] .status-warning,
+  [data-theme="dark"] .auth-inline-status.status-warning,
+  [data-theme="dark"] .workspace-status.status-warning {
+    color: #fde68a;
+  }
+
+  [data-theme="dark"] .status-error,
+  [data-theme="dark"] .auth-inline-status.status-error,
+  [data-theme="dark"] .workspace-status.status-error {
+    color: #fecdd3;
+  }
+}
+
 @keyframes toast-in {
   from {
     opacity: 0;

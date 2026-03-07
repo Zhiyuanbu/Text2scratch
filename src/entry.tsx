@@ -3,7 +3,18 @@ import { createRoot } from "react-dom/client";
 import { AppProviders } from "./providers/AppProviders";
 import "./styles.css";
 
-type PageKey = "home" | "docs" | "reference" | "login" | "signup" | "dashboard" | "notfound";
+type PageKey =
+  | "home"
+  | "docs"
+  | "reference"
+  | "converter"
+  | "community"
+  | "login"
+  | "signup"
+  | "dashboard"
+  | "terms"
+  | "license"
+  | "notfound";
 
 const rootElement = document.getElementById("app");
 
@@ -34,12 +45,20 @@ async function loadPage(pageKey: PageKey): Promise<ComponentType> {
       return (await import("./pages/DocsPage")).DocsPage;
     case "reference":
       return (await import("./pages/ReferencePage")).ReferencePage;
+    case "converter":
+      return (await import("./pages/ConverterPage")).ConverterPage;
+    case "community":
+      return (await import("./pages/CommunityPage")).CommunityPage;
     case "login":
       return (await import("./pages/AuthPages")).LoginPage;
     case "signup":
       return (await import("./pages/AuthPages")).SignupPage;
     case "dashboard":
       return (await import("./pages/DashboardPage")).DashboardPage;
+    case "terms":
+      return (await import("./pages/LegalPages")).TermsPage;
+    case "license":
+      return (await import("./pages/LegalPages")).LicensePage;
     case "notfound":
       return (await import("./pages/NotFoundPage")).NotFoundPage;
     case "home":

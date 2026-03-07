@@ -1,3 +1,5 @@
+import { createClient } from "@supabase/supabase-js";
+
 const SUPABASE_URL = "https://ytsrvbrdxhyrazhnqohb.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
 
@@ -9,11 +11,6 @@ export const CLOUD_TABLE = "projects";
 export const SHARE_QUERY_PARAM = "share";
 
 export function createSupabaseClient() {
-  const supabaseGlobal = window.supabase;
-  if (!supabaseGlobal || typeof supabaseGlobal.createClient !== "function") {
-    throw new Error("Supabase SDK failed to load.");
-  }
-
   if (!SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("Supabase publishable key is missing.");
   }
@@ -21,7 +18,7 @@ export function createSupabaseClient() {
     throw new Error("Supabase key format looks invalid. Use publishable (or anon) key.");
   }
 
-  return supabaseGlobal.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       autoRefreshToken: true,
       persistSession: true,

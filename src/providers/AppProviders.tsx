@@ -2,6 +2,7 @@ import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode
@@ -47,11 +48,12 @@ interface AuthContextValue {
   user: User | null;
   profile: ProfileRecord | null;
   isLoading: boolean;
-  signIn: (identifier: string, password: string) => Promise<void>;
-  signUp: (payload: { username: string; email: string; password: string }) => Promise<{ needsEmailVerification: boolean }>;
+  signIn: (identifier: string, password: string, captchaToken?: string) => Promise<void>;
+  signUp: (payload: { username: string; email: string; password: string; captchaToken?: string }) => Promise<{ needsEmailVerification: boolean }>;
   signOut: () => Promise<void>;
-  sendPasswordReset: (identifier: string) => Promise<void>;
-  sendPasswordResetForCurrentUser: () => Promise<void>;
+  sendPasswordReset: (identifier: string, captchaToken?: string) => Promise<void>;
+  sendPasswordResetForCurrentUser: (captchaToken?: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   updateUsername: (username: string) => Promise<void>;
   deleteCurrentAccount: () => Promise<void>;
   refreshProfile: () => Promise<void>;
@@ -123,6 +125,28 @@ function ToastProvider({ children }: { children: ReactNode }) {
       dismissToast(nextToast.id);
     }, 4200);
   };
+
+  useLayoutEffect(() => {
+    const host = window as Window & {
+      text2scratchToast?: {
+        show: (input: string | ToastMessage, severity?: ToastVariant) => void;
+        dismissAll: () => void;
+        ensureHost: () => void;
+      };
+    };
+
+    host.text2scratchToast = {
+      show: (input, severity = "info") => {
+        const nextToast = normalizeLegacyToast(input, severity);
+        if (!nextToast.title && !nextToast.description) {
+          return;
+        }
+        pushToast(nextToast);
+      },
+      dismissAll: () => setToasts([]),
+      ensureHost: () => undefined
+    };
+  }, [pushToast]);
 
   return (
     <ToastContext.Provider value={{ pushToast }}>
@@ -239,18 +263,19 @@ function AuthProvider({ children }: { children: ReactNode }) {
     user,
     profile,
     isLoading,
-    signIn: async (identifier, password) => {
+    signIn: async (identifier, password, captchaToken) => {
       const email = await resolveLoginEmail(identifier);
       const { error } = await supabaseClient.auth.signInWithPassword({
         email,
-        password
+        password,
+        options: captchaToken ? { captchaToken } : undefined
       });
 
       if (error) {
         throw new Error(formatSupabaseError(error));
       }
     },
-    signUp: async ({ username, email, password }) => {
+    signUp: async ({ username, email, password, captchaToken }) => {
       const normalized = normalizeUsername(username);
       if (!isValidUsername(normalized)) {
         throw new Error("Username must be 3 to 32 characters using lowercase letters, numbers, or underscores.");
@@ -268,7 +293,8 @@ function AuthProvider({ children }: { children: ReactNode }) {
           emailRedirectTo: buildConfirmUrl("verify"),
           data: {
             username: normalized
-          }
+          },
+          captchaToken
         }
       });
 
@@ -287,26 +313,34 @@ function AuthProvider({ children }: { children: ReactNode }) {
       }
       setProfile(null);
     },
-    sendPasswordReset: async (identifier) => {
+    sendPasswordReset: async (identifier, captchaToken) => {
       const email = await resolveLoginEmail(identifier);
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: buildConfirmUrl("recovery")
+        redirectTo: buildConfirmUrl("recovery"),
+        captchaToken
       });
 
       if (error) {
         throw new Error(formatSupabaseError(error));
       }
     },
-    sendPasswordResetForCurrentUser: async () => {
+    sendPasswordResetForCurrentUser: async (captchaToken) => {
       const email = user?.email;
       if (!email) {
         throw new Error("Current account has no email.");
       }
 
       const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
-        redirectTo: buildConfirmUrl("recovery")
+        redirectTo: buildConfirmUrl("recovery"),
+        captchaToken
       });
 
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    },
+    updatePassword: async (password) => {
+      const { error } = await supabaseClient.auth.updateUser({ password });
       if (error) {
         throw new Error(formatSupabaseError(error));
       }
@@ -443,6 +477,35 @@ function readStoredTheme(): ThemeMode {
     return stored;
   }
   return "system";
+}
+
+function normalizeLegacyToast(input: string | ToastMessage, severity: ToastVariant): ToastMessage {
+  if (typeof input === "string") {
+    return {
+      title: legacyTitleForVariant(severity),
+      description: input,
+      variant: severity
+    };
+  }
+
+  return {
+    title: input.title,
+    description: input.description,
+    variant: input.variant || severity
+  };
+}
+
+function legacyTitleForVariant(variant: ToastVariant) {
+  switch (variant) {
+    case "success":
+      return "Saved";
+    case "warning":
+      return "Check this";
+    case "error":
+      return "Action failed";
+    default:
+      return "Update";
+  }
 }
 
 export function useTheme() {

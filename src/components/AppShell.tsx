@@ -2,7 +2,18 @@ import { useState, type ReactNode } from "react";
 import { Menu, MoonStar, PanelTop, SunMedium, X } from "lucide-react";
 import { useAuth, useTheme } from "../providers/AppProviders";
 
-type PageKey = "home" | "docs" | "reference" | "login" | "signup" | "dashboard" | "notfound";
+type PageKey =
+  | "home"
+  | "docs"
+  | "reference"
+  | "converter"
+  | "community"
+  | "login"
+  | "signup"
+  | "dashboard"
+  | "terms"
+  | "license"
+  | "notfound";
 
 interface AppShellProps {
   page: PageKey;
@@ -13,7 +24,8 @@ const links: Array<{ href: string; label: string; page?: PageKey }> = [
   { href: "index.html", label: "Home", page: "home" },
   { href: "docs.html", label: "Docs", page: "docs" },
   { href: "reference.html", label: "Reference", page: "reference" },
-  { href: "converter.html", label: "Workspace" },
+  { href: "converter.html", label: "Workspace", page: "converter" },
+  { href: "community.html", label: "Community", page: "community" },
   { href: "dashboard.html", label: "Dashboard", page: "dashboard" }
 ];
 
@@ -171,6 +183,7 @@ export function AppShell({ page, children }: AppShellProps) {
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">
             <a href="converter.html" className="transition hover:text-slate-950 dark:hover:text-white">Workspace</a>
+            <a href="community.html" className="transition hover:text-slate-950 dark:hover:text-white">Community</a>
             <a href="dashboard.html" className="transition hover:text-slate-950 dark:hover:text-white">Dashboard</a>
             <a href="privacy.html" className="transition hover:text-slate-950 dark:hover:text-white">Privacy</a>
             <a href="terms.html" className="transition hover:text-slate-950 dark:hover:text-white">Terms</a>

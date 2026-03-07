@@ -9,6 +9,7 @@ import {
   isDuplicateError,
   isMissingRowError
 } from "./supabase-client.js";
+import bundledBlockCatalog from "./blocks.json";
 
 const STAGE_BACKDROP = {
   assetId: "6821a718a962852e3796b6273aaeb291",
@@ -254,7 +255,11 @@ async function loadBlockCatalog() {
     return window.TEXT2SCRATCH_BLOCKS;
   }
 
-  const response = await fetch("blocks.json", { cache: "no-store" });
+  if (bundledBlockCatalog?.commands) {
+    return bundledBlockCatalog;
+  }
+
+  const response = await fetch(new URL("./blocks.json", import.meta.url), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Could not load blocks.json (${response.status})`);
   }
