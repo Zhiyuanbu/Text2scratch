@@ -28,6 +28,7 @@ export default defineConfig({
         settings: resolve(rootDir, "settings.html"),
         converter: resolve(rootDir, "converter.html"),
         community: resolve(rootDir, "community.html"),
+        api: resolve(rootDir, "api/index.html"),
         confirm: resolve(rootDir, "confirm.html"),
         privacy: resolve(rootDir, "privacy.html"),
         terms: resolve(rootDir, "terms.html"),

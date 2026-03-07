@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>text2scratch - Confirm Account</title>
   <meta name="description" content="Validate text2scratch email confirmation and password recovery links before redirecting back to login.">
+  <meta name="robots" content="noindex,nofollow">
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -49,12 +50,12 @@
       <main id="mainContent" class="auth-layout">
         <section class="auth-spotlight" data-reveal>
           <p class="kicker">Secure confirmation</p>
-          <h1>We are validating your email or recovery link.</h1>
-          <p class="lede">This route handles account verification and password recovery redirects before sending you back to the appropriate login state.</p>
+          <h1>Check the link, then finish the account action here.</h1>
+          <p class="lede">This page verifies email confirmation and password recovery links. Recovery links can now finish with a new password right here instead of sending you away again.</p>
 
           <ul class="auth-note-list">
             <li>Email verification links return you to login mode.</li>
-            <li>Recovery links return you to password reset mode.</li>
+            <li>Recovery links unlock the password form on this page.</li>
             <li>If the link is invalid or expired, request a fresh email and try again.</li>
           </ul>
         </section>
@@ -69,6 +70,21 @@
 
           <p class="support-text">Please wait while the secure token is verified.</p>
           <p id="confirmStatus" class="auth-status status-info" role="status" aria-live="polite">Checking confirmation link...</p>
+
+          <form id="confirmResetForm" class="auth-form field-stack" hidden>
+            <div>
+              <label for="confirmPassword">New password</label>
+              <input id="confirmPassword" class="text-input" type="password" autocomplete="new-password" placeholder="Choose a new password" minlength="6">
+            </div>
+            <div>
+              <label for="confirmPasswordConfirm">Confirm new password</label>
+              <input id="confirmPasswordConfirm" class="text-input" type="password" autocomplete="new-password" placeholder="Repeat the new password" minlength="6">
+            </div>
+            <button id="confirmResetSubmit" type="submit" class="primary-btn">
+              <i class="fas fa-key" aria-hidden="true"></i>
+              Update password
+            </button>
+          </form>
 
           <div class="auth-links auth-link-row">
             <a id="confirmLoginLink" class="primary-btn" href="login.html"><i class="fas fa-right-to-bracket" aria-hidden="true"></i> Open Login</a>
@@ -101,6 +117,6 @@
     </div>
   </footer>
 
-  <script src="confirm.js?v=20260307b" type="module"></script>
+  <script type="module" src="/src/confirm.ts"></script>
 </body>
 </html>

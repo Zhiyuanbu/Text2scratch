@@ -17,7 +17,7 @@ export function ReferencePage() {
               Full command reference
             </span>
             <div className="space-y-4">
-              <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">Search the complete syntax catalog without digging through vague docs.</h1>
+              <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">Search the complete syntax catalog without digging through long docs.</h1>
               <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
                 This page is optimized for lookup. Search by name, opcode, category, or concept, then copy exact syntax or working examples directly into the workspace.
               </p>
@@ -28,7 +28,7 @@ export function ReferencePage() {
             <StatCard title="Catalog size" value={`${entries.length} commands`} description="Generated from the live command catalog instead of a disconnected hand-written page." />
             <StatCard title="Search surface" value="Syntax + opcode" description="Find commands whether you think in Scratch concepts or implementation details." />
             <StatCard title="Copy workflow" value="One click" description="Copy the command form or a working example without rewriting it by hand." />
-            <StatCard title="AI fallback" value="/dev route" description="Use the plain-text developer reference when you need deterministic machine-readable structure." />
+            <StatCard title="Plain view" value="/dev route" description="Open the stripped-down text catalog when you want the smallest possible reference view." />
           </div>
         </div>
       </section>
@@ -46,8 +46,8 @@ export function ReferencePage() {
           />
           <InfoCard
             icon={<TerminalSquare className="h-5 w-5" />}
-            title="Need deterministic output?"
-            description="The `/dev` route exposes the same catalog in a flatter, parse-friendly format for advanced users and AI systems."
+            title="Need the plain list?"
+            description="The `/dev` route exposes the same catalog in a flatter text view for quick scanning."
             href="dev/"
             cta="Open /dev"
           />

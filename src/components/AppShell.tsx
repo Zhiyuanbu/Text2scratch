@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Menu, MoonStar, PanelTop, SunMedium, X } from "lucide-react";
+import logoUrl from "../../logo.png";
+import { buildAvatarLabel } from "../lib/supabase";
 import { useAuth, useTheme } from "../providers/AppProviders";
 
 type PageKey =
@@ -30,17 +32,21 @@ const links: Array<{ href: string; label: string; page?: PageKey }> = [
 ];
 
 export function AppShell({ page, children }: AppShellProps) {
-  const { user, signOut } = useAuth();
+  const { user, profile, signOut } = useAuth();
   const { mode, resolvedMode, setMode } = useTheme();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const accountLabel = profile?.username?.trim()
+    || String(user?.user_metadata?.username || "").trim()
+    || user?.email?.split("@")[0]
+    || "Profile";
 
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.06),transparent_35%),linear-gradient(180deg,#ffffff_0%,#f8fafc_100%)] text-slate-950 dark:bg-[radial-gradient(circle_at_top,_rgba(96,165,250,0.18),transparent_30%),linear-gradient(180deg,#020617_0%,#020817_100%)] dark:text-white">
       <header className="sticky top-0 z-40 border-b border-black/5 bg-white/85 backdrop-blur-xl dark:border-white/10 dark:bg-slate-950/75">
         <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-6 px-5 py-4">
           <a href="index.html" className="flex items-center gap-3 text-sm font-semibold tracking-tight text-slate-950 dark:text-white">
-            <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-slate-950 text-sm font-bold text-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-white dark:text-slate-950">
-              t2s
+            <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white shadow-[0_16px_40px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-white">
+              <img src={logoUrl} alt="text2scratch logo" className="h-full w-full object-cover" />
             </span>
             <span className="hidden sm:block">
               <span className="block text-base font-semibold">text2scratch</span>
@@ -67,7 +73,7 @@ export function AppShell({ page, children }: AppShellProps) {
             })}
           </nav>
 
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setMobileOpen((current) => !current)}
@@ -89,10 +95,15 @@ export function AppShell({ page, children }: AppShellProps) {
             {user ? (
               <>
                 <a
-                  href="dashboard.html"
-                  className="hidden rounded-full border border-black/10 px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-black/20 hover:text-slate-950 md:inline-flex dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
+                  href="dashboard.html#profile"
+                  className="hidden min-w-0 items-center gap-3 rounded-full border border-black/10 px-3 py-2 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 md:inline-flex dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
                 >
-                  {user.email?.split("@")[0] || "Dashboard"}
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white dark:bg-white dark:text-slate-950">
+                    {buildAvatarLabel(accountLabel)}
+                  </span>
+                  <span className="hidden min-w-0 xl:block">
+                    <span className="block max-w-[10rem] truncate text-left">{accountLabel}</span>
+                  </span>
                 </a>
                 <button
                   type="button"
@@ -131,9 +142,9 @@ export function AppShell({ page, children }: AppShellProps) {
 
         <div className={`border-t border-black/5 px-5 pb-4 pt-3 lg:hidden dark:border-white/10 ${mobileOpen ? "block" : "hidden"}`}>
           <nav aria-label="Mobile primary" className="flex flex-col gap-2">
-            {links.map((link) => {
-              const active = link.page === page;
-              return (
+              {links.map((link) => {
+                const active = link.page === page;
+                return (
                 <a
                   key={`mobile-${link.href}`}
                   href={link.href}
@@ -165,7 +176,18 @@ export function AppShell({ page, children }: AppShellProps) {
                   Sign Up
                 </a>
               </div>
-            ) : null}
+            ) : (
+              <a
+                href="dashboard.html#profile"
+                onClick={() => setMobileOpen(false)}
+                className="flex items-center gap-3 rounded-2xl border border-black/10 px-4 py-3 text-sm font-semibold text-slate-700 dark:border-white/10 dark:text-slate-200"
+              >
+                <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white dark:bg-white dark:text-slate-950">
+                  {buildAvatarLabel(accountLabel)}
+                </span>
+                <span className="min-w-0 truncate">{accountLabel}</span>
+              </a>
+            )}
           </nav>
         </div>
       </header>
@@ -174,11 +196,16 @@ export function AppShell({ page, children }: AppShellProps) {
 
       <footer className="border-t border-black/5 bg-white/85 dark:border-white/10 dark:bg-slate-950/80">
         <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-5 py-10 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">text2scratch</p>
-            <p className="mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-400">
-              A cleaner way to author Scratch projects with plain text, exact syntax guidance, and a developer-grade workflow.
-            </p>
+          <div className="flex items-start gap-3">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-black/10 bg-white dark:border-white/10 dark:bg-white">
+              <img src={logoUrl} alt="text2scratch logo" className="h-full w-full object-cover" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold tracking-tight text-slate-950 dark:text-white">text2scratch</p>
+              <p className="mt-2 max-w-xl text-sm text-slate-600 dark:text-slate-400">
+                Write Scratch projects in text, check the syntax, and export real `.sb3` files.
+              </p>
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500 dark:text-slate-400">

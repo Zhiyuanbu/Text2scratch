@@ -30,6 +30,16 @@ export function LoginPage() {
     setMode(initialMode);
 
     const params = new URLSearchParams(window.location.search);
+    if (params.get("updated") === "1") {
+      pushToast({
+        title: "Password updated",
+        description: "Sign in with the new password.",
+        variant: "success"
+      });
+      clearQueryFeedback();
+      return;
+    }
+
     if (params.get("verified") === "1") {
       pushToast({
         title: initialMode === "recovery" ? "Recovery link verified" : "Email verified",
@@ -117,16 +127,16 @@ export function LoginPage() {
         badge={mode === "recovery" ? "Recovery session" : "Secure account access"}
         title={mode === "recovery"
           ? "Set a new password to finish the recovery flow."
-          : "Access your workspace without the rushed, throwaway auth flow."}
+          : "Sign in or reset your password."}
         description={mode === "recovery"
           ? "The recovery link has already handled identity verification. Choose a new password and return to the normal sign-in flow."
-          : "Use your email or username to sign in. The dashboard consolidates profile, appearance, and security management into one place after login."}
+          : "Use your email or username to sign in. After login, the dashboard gives you profile, appearance, and security controls in one place."}
         accent={mode === "recovery" ? "Recovery" : "Sign in"}
-        sideTitle="What you unlock"
+        sideTitle="After you sign in"
         sideItems={[
           "Cloud save and cross-device project access.",
-          "A single dashboard for profile, appearance, and security.",
-          "Top-fixed toasts and restored captcha protection for auth actions."
+          "Profile, appearance, and security controls in one dashboard.",
+          "Captcha-protected auth actions."
         ]}
       >
         <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
@@ -273,15 +283,15 @@ export function SignupPage() {
     <AppShell page="signup">
       <AuthFrame
         page="signup"
-        badge="Create a production-ready account"
-        title="Sign up once, then manage everything from a single dashboard."
-        description="Create a stable username for shareable projects, keep your appearance preferences in one place, and avoid the fragmented account pages."
+        badge="Create account"
+        title="Sign up for cloud save, sharing, and account settings."
+        description="Create a username for shared projects and manage everything from the dashboard once you are signed in."
         accent="Sign up"
-        sideTitle="Built for serious usage"
+        sideTitle="What you get"
         sideItems={[
-          "A single account hub instead of separate profile and settings pages.",
-          "Consistent top navigation with login and signup always available.",
-          "Captcha-protected auth requests with clearer feedback."
+          "One dashboard for profile, theme, and security settings.",
+          "Consistent top navigation across the site.",
+          "Captcha-protected signup requests."
         ]}
       >
         <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
@@ -558,6 +568,7 @@ function buildConfirmationPageUrl() {
 function clearQueryFeedback() {
   const url = new URL(window.location.href);
   url.searchParams.delete("verified");
+  url.searchParams.delete("updated");
   window.history.replaceState({}, "", url.toString());
 }
 

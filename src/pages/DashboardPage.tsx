@@ -11,6 +11,7 @@ import {
   UserRound
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { showConfirmDialog } from "../../dialog-client.js";
 import { AppShell } from "../components/AppShell";
 import { HcaptchaPanel } from "../components/HcaptchaPanel";
 import { isCaptchaError, type HcaptchaController } from "../lib/hcaptcha";
@@ -45,7 +46,8 @@ export function DashboardPage() {
     setUsername(profile?.username || "");
   }, [profile?.username]);
 
-  const displayName = profile?.username || user?.email?.split("@")[0] || "Guest";
+  const displayName = profile?.username || String(user?.user_metadata?.username || "").trim() || user?.email?.split("@")[0] || "Guest";
+  const displayEmail = user?.email || profile?.email || "";
 
   const selectTab = (nextTab: DashboardTab) => {
     setTab(nextTab);
@@ -123,7 +125,15 @@ export function DashboardPage() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Delete this account permanently? This action cannot be undone.")) {
+    const confirmed = await showConfirmDialog({
+      title: "Delete account?",
+      message: "Delete this account permanently? This action cannot be undone.",
+      confirmLabel: "Delete account",
+      cancelLabel: "Keep account",
+      tone: "danger"
+    });
+
+    if (!confirmed) {
       return;
     }
 
@@ -156,12 +166,12 @@ export function DashboardPage() {
           <div className="space-y-6">
             <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
               <LayoutDashboard className="h-3.5 w-3.5" />
-              Unified dashboard
+              Dashboard
             </span>
             <div className="space-y-4">
-              <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">One place for account, profile, appearance, and security.</h1>
+              <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">Manage your account settings in one place.</h1>
               <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
-                The fragmented account views are gone. Use this dashboard to manage identity, theme, security, and quick links into the product without bouncing between separate pages.
+                Update your username, switch theme, send reset emails, and jump back into the editor without hopping through separate pages.
               </p>
             </div>
           </div>
@@ -169,20 +179,22 @@ export function DashboardPage() {
           <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_50px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
             {user ? (
               <>
-                <div className="flex items-center gap-4">
-                  <div className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-950 text-lg font-semibold text-white dark:bg-white dark:text-slate-950">
+                <div className="flex min-w-0 items-center gap-4">
+                  <div className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-lg font-semibold text-white dark:bg-white dark:text-slate-950">
                     {buildAvatarLabel(displayName)}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Signed in as</p>
-                    <p className="text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{displayName}</p>
-                    <p className="text-sm text-slate-600 dark:text-slate-300">{user.email}</p>
+                    <p className="truncate text-xl font-semibold tracking-tight text-slate-950 dark:text-white" title={displayName}>{displayName}</p>
+                    {displayEmail ? (
+                      <p className="break-all text-sm text-slate-600 dark:text-slate-300">{displayEmail}</p>
+                    ) : null}
                   </div>
                 </div>
                 <div className="mt-6 grid gap-3">
-                  <QuickLink href="converter.html" title="Open workspace" description="Continue editing or exporting projects." />
-                  <QuickLink href="reference.html" title="Browse reference" description="Jump into the syntax catalog." />
-                  <QuickLink href="docs.html" title="Read docs" description="Refresh on project structure and examples." />
+                  <QuickLink href="converter.html" title="Open workspace" description="Keep working on the current project." />
+                  <QuickLink href="reference.html" title="Browse reference" description="Look up exact command syntax." />
+                  <QuickLink href="docs.html" title="Read docs" description="Review project structure and examples." />
                 </div>
               </>
             ) : (
@@ -239,34 +251,69 @@ export function DashboardPage() {
 
             <div className="min-w-0">
               {tab === "overview" ? (
-                <OverviewPanel profileName={displayName} profile={profile} />
+                <OverviewPanel profileName={displayName} profileEmail={displayEmail} profile={profile} />
               ) : null}
               {tab === "profile" ? (
-                <div className="rounded-[2rem] border border-black/10 bg-white/90 p-7 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Profile</p>
-                  <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Manage the identity shown across your workspace.</h2>
-                  <form className="mt-8 grid gap-5" onSubmit={saveProfile}>
-                    <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                      Username
-                      <input
-                        value={username}
-                        onChange={(event) => setUsername(event.target.value)}
-                        placeholder="project_builder"
-                        className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
-                        required
-                      />
-                    </label>
-                    <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
-                      Usernames are normalized to lowercase letters, numbers, and underscores. This value is also used for project attribution in shared views.
-                    </p>
-                    <button
-                      type="submit"
-                      disabled={isPending}
-                      className="inline-flex w-fit items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                    >
-                      {isPending ? "Saving..." : "Save profile"}
-                    </button>
-                  </form>
+                <div className="grid gap-6 xl:grid-cols-[280px_minmax(0,1fr)]">
+                  <article className="rounded-[2rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_20px_48px_rgba(15,23,42,0.18)] dark:border-white/10 dark:bg-white dark:text-slate-950">
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/60 dark:text-slate-500">Profile preview</p>
+                    <div className="mt-5 flex items-center gap-4">
+                      <div className="inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-[1.5rem] bg-white/10 text-2xl font-semibold text-white dark:bg-slate-950/10 dark:text-slate-950">
+                        {buildAvatarLabel(displayName)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-2xl font-semibold tracking-tight" title={displayName}>{displayName}</p>
+                        {displayEmail ? (
+                          <p className="break-all text-sm text-white/70 dark:text-slate-600">{displayEmail}</p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-6 grid gap-3 text-sm">
+                      <ProfileMeta label="Username" value={profile?.username || "Not set"} dark />
+                      <ProfileMeta label="Joined" value={formatDate(profile?.created_at)} dark />
+                      <ProfileMeta label="Last update" value={formatDateTime(profile?.updated_at)} dark />
+                    </div>
+                  </article>
+
+                  <div className="grid gap-6">
+                    <div className="rounded-[2rem] border border-black/10 bg-white/90 p-7 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Profile</p>
+                      <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Choose the name shown around the site.</h2>
+                      <form className="mt-8 grid gap-5" onSubmit={saveProfile}>
+                        <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                          Username
+                          <input
+                            value={username}
+                            onChange={(event) => setUsername(event.target.value)}
+                            placeholder="project_builder"
+                            className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3.5 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
+                            required
+                          />
+                        </label>
+                        <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
+                          Usernames use lowercase letters, numbers, and underscores. This is the name shown in the header and on shared projects.
+                        </p>
+                        <button
+                          type="submit"
+                          disabled={isPending}
+                          className="inline-flex w-fit items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                        >
+                          {isPending ? "Saving..." : "Save profile"}
+                        </button>
+                      </form>
+                    </div>
+
+                    <div className="rounded-[2rem] border border-black/10 bg-white/90 p-7 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+                      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Account email</p>
+                      <h2 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Sign-in address</h2>
+                      <p className="mt-4 break-all text-sm leading-7 text-slate-600 dark:text-slate-300">
+                        {displayEmail || "No email is available for this account yet."}
+                      </p>
+                      <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">
+                        Password recovery emails are sent to this address from the security tab.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : null}
               {tab === "appearance" ? (
@@ -334,7 +381,7 @@ export function DashboardPage() {
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-600 dark:text-rose-300">Danger zone</p>
                     <h2 className="mt-4 text-2xl font-semibold tracking-tight text-rose-950 dark:text-rose-100">Delete the current account permanently.</h2>
                     <p className="mt-3 max-w-2xl text-sm leading-7 text-rose-800 dark:text-rose-200">
-                      This action removes the current account through the configured backend function. Use it only when you are certain the account should be erased.
+                      This removes the current account through the configured backend function. Use it only when you are sure the account should be erased.
                     </p>
                     <button
                       type="button"
@@ -357,9 +404,11 @@ export function DashboardPage() {
 
 function OverviewPanel({
   profileName,
+  profileEmail,
   profile
 }: {
   profileName: string;
+  profileEmail: string;
   profile: { email?: string; created_at?: string; updated_at?: string; username?: string } | null;
 }) {
   return (
@@ -368,8 +417,8 @@ function OverviewPanel({
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Overview</p>
         <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Current account snapshot.</h2>
         <div className="mt-8 grid gap-4 md:grid-cols-2">
-          <MetaCard title="Profile name" value={profileName} caption="Used across the dashboard and shared identity surfaces." />
-          <MetaCard title="Email" value={profile?.email || "Not available"} caption="Primary sign-in and recovery address." />
+          <MetaCard title="Profile name" value={profileName} caption="Used in the header and shared project attribution." />
+          <MetaCard title="Email" value={profileEmail || profile?.email || "Not available"} caption="Primary sign-in and recovery address." />
           <MetaCard title="Created" value={formatDate(profile?.created_at)} caption="When the current profile record was first saved." />
           <MetaCard title="Updated" value={formatDateTime(profile?.updated_at)} caption="Last known profile update timestamp." />
         </div>
@@ -378,9 +427,9 @@ function OverviewPanel({
       <div className="rounded-[2rem] border border-black/10 bg-slate-950 p-6 text-white shadow-[0_26px_70px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-white dark:text-slate-950">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/60 dark:text-slate-500">Next actions</p>
         <div className="mt-6 grid gap-3">
-          <QuickLink href="converter.html" title="Continue in workspace" description="Open the converter and keep shipping projects." dark />
+          <QuickLink href="converter.html" title="Continue in workspace" description="Return to the editor and keep building." dark />
           <QuickLink href="reference.html" title="Scan syntax reference" description="Look up exact commands, examples, and targets." dark />
-          <QuickLink href="docs.html" title="Revisit onboarding docs" description="Refresh on structure, syntax, and common mistakes." dark />
+          <QuickLink href="docs.html" title="Revisit docs" description="Refresh on structure, syntax, and common mistakes." dark />
         </div>
       </div>
     </div>
@@ -426,9 +475,18 @@ function MetaCard({ title, value, caption }: { title: string; value: string; cap
   return (
     <article className="rounded-2xl border border-black/10 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
       <p className="text-sm font-medium text-slate-500 dark:text-slate-400">{title}</p>
-      <p className="mt-3 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{value}</p>
+      <p className="mt-3 break-words text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{value}</p>
       <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{caption}</p>
     </article>
+  );
+}
+
+function ProfileMeta({ label, value, dark = false }: { label: string; value: string; dark?: boolean }) {
+  return (
+    <div className={`rounded-2xl border px-4 py-3 ${dark ? "border-white/10 bg-white/5 dark:border-slate-950/10 dark:bg-slate-950/5" : "border-black/10 bg-slate-50 dark:border-white/10 dark:bg-white/5"}`}>
+      <p className={`text-xs font-semibold uppercase tracking-[0.18em] ${dark ? "text-white/55 dark:text-slate-500" : "text-slate-400"}`}>{label}</p>
+      <p className={`mt-2 break-words text-sm font-semibold ${dark ? "text-white dark:text-slate-950" : "text-slate-950 dark:text-white"}`}>{value}</p>
+    </div>
   );
 }
 

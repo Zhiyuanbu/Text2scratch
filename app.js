@@ -10,6 +10,7 @@ import {
   isMissingRowError
 } from "./supabase-client.js";
 import bundledBlockCatalog from "./blocks.json";
+import { showConfirmDialog } from "./dialog-client.js";
 
 const STAGE_BACKDROP = {
   assetId: "6821a718a962852e3796b6273aaeb291",
@@ -3712,7 +3713,13 @@ async function onProfileDeleteAccount() {
     return;
   }
 
-  const confirmed = window.confirm("Delete your account and all cloud projects permanently?");
+  const confirmed = await showConfirmDialog({
+    title: "Delete account?",
+    message: "Delete your account and all cloud projects permanently? This cannot be undone.",
+    confirmLabel: "Delete account",
+    cancelLabel: "Keep account",
+    tone: "danger"
+  });
   if (!confirmed) {
     return;
   }

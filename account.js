@@ -11,6 +11,7 @@ import {
   getUserEmail,
   sendPasswordResetForCurrentUser
 } from "./account-shared.js";
+import { showConfirmDialog } from "./dialog-client.js";
 
 const ui = {
   guestView: document.getElementById("accountGuestView"),
@@ -201,7 +202,13 @@ async function onDeleteAccountClick() {
     return;
   }
 
-  const confirmed = window.confirm("Delete your account and linked cloud projects permanently?");
+  const confirmed = await showConfirmDialog({
+    title: "Delete account?",
+    message: "Delete your account and linked cloud projects permanently? This cannot be undone.",
+    confirmLabel: "Delete account",
+    cancelLabel: "Keep account",
+    tone: "danger"
+  });
   if (!confirmed) {
     return;
   }
