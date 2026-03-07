@@ -68,7 +68,7 @@ async function refreshSessionState() {
   if (currentUser) {
     setStatus("Account loaded.", "success");
   } else {
-    setStatus("Not signed in. Use Login or Sign Up below.", "info");
+    setStatus("Not signed in. Log in or create an account to manage cloud projects.", "info");
   }
 }
 
@@ -132,7 +132,7 @@ async function onSendResetClick() {
       throw error;
     }
 
-    setStatus("Password reset email sent.", "success");
+    setStatus("Password reset email sent. Check your inbox and spam folder.", "success");
   } catch (error) {
     setStatus(`Password reset failed: ${formatSupabaseError(error)}`, "error");
   } finally {
@@ -154,7 +154,7 @@ async function onSignOutClick() {
 
     currentUser = null;
     renderAccountState();
-    setStatus("Signed out.", "success");
+    setStatus("Signed out successfully.", "success");
   } catch (error) {
     setStatus(`Sign-out failed: ${formatSupabaseError(error)}`, "error");
     renderAccountState();
@@ -181,7 +181,7 @@ async function onDeleteAccountClick() {
     await supabaseClient.auth.signOut();
     currentUser = null;
     renderAccountState();
-    setStatus("Account deleted.", "success");
+    setStatus("Account deleted successfully.", "success");
   } catch (error) {
     setStatus(`Account deletion failed: ${formatSupabaseError(error)}`, "error");
     renderAccountState();

@@ -6,7 +6,6 @@ import {
   createSupabaseClient,
   formatSupabaseError,
   getConfirmPageUrl,
-  getIndexPageUrl,
   isDuplicateError,
   isMissingRowError
 } from "./supabase-client.js";
@@ -4333,6 +4332,12 @@ function ensureToastHost() {
     return toastState.host;
   }
 
+  const existingHost = document.querySelector(".toast-stack");
+  if (existingHost) {
+    toastState.host = existingHost;
+    return existingHost;
+  }
+
   const host = document.createElement("div");
   host.className = "toast-stack";
   host.setAttribute("aria-live", "polite");
@@ -4343,6 +4348,11 @@ function ensureToastHost() {
 }
 
 function showToast(message, severity = "info") {
+  if (window.text2scratchToast?.show) {
+    window.text2scratchToast.show(message, severity);
+    return;
+  }
+
   const text = String(message || "").trim();
   if (!text) {
     return;

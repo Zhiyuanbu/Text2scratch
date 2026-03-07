@@ -34,6 +34,9 @@ npx serve .
 
 Open `http://localhost:8080`.
 
+The app now opens on the Home page first. Use `converter.html` for the working
+editor and `dev/` for the plain technical reference.
+
 ## Supabase Setup
 
 Cloud save/share uses Supabase from the browser (`index.html` + `app.js`).
@@ -89,7 +92,9 @@ end
 
 ## Project Files
 
-- `index.html`: main converter/editor UI.
+- `index.html`: public landing page / product overview.
+- `converter.html`: main converter/editor UI.
+- `dev/index.html`: plain technical reference for AI and advanced users.
 - `app.js`: conversion logic, parser flow, import/export wiring.
 - `login.html`, `signup.html`, `confirm.html`: dedicated auth pages.
 - `auth.js`: auth page controller (sign in/sign up).

@@ -34,8 +34,16 @@ export function getHcaptchaSiteKey() {
   return HCAPTCHA_SITE_KEY.trim();
 }
 
-export function getIndexPageUrl() {
+export function getHomePageUrl() {
   return new URL("index.html", window.location.href).toString();
+}
+
+export function getConverterPageUrl() {
+  return new URL("converter.html", window.location.href).toString();
+}
+
+export function getIndexPageUrl() {
+  return getHomePageUrl();
 }
 
 export function getLoginPageUrl() {
@@ -51,9 +59,7 @@ export function getSignupPageUrl() {
 }
 
 export function buildShareUrl(slug) {
-  const url = new URL(window.location.href);
-  url.search = "";
-  url.hash = "";
+  const url = new URL(getConverterPageUrl());
   url.searchParams.set(SHARE_QUERY_PARAM, slug);
   return url.toString();
 }

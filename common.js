@@ -6,11 +6,15 @@ const SIDEBAR_HASH_LINK_SELECTOR = ".main-nav a[href*='#']";
 const LOADER_MIN_VISIBLE_MS = 560;
 const LOADER_FAILSAFE_MS = 5000;
 const TOAST_LIFETIME_MS = 3500;
+const REVEAL_ROOT_MARGIN = "0px 0px -10% 0px";
 const LOADER_MESSAGES = {
-  default: "Compiling interface surfaces...",
+  default: "Preparing text2scratch...",
+  home: "Loading product overview...",
   converter: "Preparing converter workspace...",
-  docs: "Loading command playbook...",
+  docs: "Loading syntax documentation...",
   auth: "Securing account portal...",
+  account: "Loading account workspace...",
+  community: "Loading community projects...",
   legal: "Opening policy archive...",
   error: "Recovering the missing route..."
 };
@@ -26,6 +30,7 @@ function initCommonUi() {
   initSidebar();
   initSidebarHashLinks();
   initPageAnimation();
+  initRevealObserver();
   initNavigationPrefetch();
   warmCommonAssets();
 }
@@ -120,11 +125,20 @@ function buildPageLoader() {
 
 function getLoaderMessage(pathname) {
   const route = String(pathname || "").toLowerCase();
-  if (route.endsWith("/index.html") || route.endsWith("/") || route.endsWith("index.html")) {
+  if (route.endsWith("/index.html") || route.endsWith("/") || route.endsWith("index.html") || route.endsWith("home.html")) {
+    return LOADER_MESSAGES.home;
+  }
+  if (route.endsWith("converter.html")) {
     return LOADER_MESSAGES.converter;
   }
   if (route.includes("docs") || route.includes("reference")) {
     return LOADER_MESSAGES.docs;
+  }
+  if (route.includes("community")) {
+    return LOADER_MESSAGES.community;
+  }
+  if (route.includes("account")) {
+    return LOADER_MESSAGES.account;
   }
   if (route.includes("login") || route.includes("signup")) {
     return LOADER_MESSAGES.auth;
@@ -140,7 +154,9 @@ function getLoaderMessage(pathname) {
 
 function initGlobalToast() {
   window.text2scratchToast = {
-    show: showToast
+    ensureHost: ensureToastHost,
+    show: showToast,
+    dismissAll: dismissAllToasts
   };
 }
 
@@ -149,114 +165,180 @@ function ensureToastHost() {
     return toastState.host;
   }
 
+  const existingHost = document.querySelector(".toast-stack");
+  if (existingHost) {
+    toastState.host = existingHost;
+    return existingHost;
+  }
+
   const host = document.createElement("div");
   host.className = "toast-stack";
   host.setAttribute("aria-live", "polite");
-  host.setAttribute("aria-atomic", "true");
+  host.setAttribute("aria-atomic", "false");
   document.body.appendChild(host);
 
   toastState.host = host;
   return host;
 }
 
-function showToast(message, severity = "info") {
-  const text = String(message || "").trim();
-  if (!text) {
+function normalizeToastInput(input, fallbackSeverity = "info") {
+  if (typeof input === "object" && input !== null) {
+    const severity = String(input.severity || fallbackSeverity || "info").trim().toLowerCase();
+    const title = String(input.title || "").trim();
+    const description = String(input.description || "").trim();
+    const action = input.action && typeof input.action === "object"
+      ? {
+          label: String(input.action.label || "").trim(),
+          href: String(input.action.href || "").trim(),
+          onClick: typeof input.action.onClick === "function" ? input.action.onClick : null
+        }
+      : null;
+
+    return {
+      severity,
+      title,
+      description,
+      action
+    };
+  }
+
+  return {
+    severity: String(fallbackSeverity || "info").trim().toLowerCase(),
+    title: "",
+    description: String(input || "").trim(),
+    action: null
+  };
+}
+
+function getToastMeta(severity) {
+  switch (severity) {
+    case "success":
+      return { icon: "fa-circle-check", title: "Saved" };
+    case "warning":
+      return { icon: "fa-triangle-exclamation", title: "Check this" };
+    case "error":
+      return { icon: "fa-circle-xmark", title: "Action failed" };
+    default:
+      return { icon: "fa-circle-info", title: "Update" };
+  }
+}
+
+function dismissToast(toast) {
+  if (!toast || toast.dataset.closing === "true") {
     return;
   }
 
+  toast.dataset.closing = "true";
+  toast.classList.remove("show");
+  toast.addEventListener("transitionend", () => toast.remove(), { once: true });
+  window.setTimeout(() => toast.remove(), 320);
+}
+
+function dismissAllToasts() {
+  ensureToastHost()
+    .querySelectorAll(".toast")
+    .forEach((toast) => dismissToast(toast));
+}
+
+function showToast(message, severity = "info") {
+  const toastData = normalizeToastInput(message, severity);
+  if (!toastData.description && !toastData.title) {
+    return;
+  }
+
+  const severityName = ["info", "success", "warning", "error"].includes(toastData.severity)
+    ? toastData.severity
+    : "info";
+  const meta = getToastMeta(severityName);
   const host = ensureToastHost();
   const toast = document.createElement("div");
-  toast.className = `toast toast-${severity}`;
-  toast.setAttribute("role", severity === "error" ? "alert" : "status");
-  toast.textContent = text.length > 220 ? `${text.slice(0, 220)}...` : text;
+  const description = toastData.description.length > 220
+    ? `${toastData.description.slice(0, 220)}...`
+    : toastData.description;
+  const title = toastData.title || meta.title;
+  toast.className = `toast toast-${severityName}`;
+  toast.setAttribute("role", severityName === "error" ? "alert" : "status");
+  toast.innerHTML = `
+    <div class="toast__icon" aria-hidden="true">
+      <i class="fas ${meta.icon}"></i>
+    </div>
+    <div class="toast__body">
+      <p class="toast__title">${escapeHtml(title)}</p>
+      <p class="toast__description">${escapeHtml(description)}</p>
+    </div>
+    <button type="button" class="toast__dismiss" aria-label="Dismiss notification">
+      <i class="fas fa-xmark" aria-hidden="true"></i>
+    </button>
+  `;
   host.appendChild(toast);
+
+  toast.querySelector(".toast__dismiss")?.addEventListener("click", () => {
+    dismissToast(toast);
+  });
+
+  if (toastData.action?.label && (toastData.action.href || toastData.action.onClick)) {
+    const actions = document.createElement("div");
+    actions.className = "toast__actions";
+
+    if (toastData.action.href) {
+      const actionLink = document.createElement("a");
+      actionLink.className = "toast__action";
+      actionLink.href = toastData.action.href;
+      actionLink.textContent = toastData.action.label;
+      actions.appendChild(actionLink);
+    } else if (toastData.action.onClick) {
+      const actionButton = document.createElement("button");
+      actionButton.type = "button";
+      actionButton.className = "toast__action";
+      actionButton.textContent = toastData.action.label;
+      actionButton.addEventListener("click", () => {
+        toastData.action.onClick();
+        dismissToast(toast);
+      });
+      actions.appendChild(actionButton);
+    }
+
+    if (actions.childElementCount > 0) {
+      toast.appendChild(actions);
+    }
+  }
 
   requestAnimationFrame(() => {
     toast.classList.add("show");
   });
 
   window.setTimeout(() => {
-    toast.classList.remove("show");
-    toast.addEventListener("transitionend", () => toast.remove(), { once: true });
-    window.setTimeout(() => toast.remove(), 280);
+    dismissToast(toast);
   }, TOAST_LIFETIME_MS);
 }
 
 function initSidebar() {
-  if (document.body.classList.contains("page-not-found")) {
-    document.body.classList.add("layout-no-sidebar");
-    return;
-  }
-
   const toggle = document.getElementById("mobileMenuToggle");
   const header = document.querySelector(".site-header");
   const mainNav = document.querySelector(".main-nav");
-  const brand = document.querySelector(".brand");
 
-  if (!toggle || !header || !mainNav) {
-    document.body.classList.add("layout-no-sidebar");
+  if (!toggle || !mainNav) {
     return;
   }
 
   applySidebarLinkA11yLabels(mainNav);
-  document.body.classList.add("layout-sidebar");
-
-  let dockButton = null;
+  document.body.classList.add("layout-topnav");
   let mobileOpen = false;
-  let collapsed = readSidebarPreference();
-
   const isMobile = () => window.innerWidth <= SIDEBAR_BREAKPOINT;
-
-  const ensureDockButton = () => {
-    if (dockButton) {
-      return dockButton;
-    }
-
-    dockButton = document.createElement("button");
-    dockButton.type = "button";
-    dockButton.className = "sidebar-dock-toggle";
-    dockButton.setAttribute("aria-label", "Open sidebar");
-    dockButton.innerHTML = '<i class="fas fa-bars"></i>';
-    dockButton.addEventListener("click", () => {
-      if (isMobile()) {
-        mobileOpen = true;
-      } else {
-        collapsed = false;
-        persistSidebarPreference(false);
-      }
-      syncSidebarLayout();
-    });
-
-    document.body.appendChild(dockButton);
-    return dockButton;
-  };
 
   const syncSidebarLayout = () => {
     const mobile = isMobile();
-    const desktopCollapsed = !mobile && collapsed;
+    const expanded = !mobile || mobileOpen;
 
     mainNav.classList.toggle("active", mobile && mobileOpen);
-    document.body.classList.toggle("sidebar-open", mobile && mobileOpen);
-    document.body.classList.toggle("sidebar-collapsed", desktopCollapsed);
-
-    const expanded = mobile ? mobileOpen : !desktopCollapsed;
+    document.body.classList.toggle("nav-open", mobile && mobileOpen);
     toggle.setAttribute("aria-expanded", String(expanded));
     toggle.innerHTML = expanded ? '<i class="fas fa-times"></i>' : '<i class="fas fa-bars"></i>';
-
-    const dock = ensureDockButton();
-    dock.hidden = mobile ? mobileOpen : !desktopCollapsed;
+    toggle.hidden = !mobile;
   };
 
   toggle.addEventListener("click", () => {
-    if (isMobile()) {
-      mobileOpen = !mobileOpen;
-      syncSidebarLayout();
-      return;
-    }
-
-    collapsed = !collapsed;
-    persistSidebarPreference(collapsed);
+    mobileOpen = !mobileOpen;
     syncSidebarLayout();
   });
 
@@ -267,19 +349,8 @@ function initSidebar() {
     }
   });
 
-  brand?.addEventListener("click", (event) => {
-    if (isMobile() || !collapsed) {
-      return;
-    }
-
-    event.preventDefault();
-    collapsed = false;
-    persistSidebarPreference(collapsed);
-    syncSidebarLayout();
-  });
-
   document.addEventListener("click", (event) => {
-    if (!isMobile() || !mobileOpen) {
+    if (!isMobile() || !mobileOpen || !header) {
       return;
     }
 
@@ -292,19 +363,8 @@ function initSidebar() {
   });
 
   document.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape") {
-      return;
-    }
-
-    if (isMobile() && mobileOpen) {
+    if (event.key === "Escape" && isMobile() && mobileOpen) {
       mobileOpen = false;
-      syncSidebarLayout();
-      return;
-    }
-
-    if (!isMobile() && !collapsed) {
-      collapsed = true;
-      persistSidebarPreference(collapsed);
       syncSidebarLayout();
     }
   });
@@ -403,6 +463,34 @@ function initPageAnimation() {
   });
 }
 
+function initRevealObserver() {
+  const revealTargets = [...document.querySelectorAll("[data-reveal]")];
+  if (revealTargets.length === 0) {
+    return;
+  }
+
+  if (!("IntersectionObserver" in window) || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    revealTargets.forEach((node) => node.classList.add("is-visible"));
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries, activeObserver) => {
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) {
+        return;
+      }
+
+      entry.target.classList.add("is-visible");
+      activeObserver.unobserve(entry.target);
+    });
+  }, {
+    rootMargin: REVEAL_ROOT_MARGIN,
+    threshold: 0.12
+  });
+
+  revealTargets.forEach((node) => observer.observe(node));
+}
+
 function initNavigationPrefetch() {
   const links = [...document.querySelectorAll(NAV_LINK_SELECTOR)].filter((link) => isSameOriginPageLink(link));
   links.forEach((link) => {
@@ -449,6 +537,15 @@ function isSameOriginPageLink(link) {
   }
 
   return INTERNAL_EXTENSIONS.some((suffix) => url.pathname.endsWith(suffix));
+}
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 function stripHash(value) {

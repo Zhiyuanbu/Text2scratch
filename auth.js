@@ -1,9 +1,9 @@
 import {
   getConfirmPageUrl,
+  getConverterPageUrl,
   createSupabaseClient,
   formatSupabaseError,
   getHcaptchaSiteKey,
-  getIndexPageUrl
 } from "./supabase-client.js";
 
 const ui = {
@@ -379,8 +379,8 @@ async function handleSignIn() {
   if (ui.password) {
     ui.password.value = "";
   }
-  setStatus("Signed in. Redirecting to converter...", "success");
-  window.location.href = getIndexPageUrl();
+  setStatus("Signed in. Redirecting to your workspace...", "success");
+  window.location.href = getConverterPageUrl();
 }
 
 async function handleSignUp() {
@@ -449,12 +449,12 @@ async function handleSignUp() {
   window.text2scratchRum?.trackAccountCreated({ method: "username_password" });
 
   if (data?.session?.user) {
-    setStatus("Account created and signed in. Redirecting...", "success");
-    window.location.href = getIndexPageUrl();
+    setStatus("Account created and signed in. Redirecting to your workspace...", "success");
+    window.location.href = getConverterPageUrl();
     return;
   }
 
-  setStatus("Account created. Check your email, then log in.", "success");
+  setStatus("Account created. Check your email to confirm your account, then sign in.", "success");
   resetCaptcha();
 }
 

@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch - Blocks Docs</title>
+  <title>text2scratch - Documentation</title>
+  <meta name="description" content="Learn text2scratch syntax, project structure, expressions, debugging, and export workflow with practical examples.">
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -13,17 +14,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260227a">
+  <link rel="stylesheet" href="new-styles.css?v=20260307a">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-docs">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+
   <header class="site-header">
     <div class="container header-container">
-      <a class="brand" href="index.html">
+      <a class="brand" href="index.html" aria-label="text2scratch home">
         <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
         <span class="brand-text">
           <strong>text2scratch</strong>
-          <small>Text to Scratch SB3</small>
+          <small>Scratch authoring in text form</small>
         </span>
       </a>
 
@@ -31,244 +34,322 @@
         <i class="fas fa-bars"></i>
       </button>
 
-      <nav class="main-nav">
-        <a href="index.html#converter"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
-        <a href="docs.html#docs" aria-current="page"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Blocks Docs</span></a>
-        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Full Reference</span></a>
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="index.html"><span class="nav-icon"><i class="fas fa-house" aria-hidden="true"></i></span><span class="nav-label">Home</span></a>
+        <a href="converter.html"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
+        <a href="docs.html#docs" aria-current="page"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Docs</span></a>
+        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Reference</span></a>
         <a href="community.html#community"><span class="nav-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span class="nav-label">Community</span></a>
         <a href="account.html#account"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
-        <a href="terms.html#terms"><span class="nav-icon"><i class="fas fa-file-contract" aria-hidden="true"></i></span><span class="nav-label">Terms of Service</span></a>
-        <a href="privacy.html#privacy"><span class="nav-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span><span class="nav-label">Privacy Policy</span></a>
-        <a href="license.html#license"><span class="nav-icon"><i class="fas fa-scale-balanced" aria-hidden="true"></i></span><span class="nav-label">License</span></a>
+        <a href="dev/"><span class="nav-icon"><i class="fas fa-terminal" aria-hidden="true"></i></span><span class="nav-label">Dev</span></a>
       </nav>
     </div>
   </header>
 
   <div class="site-content">
     <div class="container">
-      <main class="docs-manual">
-        <section class="docs-banner">
+      <main id="mainContent" class="docs-shell">
+        <section id="docs" class="docs-banner" data-reveal>
           <p class="kicker">Documentation</p>
-          <h1>Build Scratch projects from text without fighting syntax</h1>
-          <p>Use this guide in order the first time. After that, jump straight to sections you need. Every section includes copy-safe patterns and direct fixes for common parser errors.</p>
+          <h1>Learn the syntax in the right order, with examples you can paste into the workspace.</h1>
+          <p class="lede">This page is the guided path. Start here if you are new, then switch to the reference page once you know the concept and only need exact command lookup.</p>
         </section>
 
-        <nav class="manual-toc" aria-label="Documentation sections">
-          <a href="#quick-start">1. Quick Start Path</a>
-          <a href="#syntax-basics">2. Syntax Basics</a>
-          <a href="#project-structure">3. Project Structure</a>
-          <a href="#at-syntax">4. Expressions and @ Usage</a>
-          <a href="#stage-coding">5. Stage and Sprite Rules</a>
-          <a href="#debug-guide">6. Debugging and Error Recovery</a>
-          <a href="#sharing-guide">7. Sharing and Community Flow</a>
-          <a href="#reference-tools">8. Command Reference</a>
+        <nav class="manual-toc" aria-label="Documentation sections" data-reveal>
+          <a href="#quick-start">Quick start</a>
+          <a href="#syntax-basics">Syntax rules</a>
+          <a href="#project-structure">Project structure</a>
+          <a href="#at-syntax">Expressions and @ syntax</a>
+          <a href="#stage-coding">Stage and sprite rules</a>
+          <a href="#import-export">Import, export, and share</a>
+          <a href="#debug-guide">Debugging guide</a>
+          <a href="#examples">Examples</a>
         </nav>
 
-        <section id="quick-start" class="manual-section">
+        <section id="quick-start" class="manual-section" data-reveal>
           <div class="manual-head">
-            <h2>1. Quick Start Path</h2>
-            <p>Use this sequence when starting a new game or animation project.</p>
+            <p class="eyebrow">1. Quick start</p>
+            <h2>Use this sequence when you are building a new project</h2>
+            <p>It prevents most of the errors new users hit on their first export.</p>
           </div>
 
           <ol class="workflow-list">
-            <li>Open converter and paste or write your script.</li>
-            <li>Add setup first: variables, lists, and broadcasts.</li>
-            <li>Place stage-only logic in <code>stage_code =</code> blocks.</li>
-            <li>Create each sprite with <code>sprite = "Name"</code> and <code>name_code =</code>.</li>
-            <li>Run export only after compiler output has no errors.</li>
+            <li>Open the converter and start with project setup commands such as <code>make_var</code>, <code>make_list</code>, and <code>make_broadcast</code>.</li>
+            <li>Write stage logic under <code>stage_code =</code>.</li>
+            <li>Declare each sprite with <code>sprite = "Name"</code>, then add its code block with <code>name_code =</code>.</li>
+            <li>Read compiler output before exporting. Fix structure issues first, then content issues.</li>
+            <li>Export <code>.sb3</code> for Scratch or <code>.t2sh</code> for a session backup.</li>
           </ol>
 
-          <article class="manual-item">
-            <h3>Starter Script</h3>
-            <code class="guide-example">make_var score 0
-make_broadcast game_start
+          <pre class="guide-example"><code>make_var score 0
+make_broadcast start_round
 
 stage_code =
   when_flag_clicked
   set_var score 0
-  broadcast game_start
+  broadcast start_round
 end
 
 sprite = "Cat"
 cat_code =
-  when_broadcast_received game_start
-  forever
-    wait 1
+  when_broadcast_received start_round
+  repeat 5
+    move 12
     change_var score 1
   end
-end</code>
-          </article>
+end</code></pre>
         </section>
 
-        <section id="syntax-basics" class="manual-section">
+        <section id="syntax-basics" class="manual-section" data-reveal>
           <div class="manual-head">
-            <h2>2. Syntax Basics</h2>
-            <p>These rules prevent nearly all parser failures.</p>
+            <p class="eyebrow">2. Syntax rules</p>
+            <h2>The rules that matter most</h2>
+            <p>If you remember these, you avoid most parser failures.</p>
           </div>
 
-          <div class="manual-grid">
-            <article class="manual-item">
-              <h3>One line = one command</h3>
-              <p>Keep each line focused. Do not chain commands on one line.</p>
-              <code class="guide-example">move 10</code>
+          <div class="feature-grid feature-grid-2">
+            <article class="feature-card">
+              <h3>One command per line</h3>
+              <p>Do not chain multiple commands together. Write each action on its own line.</p>
+              <pre class="guide-example"><code>move 10
+turn_right 15</code></pre>
             </article>
-            <article class="manual-item">
+            <article class="feature-card">
               <h3>Indent nested bodies</h3>
-              <p>Lines inside loops and conditions must be indented.</p>
-              <code class="guide-example">repeat 10
+              <p>Nested commands should be indented for clarity. The parser mainly relies on structure and <code>end</code>, but indentation keeps the file readable.</p>
+              <pre class="guide-example"><code>repeat 10
   move 10
-end</code>
+end</code></pre>
             </article>
-            <article class="manual-item">
-              <h3>Always close with end</h3>
-              <p>If you open <code>if</code>, <code>repeat</code>, or <code>forever</code>, close it.</p>
-              <code class="guide-example">if var(score) &gt; 5
-  say "Ready"
-end</code>
+            <article class="feature-card">
+              <h3>Close control blocks with end</h3>
+              <p>Blocks such as <code>repeat</code>, <code>if</code>, <code>if_else</code>, and <code>forever</code> must be closed.</p>
+              <pre class="guide-example"><code>if @gt(@var(score), 5)
+  say "Win"
+end</code></pre>
             </article>
-            <article class="manual-item">
+            <article class="feature-card">
               <h3>Quote text with spaces</h3>
-              <p>Use quotes for labels and messages.</p>
-              <code class="guide-example">say "Game Over"</code>
+              <p>Wrap string values in double quotes when they contain spaces or punctuation that should stay together.</p>
+              <pre class="guide-example"><code>say "Level complete"</code></pre>
             </article>
           </div>
         </section>
 
-        <section id="project-structure" class="manual-section">
+        <section id="project-structure" class="manual-section" data-reveal>
           <div class="manual-head">
-            <h2>3. Project Structure</h2>
-            <p>Use this template when multiple sprites and stage logic are involved.</p>
+            <p class="eyebrow">3. Project structure</p>
+            <h2>Think in setup, stage, and sprite sections</h2>
+            <p>text2scratch is easiest to reason about when the file follows a predictable layout.</p>
           </div>
 
-          <code class="guide-example">make_var score 0
+          <div class="docs-layout-grid">
+            <article class="reference-note">
+              <h3>Setup section</h3>
+              <p>Declare variables, lists, broadcasts, and any top-level configuration before you start scripts.</p>
+              <ul class="checklist">
+                <li><code>make_var score 0</code></li>
+                <li><code>make_list inventory</code></li>
+                <li><code>make_broadcast start_round</code></li>
+              </ul>
+            </article>
+
+            <article class="reference-note">
+              <h3>Stage section</h3>
+              <p>Use exactly <code>stage_code =</code> for stage logic. Stage scripts should not contain sprite-only blocks like movement or costume changes.</p>
+            </article>
+
+            <article class="reference-note">
+              <h3>Sprite section</h3>
+              <p>Each sprite starts with <code>sprite = "Name"</code>. The matching code section uses the lower-case sprite name plus <code>_code =</code>.</p>
+              <pre class="guide-example"><code>sprite = "Ball"
+ball_code =
+  when_flag_clicked
+  go_to_xy 0 0
+end</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="at-syntax" class="manual-section" data-reveal>
+          <div class="manual-head">
+            <p class="eyebrow">4. Expressions and @ syntax</p>
+            <h2>Use <code>@</code> when a command should return a value instead of acting like a line on its own</h2>
+            <p>This is one of the biggest conceptual differences for new users.</p>
+          </div>
+
+          <div class="comparison-grid">
+            <article class="comparison-card comparison-card-good">
+              <h3>Correct</h3>
+              <pre class="guide-example"><code>set_var score @add(@var(score), 1)
+if @gt(@var(score), 5)
+  say "Ready"
+end</code></pre>
+            </article>
+            <article class="comparison-card comparison-card-bad">
+              <h3>Incorrect</h3>
+              <pre class="guide-example"><code>@add(1,2)
+@var(score)</code></pre>
+            </article>
+          </div>
+
+          <ul class="checklist">
+            <li>Reporter and boolean commands usually start with <code>@</code>.</li>
+            <li>They belong inside another command input, not as standalone lines.</li>
+            <li>If you want exact reporter and boolean syntax, use the <a href="reference.html#reference">reference page</a> or the plain <a href="dev/">/dev</a> route.</li>
+          </ul>
+        </section>
+
+        <section id="stage-coding" class="manual-section" data-reveal>
+          <div class="manual-head">
+            <p class="eyebrow">5. Stage and sprite rules</p>
+            <h2>Target compatibility matters</h2>
+            <p>Some commands only make sense on sprites, and the compiler will warn when they appear in stage code.</p>
+          </div>
+
+          <div class="feature-grid feature-grid-2">
+            <article class="feature-card">
+              <h3>Sprite-only examples</h3>
+              <ul class="checklist">
+                <li><code>move</code></li>
+                <li><code>turn_right</code></li>
+                <li><code>show</code> and <code>hide</code></li>
+                <li><code>next_costume</code></li>
+              </ul>
+            </article>
+            <article class="feature-card">
+              <h3>Safe stage examples</h3>
+              <ul class="checklist">
+                <li><code>when_flag_clicked</code></li>
+                <li><code>broadcast</code></li>
+                <li><code>switch_backdrop_to</code></li>
+                <li>Variable and list setup commands</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section id="import-export" class="manual-section" data-reveal>
+          <div class="manual-head">
+            <p class="eyebrow">6. Import, export, and share</p>
+            <h2>Choose the right output for the job</h2>
+          </div>
+
+          <div class="docs-layout-grid">
+            <article class="reference-note">
+              <h3><code>.sb3</code></h3>
+              <p>The standard Scratch project file. Export this when you want to open the result in Scratch.</p>
+            </article>
+            <article class="reference-note">
+              <h3><code>.t2sh</code></h3>
+              <p>A text2scratch session archive. Use this for fast restore, backups, or version snapshots of your working text.</p>
+            </article>
+            <article class="reference-note">
+              <h3>Cloud save and sharing</h3>
+              <p>Accounts are optional. When signed in, you can save projects, load them later, and generate read-only share links for others.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="debug-guide" class="manual-section" data-reveal>
+          <div class="manual-head">
+            <p class="eyebrow">7. Debugging guide</p>
+            <h2>What to check when the compiler complains</h2>
+          </div>
+
+          <div class="feature-grid feature-grid-2">
+            <article class="feature-card">
+              <h3>Missing <code>end</code></h3>
+              <p>If export is blocked, count your open control blocks first. Nested structures are the most common failure point.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Unknown command</h3>
+              <p>Open the reference page and search the command name. Aliases exist for some commands, but not every natural-language variation is supported.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Expression used as a line</h3>
+              <p>Reporter and boolean expressions should be embedded into another command input instead of written as their own lines.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Stage or sprite mismatch</h3>
+              <p>If a command targets the wrong object type, move it to the appropriate section or switch to a compatible command.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="examples" class="manual-section" data-reveal>
+          <div class="manual-head">
+            <p class="eyebrow">8. Example</p>
+            <h2>A complete starter file you can paste into the workspace</h2>
+          </div>
+
+          <pre class="guide-example"><code>make_var score 0
 make_broadcast round_start
 
 stage_code =
   when_flag_clicked
+  switch_backdrop_to backdrop1
   set_var score 0
   broadcast round_start
 end
 
-sprite = "Player"
-player_code =
+sprite = "Cat"
+cat_code =
   when_broadcast_received round_start
-  forever
-    move 6
+  repeat 8
+    move 10
+    turn_right 20
+    change_var score 1
   end
 end
 
 sprite = "Ball"
 ball_code =
   when_broadcast_received round_start
-  if var(score) &gt; 5
-    say "Go"
+  go_to_xy 0 0
+  if @gt(@var(score), 5)
+    say "Game on"
+  else
+    think "Need more points"
   end
-end</code>
-        </section>
+end</code></pre>
 
-        <section id="at-syntax" class="manual-section">
-          <div class="manual-head">
-            <h2>4. Expressions and @ Usage</h2>
-            <p><code>@</code> marks a nested expression. Expressions are values, not standalone lines.</p>
+          <div class="cta-row">
+            <a class="primary-btn" href="converter.html"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Open Workspace</a>
+            <a class="secondary-btn" href="reference.html#reference"><i class="fas fa-table-list" aria-hidden="true"></i> Open Reference</a>
+            <a class="secondary-btn" href="dev/"><i class="fas fa-terminal" aria-hidden="true"></i> Open /dev</a>
           </div>
-
-          <div class="manual-grid">
-            <article class="manual-item">
-              <h3>Correct</h3>
-              <code class="guide-example">set_var score @var(best_score)</code>
-            </article>
-            <article class="manual-item">
-              <h3>Incorrect</h3>
-              <code class="guide-example">@var(score)</code>
-            </article>
-            <article class="manual-item">
-              <h3>Readable Conditions</h3>
-              <code class="guide-example">if var(score) &gt;= 10
-  broadcast win
-end</code>
-            </article>
-          </div>
-        </section>
-
-        <section id="stage-coding" class="manual-section">
-          <div class="manual-head">
-            <h2>5. Stage and Sprite Rules</h2>
-            <p>Stage and sprite targets do not support the same command set.</p>
-          </div>
-
-          <ul class="tips-list">
-            <li>Put only stage-compatible logic inside <code>stage_code =</code>.</li>
-            <li>Sprite motion/looks commands belong inside sprite code sections.</li>
-            <li>Use broadcasts to coordinate stage and sprite behaviors cleanly.</li>
-            <li>When in doubt, open Full Reference and filter by <strong>Works On</strong>.</li>
-          </ul>
-        </section>
-
-        <section id="debug-guide" class="manual-section">
-          <div class="manual-head">
-            <h2>6. Debugging and Error Recovery</h2>
-            <p>Use this loop when conversion fails or warnings pile up.</p>
-          </div>
-
-          <ol class="workflow-list">
-            <li>Fix every error from top to bottom before exporting again.</li>
-            <li>If parser says missing <code>end</code>, check nearest opened block above it.</li>
-            <li>If a command is unknown, verify spelling in Full Reference.</li>
-            <li>If stage incompatibility appears, move that line to sprite code.</li>
-            <li>Re-export only after errors are fully cleared.</li>
-          </ol>
-
-          <article class="manual-item">
-            <h3>Common Fix Patterns</h3>
-            <ul class="tips-list">
-              <li><strong>Unknown command</strong>: correct syntax or comment line out with <code>#</code>.</li>
-              <li><strong>Expression alone</strong>: embed reporter inside a real command input.</li>
-              <li><strong>Invalid else</strong>: ensure it is inside an <code>if</code> body and appears once.</li>
-              <li><strong>Stage incompatibility</strong>: move line into sprite section.</li>
-            </ul>
-          </article>
-        </section>
-
-        <section id="sharing-guide" class="manual-section">
-          <div class="manual-head">
-            <h2>7. Sharing and Community Flow</h2>
-            <p>Publish safely and keep ownership boundaries clear.</p>
-          </div>
-
-          <ol class="workflow-list">
-            <li>Sign in from the Account page and save project to cloud.</li>
-            <li>Create share link only when script is stable.</li>
-            <li>Open community page to browse recent public projects.</li>
-            <li>Shared projects load read-only unless you are the creator.</li>
-          </ol>
-        </section>
-
-        <section id="reference-tools" class="manual-section">
-          <div class="manual-head">
-            <h2>8. Command Reference</h2>
-            <p>Need exact syntax fast? Use searchable reference with section jump and filters.</p>
-          </div>
-          <p class="support-text">
-            Open:
-            <a href="reference.html">Full Command Reference</a>
-          </p>
         </section>
       </main>
     </div>
   </div>
 
   <footer class="site-footer">
-    <div class="container">
-      <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <img src="logo.png" alt="" aria-hidden="true">
+        <div>
+          <strong>text2scratch</strong>
+          <small>Text-based Scratch authoring and export</small>
+        </div>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="converter.html">Converter</a>
+        <a href="reference.html#reference">Reference</a>
+        <a href="community.html#community">Community</a>
+        <a href="dev/">Dev</a>
+        <a href="terms.html#terms">Terms</a>
+        <a href="privacy.html#privacy">Privacy</a>
+        <a href="license.html#license">License</a>
+      </nav>
+
+      <p class="footer-meta">Copyright 2026 text2scratch. Convert readable commands into Scratch projects.</p>
     </div>
   </footer>
 
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260227a" defer></script>
+  <script src="common.js?v=20260307a" defer></script>
 </body>
 </html>
-
-
-
-

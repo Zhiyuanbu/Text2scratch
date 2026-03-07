@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>text2scratch - Community</title>
+  <meta name="description" content="Browse public text2scratch projects, inspect share links, and open examples in the converter workspace.">
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -13,17 +14,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260227a">
+  <link rel="stylesheet" href="new-styles.css?v=20260307a">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body class="page-docs page-community">
+  <a class="skip-link" href="#mainContent">Skip to main content</a>
+
   <header class="site-header">
     <div class="container header-container">
-      <a class="brand" href="index.html">
+      <a class="brand" href="index.html" aria-label="text2scratch home">
         <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
         <span class="brand-text">
           <strong>text2scratch</strong>
-          <small>Text to Scratch SB3</small>
+          <small>Scratch authoring in text form</small>
         </span>
       </a>
 
@@ -31,31 +34,47 @@
         <i class="fas fa-bars"></i>
       </button>
 
-      <nav class="main-nav">
-        <a href="index.html#converter"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
-        <a href="docs.html#docs"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Blocks Docs</span></a>
-        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Full Reference</span></a>
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="index.html"><span class="nav-icon"><i class="fas fa-house" aria-hidden="true"></i></span><span class="nav-label">Home</span></a>
+        <a href="converter.html"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
+        <a href="docs.html#docs"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Docs</span></a>
+        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Reference</span></a>
         <a href="community.html#community" aria-current="page"><span class="nav-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span class="nav-label">Community</span></a>
         <a href="account.html#account"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
-        <a href="terms.html#terms"><span class="nav-icon"><i class="fas fa-file-contract" aria-hidden="true"></i></span><span class="nav-label">Terms of Service</span></a>
-        <a href="privacy.html#privacy"><span class="nav-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span><span class="nav-label">Privacy Policy</span></a>
-        <a href="license.html#license"><span class="nav-icon"><i class="fas fa-scale-balanced" aria-hidden="true"></i></span><span class="nav-label">License</span></a>
+        <a href="dev/"><span class="nav-icon"><i class="fas fa-terminal" aria-hidden="true"></i></span><span class="nav-label">Dev</span></a>
       </nav>
     </div>
   </header>
 
   <div class="site-content">
     <div class="container">
-      <main class="docs-manual community-shell">
-        <section class="docs-banner community-banner">
+      <main id="mainContent" class="docs-shell community-shell">
+        <section id="community" class="docs-banner" data-reveal>
           <p class="kicker">Community</p>
-          <h1>Browse public text2scratch projects</h1>
-          <p>Open projects in read-only mode, inspect script structure, then fork to your own editable copy.</p>
+          <h1>Browse public projects, inspect real syntax, and open examples in the converter.</h1>
+          <p class="lede">Community projects open in read-only mode by default. Use them to study structure, test ideas, and branch from working examples.</p>
         </section>
 
-        <section class="manual-section community-controls" aria-label="Community filters">
+        <section class="manual-section" data-reveal>
+          <div class="feature-grid feature-grid-3">
+            <article class="feature-card">
+              <h3>Read-only by design</h3>
+              <p>Shared projects open safely so you can inspect the original without editing it by accident.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Good for onboarding</h3>
+              <p>Search by creator or title to find examples that show real structure and command usage.</p>
+            </article>
+            <article class="feature-card">
+              <h3>Best with docs nearby</h3>
+              <p>Keep <a href="docs.html#docs">Docs</a> and <a href="reference.html#reference">Reference</a> open if you are learning from examples.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="manual-section community-controls" data-reveal aria-label="Community filters">
           <div class="control-field community-search">
-            <label for="communitySearchInput">Search Projects</label>
+            <label for="communitySearchInput">Search projects</label>
             <input id="communitySearchInput" class="text-input" type="text" placeholder="title or creator username">
           </div>
 
@@ -70,11 +89,11 @@
 
           <div class="control-field control-actions">
             <span class="control-label-spacer" aria-hidden="true">Actions</span>
-            <button id="communityRefreshBtn" type="button" class="secondary-btn"><i class="fas fa-sync"></i> Refresh</button>
+            <button id="communityRefreshBtn" type="button" class="secondary-btn"><i class="fas fa-rotate" aria-hidden="true"></i> Refresh</button>
           </div>
         </section>
 
-        <section class="manual-section community-results">
+        <section class="manual-section community-results" data-reveal>
           <div id="communityStats" class="stats-line"></div>
           <div id="communityGrid" class="community-grid" aria-live="polite"></div>
         </section>
@@ -83,18 +102,32 @@
   </div>
 
   <footer class="site-footer">
-    <div class="container">
-      <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <img src="logo.png" alt="" aria-hidden="true">
+        <div>
+          <strong>text2scratch</strong>
+          <small>Text-based Scratch authoring and export</small>
+        </div>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="converter.html">Converter</a>
+        <a href="docs.html#docs">Docs</a>
+        <a href="reference.html#reference">Reference</a>
+        <a href="dev/">Dev</a>
+        <a href="terms.html#terms">Terms</a>
+        <a href="privacy.html#privacy">Privacy</a>
+      </nav>
+
+      <p class="footer-meta">Copyright 2026 text2scratch. Convert readable commands into Scratch projects.</p>
     </div>
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260227a" defer></script>
-  <script src="community.js?v=20260227a" type="module"></script>
+  <script src="common.js?v=20260307a" defer></script>
+  <script src="community.js?v=20260307a" type="module"></script>
 </body>
 </html>
-
-
-

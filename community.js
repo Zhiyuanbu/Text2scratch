@@ -134,7 +134,7 @@ function renderProjectCard(project) {
 
   const meta = document.createElement("p");
   meta.className = "support-text";
-  meta.textContent = `By ${creator} · Updated ${updatedAt}`;
+  meta.textContent = `By ${creator} | Updated ${updatedAt}`;
   card.appendChild(meta);
 
   const badges = document.createElement("div");
@@ -161,11 +161,11 @@ function renderProjectCard(project) {
   openButton.innerHTML = '<i class="fas fa-eye"></i> Open Read-Only';
   actions.appendChild(openButton);
 
-  const forkButton = document.createElement("a");
-  forkButton.href = shareUrl;
-  forkButton.className = "secondary-btn";
-  forkButton.innerHTML = '<i class="fas fa-code-branch"></i> Open and Fork';
-  actions.appendChild(forkButton);
+  const workspaceButton = document.createElement("a");
+  workspaceButton.href = shareUrl;
+  workspaceButton.className = "secondary-btn";
+  workspaceButton.innerHTML = '<i class="fas fa-code-branch"></i> Open in Converter';
+  actions.appendChild(workspaceButton);
 
   card.appendChild(actions);
 
@@ -173,7 +173,7 @@ function renderProjectCard(project) {
 }
 
 function buildShareProjectUrl(slug) {
-  const url = new URL("index.html", window.location.href);
+  const url = new URL("converter.html", window.location.href);
   url.searchParams.set(SHARE_QUERY_PARAM, slug);
   return url.toString();
 }

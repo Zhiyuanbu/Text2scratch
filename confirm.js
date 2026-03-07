@@ -42,7 +42,7 @@ async function init() {
 
   const action = parseActionFromUrl();
   if (!action.tokenHash && !action.authCode) {
-    setStatus("This confirmation link is incomplete. Request a fresh email and retry.", "warning");
+    setStatus("This confirmation link is incomplete. Request a fresh email and try again.", "warning");
     return;
   }
 

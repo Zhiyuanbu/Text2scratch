@@ -180,6 +180,8 @@ function normalizeEntries(catalog) {
       const example = buildExample(name, syntax, kind);
       const scope = definition.extension ? `ext:${definition.extension}` : "core";
       const target = getTargetAvailability(definition);
+      const mistakes = buildCommonMistakes(name, definition, kind, syntax, target);
+      const notes = buildBehaviorNotes(definition, kind, syntax, target);
 
       return {
         name,
@@ -192,6 +194,8 @@ function normalizeEntries(catalog) {
         argumentGuide,
         selectableValues,
         example,
+        mistakes,
+        notes,
         scope,
         target,
         targetLabel: TARGET_LABELS[target],
@@ -207,6 +211,8 @@ function normalizeEntries(catalog) {
           argumentGuide,
           selectableValues.map((item) => `${item.label} ${item.text}`).join(" "),
           example,
+          mistakes.join(" "),
+          notes.join(" "),
           scope,
           target,
           definition.extension || "",
@@ -294,6 +300,66 @@ function buildExample(name, syntax, kind) {
   }
 
   return replaced;
+}
+
+function buildCommonMistakes(name, definition, kind, syntax, target) {
+  const mistakes = [];
+
+  if (syntax.trim().startsWith("@") || kind === "reporter" || kind === "boolean") {
+    mistakes.push("Do not place this on its own line. Embed it inside another command input.");
+  }
+
+  if (kind === "c") {
+    mistakes.push("This opens a nested block body. You must close it with end.");
+  }
+
+  if (name === "else") {
+    mistakes.push("else only works inside an if or if_else block, before the matching end.");
+  }
+
+  if (name === "end") {
+    mistakes.push("Extra end lines will break structure and trigger parser errors.");
+  }
+
+  if (target === "sprite") {
+    mistakes.push("This is not stage-safe. Do not use it inside stage_code.");
+  }
+
+  if (hasSelectableInputs(definition)) {
+    mistakes.push("Menu-style inputs must use supported values. Check Selectable Values before guessing.");
+  }
+
+  return mistakes;
+}
+
+function buildBehaviorNotes(definition, kind, syntax, target) {
+  const notes = [];
+
+  if (target === "both") {
+    notes.push("Works on both the Stage and sprites unless a project-specific setup blocks it.");
+  } else if (target === "stage") {
+    notes.push("Use this in stage logic only.");
+  } else if (target === "sprite") {
+    notes.push("Use this in sprite logic only.");
+  }
+
+  if (kind === "hat") {
+    notes.push("Starts a new script when its event fires.");
+  }
+
+  if (kind === "meta") {
+    notes.push("Structural syntax. This configures project setup rather than acting as a runtime block.");
+  }
+
+  if ((kind === "reporter" || kind === "boolean") && syntax.trim().startsWith("@")) {
+    notes.push("@ marks expression mode. The result should be consumed by another command.");
+  }
+
+  if (definition.extension) {
+    notes.push(`Belongs to the ${definition.extension} extension category.`);
+  }
+
+  return notes;
 }
 
 function sampleForPlaceholder(token) {
@@ -785,6 +851,14 @@ function renderCard(entry) {
   args.textContent = `Arguments: ${entry.argumentGuide}`;
   article.appendChild(args);
 
+  if (entry.notes.length > 0) {
+    article.appendChild(createNoteList("Behavior notes", entry.notes));
+  }
+
+  if (entry.mistakes.length > 0) {
+    article.appendChild(createNoteList("Common mistakes", entry.mistakes));
+  }
+
   if (entry.selectableValues.length > 0) {
     const valuesDetails = document.createElement("details");
     valuesDetails.className = "doc-options";
@@ -855,6 +929,27 @@ function renderCard(entry) {
 
   article.appendChild(actions);
   return article;
+}
+
+function createNoteList(title, items) {
+  const wrapper = document.createElement("div");
+
+  const heading = document.createElement("p");
+  heading.className = "doc-plain";
+  heading.textContent = title;
+  wrapper.appendChild(heading);
+
+  const list = document.createElement("ul");
+  list.className = "doc-note-list";
+
+  items.forEach((item) => {
+    const listItem = document.createElement("li");
+    listItem.textContent = item;
+    list.appendChild(listItem);
+  });
+
+  wrapper.appendChild(list);
+  return wrapper;
 }
 
 async function copyToClipboard(text, button) {

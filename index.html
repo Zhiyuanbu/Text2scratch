@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch</title>
+  <title>text2scratch - Write Scratch projects in plain text</title>
+  <meta name="description" content="text2scratch turns readable text commands into Scratch projects, with import, export, validation, cloud save, and a full syntax reference.">
   <link rel="icon" href="favicon.ico?v=20260222c" sizes="any">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260222c">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260222c">
@@ -13,18 +14,19 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-  <link rel="stylesheet" href="styles.css?v=20260227a">
+  <link rel="stylesheet" href="new-styles.css?v=20260307a">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
-<body class="page-converter">
+<body class="page-home">
   <a class="skip-link" href="#mainContent">Skip to main content</a>
+
   <header class="site-header">
     <div class="container header-container">
-      <a class="brand" href="index.html">
+      <a class="brand" href="index.html" aria-label="text2scratch home">
         <span class="brand-mark"><img src="logo.png" alt="" aria-hidden="true"></span>
         <span class="brand-text">
           <strong>text2scratch</strong>
-          <small>Text to Scratch SB3</small>
+          <small>Scratch authoring in text form</small>
         </span>
       </a>
 
@@ -32,209 +34,240 @@
         <i class="fas fa-bars"></i>
       </button>
 
-      <nav class="main-nav">
-        <a href="index.html#converter" aria-current="page"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
-        <a href="docs.html#docs"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Blocks Docs</span></a>
-        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Full Reference</span></a>
+      <nav class="main-nav" aria-label="Primary navigation">
+        <a href="index.html" aria-current="page"><span class="nav-icon"><i class="fas fa-house" aria-hidden="true"></i></span><span class="nav-label">Home</span></a>
+        <a href="converter.html"><span class="nav-icon"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i></span><span class="nav-label">Converter</span></a>
+        <a href="docs.html#docs"><span class="nav-icon"><i class="fas fa-book-open" aria-hidden="true"></i></span><span class="nav-label">Docs</span></a>
+        <a href="reference.html#reference"><span class="nav-icon"><i class="fas fa-table-list" aria-hidden="true"></i></span><span class="nav-label">Reference</span></a>
         <a href="community.html#community"><span class="nav-icon"><i class="fas fa-users" aria-hidden="true"></i></span><span class="nav-label">Community</span></a>
         <a href="account.html#account"><span class="nav-icon"><i class="fas fa-user-circle" aria-hidden="true"></i></span><span class="nav-label">Account</span></a>
-        <a href="terms.html#terms"><span class="nav-icon"><i class="fas fa-file-contract" aria-hidden="true"></i></span><span class="nav-label">Terms of Service</span></a>
-        <a href="privacy.html#privacy"><span class="nav-icon"><i class="fas fa-shield-halved" aria-hidden="true"></i></span><span class="nav-label">Privacy Policy</span></a>
-        <a href="license.html#license"><span class="nav-icon"><i class="fas fa-scale-balanced" aria-hidden="true"></i></span><span class="nav-label">License</span></a>
+        <a href="dev/"><span class="nav-icon"><i class="fas fa-terminal" aria-hidden="true"></i></span><span class="nav-label">Dev</span></a>
       </nav>
-</div>
+    </div>
   </header>
 
   <div class="site-content">
-    <div class="container">
-      <div class="app-shell converter-shell">
-        <main id="mainContent" class="workspace-shell">
-          <section class="intro-strip">
-            <p class="kicker">Converter Workspace</p>
-            <h1>Write script text, convert, then run in Scratch</h1>
-            <p>Use this page in order: write or import script, check output, then export your project file.</p>
-            <div id="sharedProjectNotice" class="shared-project-notice" hidden></div>
-            <div class="intro-links">
-              <a class="secondary-btn intro-link-btn" href="docs.html">Open Beginner Docs</a>
-              <a class="secondary-btn intro-link-btn" href="reference.html">Open Command Reference</a>
-            </div>
-            <ol class="workflow-track" aria-label="Main workflow">
-              <li><strong>1. Write</strong><span>Create or load script text.</span></li>
-              <li><strong>2. Validate</strong><span>Check warnings in Compiler Output.</span></li>
-              <li><strong>3. Export</strong><span>Choose `.sb3` or `.t2sh`.</span></li>
-              <li><strong>4. Test</strong><span>Open in Scratch and run green flag.</span></li>
-            </ol>
-            <div class="pill-row" aria-label="Highlights">
-              <span class="pill">Multi-sprite</span>
-              <span class="pill">Stage support</span>
-              <span class="pill">SB3 import and export</span>
-              <span class="pill">Validation diagnostics</span>
-            </div>
-          </section>
+    <main id="mainContent" class="container home-shell">
+      <section class="hero-grid" data-reveal>
+        <div class="hero-copy">
+          <p class="kicker">Text-native Scratch workflow</p>
+          <h1>Write Scratch projects like source code. Export a real <span class="accent">.sb3</span> in seconds.</h1>
+          <p class="lede">
+            text2scratch gives Scratch creators a faster authoring loop: write readable commands, validate the structure,
+            import or export projects, and share work from the browser without dragging blocks by hand.
+          </p>
 
-          <section class="editor-workbench">
-            <div class="editor-heading">
-              <h2>Script Editor</h2>
-              <p>Write text2scratch commands. Keep one command per line and close nested blocks with <code>end</code>.</p>
-            </div>
+          <div class="cta-row">
+            <a class="primary-btn" href="converter.html"><i class="fas fa-bolt" aria-hidden="true"></i> Open Converter</a>
+            <a class="secondary-btn" href="docs.html#quick-start"><i class="fas fa-book-open" aria-hidden="true"></i> Start with Docs</a>
+            <a class="secondary-btn" href="reference.html#reference"><i class="fas fa-table-list" aria-hidden="true"></i> Browse Reference</a>
+          </div>
 
-            <div class="editor-shell">
-              <div class="editor-toolbar" aria-hidden="true">
-                <span class="editor-dot"></span>
-                <span class="editor-dot"></span>
-                <span class="editor-dot"></span>
-                <label class="editor-label" for="projectNameInput">Project</label>
-                <input id="projectNameInput" class="project-name-input" type="text" value="multi_sprite_project" maxlength="80" aria-label="Project name">
-                <span class="editor-ext">.t2s</span>
-              </div>
-              <div id="editorHost" class="code-editor" role="region" aria-label="text2scratch code editor"></div>
-              <label class="sr-only" for="scriptInput">Script</label>
-              <textarea id="scriptInput" class="script-fallback" spellcheck="false"></textarea>
-            </div>
+          <div class="pill-row" aria-label="Product highlights">
+            <span class="pill">SB3 import and export</span>
+            <span class="pill">Monaco-powered editor</span>
+            <span class="pill">Multi-sprite projects</span>
+            <span class="pill">Cloud save and share</span>
+          </div>
 
-            <div class="control-grid">
-              <div class="control-cell action-card">
-                <div class="action-card-head">
-                  <h3>Export</h3>
-                  <p>Generate a file from your current editor content.</p>
-                </div>
-                <div class="action-card-row">
-                  <button id="downloadBtn" type="button" class="primary-btn">
-                    <i class="fas fa-download"></i> Export File
-                  </button>
-                  <div class="field-stack">
-                    <label for="downloadFormat">Export format</label>
-                    <select id="downloadFormat" class="text-input action-select" aria-label="Download format">
-                      <option value="sb3">Scratch Project (.sb3)</option>
-                      <option value="t2sh">Session Backup (.t2sh)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div class="control-cell action-card">
-                <div class="action-card-head">
-                  <h3>Import</h3>
-                  <p>Load an existing Scratch project or saved text2scratch session.</p>
-                </div>
-                <div class="action-card-row">
-                  <button id="uploadBtn" type="button" class="secondary-btn">
-                    <i class="fas fa-upload"></i> Import File
-                  </button>
-                  <div class="field-stack">
-                    <label for="uploadFormat">Import format</label>
-                    <select id="uploadFormat" class="text-input action-select" aria-label="Upload format">
-                      <option value="auto">Auto Detect</option>
-                      <option value="sb3">Scratch Project (.sb3)</option>
-                      <option value="t2sh">Session Backup (.t2sh)</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div class="control-cell single-action">
-                <button id="sampleBtn" type="button" class="secondary-btn">
-                  <i class="fas fa-code"></i> Load Multi-Sprite Example
-                </button>
-              </div>
-
-              <input id="importInput" class="sr-only" type="file" aria-label="Import file">
-            </div>
-          </section>
-
-          <section class="workspace-foot">
-            <article class="foot-panel">
-              <h3>Start Here</h3>
-              <ul class="memory-list">
-                <li>One line usually equals one Scratch action.</li>
-                <li>Use <code>stage_code =</code> for stage-only scripts.</li>
-                <li>Use <code>sprite_name_code =</code> for sprite scripts.</li>
-                <li>Close open blocks with <code>end</code>.</li>
-              </ul>
+          <div class="metric-strip" aria-label="Key capabilities">
+            <article class="metric-card">
+              <strong>Readable syntax</strong>
+              <span>One command per line, close nested blocks with <code>end</code>.</span>
             </article>
-
-            <article class="foot-panel">
-              <h3>Compiler Output</h3>
-              <pre id="status" aria-live="polite" aria-atomic="true"></pre>
-              <p class="support-text">Need syntax help? Read <a href="docs.html#syntax-basics">syntax basics</a> and <a href="docs.html#at-syntax">@ expression rules</a>.</p>
+            <article class="metric-card">
+              <strong>Deterministic output</strong>
+              <span>Generate a valid Scratch 3 project archive, not a mock file.</span>
             </article>
-          </section>
-        </main>
+            <article class="metric-card">
+              <strong>Built for iteration</strong>
+              <span>Use <code>.t2sh</code> session files for quick restore and backup.</span>
+            </article>
+          </div>
+        </div>
 
-        <aside class="right-rail">
-          <section class="rail-note">
-            <h2>Before Exporting</h2>
-            <ol class="workflow-list">
-              <li>Make sure every opened block has an <code>end</code>.</li>
-              <li>Confirm stage code is in <code>stage_code</code>.</li>
-              <li>Confirm sprite code is in <code>name_code</code>.</li>
-              <li>Check Compiler Output for warnings/errors.</li>
-            </ol>
-          </section>
+        <aside class="hero-panel" aria-label="Example project">
+          <div class="code-window">
+            <div class="code-window__top">
+              <span class="code-dot"></span>
+              <span class="code-dot"></span>
+              <span class="code-dot"></span>
+              <span class="code-window__title">starter-project.t2s</span>
+            </div>
+            <pre class="code-block"><code>make_var score 0
+make_broadcast start_round
 
-          <section class="rail-note">
-            <h2>Quick Rules</h2>
+stage_code =
+  when_flag_clicked
+  broadcast start_round
+end
+
+sprite = "Cat"
+cat_code =
+  when_broadcast_received start_round
+  repeat 5
+    move 12
+    change_var score 1
+  end
+end</code></pre>
+          </div>
+
+          <div class="panel-note">
+            <h2>Why teams pick this flow</h2>
             <ul class="checklist">
-              <li><code>@</code> expressions are values, not standalone commands.</li>
-              <li>Stage rejects sprite-only blocks.</li>
-              <li>Use quotes for text with spaces.</li>
-              <li>Use <code>.t2sh</code> for fast restore backups.</li>
+              <li>Faster than arranging large Scratch scripts by hand.</li>
+              <li>Easier to review, diff, and teach as plain text.</li>
+              <li>Safer to debug because parser feedback points to exact mistakes.</li>
             </ul>
-          </section>
-
-          <section class="rail-note cloud-panel">
-            <h2>Cloud Projects</h2>
-            <p class="support-text">Open the Account page to log in or sign up, then save and share projects here.</p>
-            <p id="cloudAuthState" class="cloud-auth-state">Not signed in.</p>
-
-            <div class="cloud-actions">
-              <button id="signOutBtn" type="button" class="secondary-btn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
-            </div>
-
-            <div class="cloud-actions">
-              <button id="saveCloudBtn" type="button" class="primary-btn"><i class="fas fa-cloud-upload-alt"></i> Save to Cloud</button>
-              <button id="shareProjectBtn" type="button" class="secondary-btn"><i class="fas fa-share-alt"></i> Share Project</button>
-            </div>
-
-            <div class="field-stack cloud-field">
-              <label for="cloudProjectsSelect">My projects</label>
-              <select id="cloudProjectsSelect" class="text-input">
-                <option value="">Sign in to load projects</option>
-              </select>
-            </div>
-
-            <div class="field-stack cloud-field">
-              <label for="shareLinkOutput">Share link</label>
-              <div class="cloud-share-row">
-                <input id="shareLinkOutput" class="text-input" type="text" readonly placeholder="No share link yet">
-                <button id="copyShareLinkBtn" type="button" class="secondary-btn"><i class="fas fa-copy"></i> Copy</button>
-              </div>
-            </div>
-          </section>
+          </div>
         </aside>
-      </div>
-    </div>
+      </section>
+
+      <section class="section-shell" data-reveal>
+        <header class="section-head">
+          <p class="eyebrow">What it does</p>
+          <h2>A production-style workflow for Scratch builders</h2>
+          <p class="support-text">The product is designed for classrooms, workshops, prototyping, and anyone who prefers structured editing over block dragging.</p>
+        </header>
+
+        <div class="feature-grid feature-grid-3">
+          <article class="feature-card">
+            <h3><i class="fas fa-pen-ruler" aria-hidden="true"></i> Author faster</h3>
+            <p>Write stage scripts, sprite scripts, broadcasts, variables, and expressions in a consistent text format.</p>
+          </article>
+          <article class="feature-card">
+            <h3><i class="fas fa-shield-check" aria-hidden="true"></i> Validate structure</h3>
+            <p>The compiler output catches missing <code>end</code> blocks, unknown commands, and stage or sprite mismatches before export.</p>
+          </article>
+          <article class="feature-card">
+            <h3><i class="fas fa-cloud-arrow-up" aria-hidden="true"></i> Save and share</h3>
+            <p>Optional Supabase-backed accounts let you save projects to the cloud, generate links, and browse public community examples.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section-shell" data-reveal>
+        <header class="section-head">
+          <p class="eyebrow">How it works</p>
+          <h2>Four steps from blank file to Scratch project</h2>
+        </header>
+
+        <ol class="workflow-track" aria-label="Product workflow">
+          <li>
+            <strong>Write</strong>
+            <span>Use text2scratch syntax in the editor. Keep one command per line.</span>
+          </li>
+          <li>
+            <strong>Validate</strong>
+            <span>Check compiler output for structure issues, invalid commands, and target mismatches.</span>
+          </li>
+          <li>
+            <strong>Export</strong>
+            <span>Download either a real Scratch project <code>.sb3</code> or a restore-friendly <code>.t2sh</code>.</span>
+          </li>
+          <li>
+            <strong>Run</strong>
+            <span>Open the project in Scratch, test the green flag flow, then iterate.</span>
+          </li>
+        </ol>
+      </section>
+
+      <section class="section-shell split-section" data-reveal>
+        <div class="split-panel">
+          <div class="split-panel__copy">
+            <p class="eyebrow">For first-time users</p>
+            <h2>Start with the right page for the job</h2>
+            <p class="support-text">The site now opens on a landing page first so people can understand the tool before they enter the editor.</p>
+          </div>
+
+          <div class="story-grid">
+            <article class="story-card">
+              <h3>Home</h3>
+              <p>Use this page to understand the product, the audience, and the overall workflow.</p>
+              <a class="text-link" href="index.html">Stay on Home</a>
+            </article>
+            <article class="story-card">
+              <h3>Docs</h3>
+              <p>Start here if you are learning the syntax for the first time and need guided examples.</p>
+              <a class="text-link" href="docs.html#quick-start">Open Docs</a>
+            </article>
+            <article class="story-card">
+              <h3>Reference</h3>
+              <p>Use the searchable reference when you already know the concept and want exact syntax quickly.</p>
+              <a class="text-link" href="reference.html#reference">Open Reference</a>
+            </article>
+            <article class="story-card">
+              <h3>Dev</h3>
+              <p>Use the plain technical reference for AI systems, automation, and advanced command lookup.</p>
+              <a class="text-link" href="dev/">Open /dev</a>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section-shell" data-reveal>
+        <header class="section-head">
+          <p class="eyebrow">Who it is for</p>
+          <h2>Built for real teaching, prototyping, and review</h2>
+        </header>
+
+        <div class="feature-grid feature-grid-3">
+          <article class="feature-card">
+            <h3>Educators</h3>
+            <p>Share starter templates, review assignments as plain text, and avoid time lost to drag-and-drop setup.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Students</h3>
+            <p>Focus on logic first, then open the generated Scratch project to test and refine the final experience.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Advanced users</h3>
+            <p>Inspect exact syntax, extension coverage, and parser behavior through the reference page and plain-text dev route.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="cta-banner" data-reveal>
+        <div>
+          <p class="eyebrow">Next step</p>
+          <h2>Open the workspace and export your first project.</h2>
+          <p class="support-text">If you are brand new, keep the docs open in another tab while you build.</p>
+        </div>
+        <div class="cta-row">
+          <a class="primary-btn" href="converter.html"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> Launch Converter</a>
+          <a class="secondary-btn" href="signup.html"><i class="fas fa-user-plus" aria-hidden="true"></i> Create Account</a>
+        </div>
+      </section>
+    </main>
   </div>
 
   <footer class="site-footer">
-    <div class="container">
-      <p>© 2026 text2scratch - Convert text commands to Scratch blocks</p>
+    <div class="container footer-grid">
+      <div class="footer-brand">
+        <img src="logo.png" alt="" aria-hidden="true">
+        <div>
+          <strong>text2scratch</strong>
+          <small>Text-based Scratch authoring and export</small>
+        </div>
+      </div>
+
+      <nav class="footer-links" aria-label="Footer links">
+        <a href="converter.html">Converter</a>
+        <a href="docs.html#docs">Docs</a>
+        <a href="reference.html#reference">Reference</a>
+        <a href="community.html#community">Community</a>
+        <a href="dev/">Dev</a>
+        <a href="terms.html#terms">Terms</a>
+        <a href="privacy.html#privacy">Privacy</a>
+        <a href="license.html#license">License</a>
+      </nav>
+
+      <p class="footer-meta">Copyright 2026 text2scratch. Convert readable commands into Scratch projects.</p>
     </div>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="https://www.datadoghq-browser-agent.com/us5/v6/datadog-rum.js" defer crossorigin="anonymous"></script>
   <script src="rum.js?v=20260225a" defer></script>
-  <script src="common.js?v=20260227a" defer></script>
-  <script src="app.js?v=20260227a" type="module"></script>
+  <script src="common.js?v=20260307a" defer></script>
 </body>
 </html>
-
-
-
-
-
-
-
