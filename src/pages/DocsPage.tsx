@@ -28,22 +28,35 @@ cat_code =
   end
 end`;
 
-const apiRouteExamples = `GET /Text2scratch/api/?code=YOUR_TEXT2SCRATCH_CODE
+const apiRouteExamples = `GET /Text2scratch/api/
 
-GET /Text2scratch/api/?code64=BASE64_ENCODED_TEXT2SCRATCH_CODE
+GET /Text2scratch/api/?input=YOUR_TEXT2SCRATCH_CODE
 
-GET /Text2scratch/api/?format=ts
+GET /Text2scratch/api/?input=stage_code%20%3D%5Cnwhen_flag_clicked
 
-GET /Text2scratch/api/?format=ui&code=YOUR_TEXT2SCRATCH_CODE`;
+GET /Text2scratch/api/?input64=BASE64_ENCODED_TEXT2SCRATCH_CODE
+
+GET /Text2scratch/api/?sample=1
+
+GET /Text2scratch/api/?input=YOUR_TEXT2SCRATCH_CODE&pretty=0`;
 
 const apiResponseExample = `{
   "ok": true,
-  "summary": {
-    "errors": 0,
-    "warnings": 0,
-    "lineCount": 8
+  "data": {
+    "ok": true,
+    "summary": {
+      "errors": 0,
+      "warnings": 0,
+      "lineCount": 8
+    },
+    "diagnostics": []
   },
-  "diagnostics": []
+  "meta": {
+    "source": "input",
+    "inputLength": 84,
+    "lineCount": 8,
+    "pretty": true
+  }
 }`;
 
 const commonMistakes = [
@@ -164,19 +177,20 @@ export function DocsPage() {
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">API route</p>
           <h2 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Use `/api/` when a script or AI needs validation output directly.</h2>
           <p className="text-base leading-7 text-slate-600 dark:text-slate-300">
-            The validator route stays GitHub Pages compatible, so it cannot behave like a real server function, but it does support machine-friendly query modes. When you pass <code>code</code> or <code>code64</code>, the route returns raw JSON by default. Use <code>format=ts</code> for response types, or <code>format=ui</code> if you want the browser page instead.
+            The validator route stays GitHub Pages compatible, so it cannot behave like a real server function, but it now behaves like a JSON-only static endpoint. Open <code>/api/</code> with no parameters to get JSON docs, then use <code>input</code> or <code>input64</code> to validate code.
           </p>
           <ul className="grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-            <li>Use <code>code</code> for plain URL-encoded text2scratch input. Escaped <code>\n</code> line breaks are accepted too.</li>
-            <li>Use <code>code64</code> when the source text is too awkward to URL-encode directly or spans many lines.</li>
-            <li>Use <code>format=ts</code> to fetch the TypeScript contract for the JSON shape.</li>
+            <li>Use <code>input</code> for URL-encoded source text. Escaped <code>\n</code> line breaks are accepted too.</li>
+            <li>Use <code>input64</code> when the source text is too awkward to URL-encode directly or spans many lines.</li>
+            <li>Use <code>pretty=0</code> if you want compact JSON instead of pretty-printed output.</li>
+            <li>The route is JSON-only now, so old UI or alternate format flags are rejected.</li>
           </ul>
           <div className="flex flex-wrap gap-3">
             <a href="api/" className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
               Open API route
             </a>
-            <a href="api/?format=ts" className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white">
-              View TS types
+            <a href="api/?sample=1" className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white">
+              View sample response
             </a>
           </div>
         </div>
