@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ArrowRight, FileCode2, Layers3, ScanSearch, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { getReferenceEntries } from "../lib/blocks";
 import { AppShell } from "../components/AppShell";
+import heroEditorIllustrationUrl from "../assets/hero-editor-illustration.svg";
 
 const commandCount = getReferenceEntries().length;
 
@@ -67,7 +68,7 @@ const entryPoints = [
 export function HomePage() {
   return (
     <AppShell page="home">
-      <section className="surface-mask border-b border-black/5 bg-[radial-gradient(circle_at_top_left,_rgba(14,165,233,0.14),transparent_28%),linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(248,250,252,0.92)_100%)] dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),transparent_28%),linear-gradient(180deg,rgba(2,6,23,0.96)_0%,rgba(2,8,23,0.9)_100%)]">
+      <section className="surface-mask border-b border-black/5 bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.12),transparent_28%),radial-gradient(circle_at_84%_12%,_rgba(99,102,241,0.08),transparent_24%),linear-gradient(180deg,rgba(255,255,255,0.96)_0%,rgba(245,248,252,0.92)_100%)] dark:border-white/10 dark:bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),transparent_28%),radial-gradient(circle_at_82%_10%,_rgba(99,102,241,0.1),transparent_24%),linear-gradient(180deg,rgba(11,16,32,0.96)_0%,rgba(15,23,42,0.9)_100%)]">
         <div className="mx-auto grid w-full max-w-7xl gap-10 px-5 py-14 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:py-20">
           <div className="flex flex-col gap-8">
             <div className="flex flex-wrap items-center gap-3">
@@ -119,6 +120,14 @@ export function HomePage() {
           </div>
 
           <div className="grid gap-5">
+            <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-white/92 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
+              <img
+                src={heroEditorIllustrationUrl}
+                alt="Illustration of the text2scratch editor flow with syntax, validation, and export panels."
+                className="block w-full"
+              />
+            </div>
+
             <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 shadow-[0_28px_80px_rgba(15,23,42,0.28)] dark:border-white/10">
               <div className="flex items-center justify-between border-b border-white/10 px-5 py-4 text-sm text-white/60">
                 <div className="flex items-center gap-2">

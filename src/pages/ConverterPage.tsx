@@ -15,6 +15,25 @@ import { loadExternalScript } from "../lib/loadExternalScript";
 const JSZIP_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
 const MONACO_LOADER_URL = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js";
 
+const workspaceRules = [
+  {
+    title: "Declare shared data first",
+    description: "Set up variables, lists, and broadcasts before the scripts that use them."
+  },
+  {
+    title: "Keep Stage code separate",
+    description: "Use `stage_code =` only for Stage logic, and sprite blocks under each sprite name."
+  },
+  {
+    title: "Nest expressions inside commands",
+    description: "Anything that starts with `@` belongs inside another command, not on its own line."
+  },
+  {
+    title: "Open the reference when needed",
+    description: "Use the command browser for fast scanning and the full reference for exact syntax."
+  }
+];
+
 export function ConverterPage() {
   const [loadError, setLoadError] = useState("");
 
@@ -57,10 +76,10 @@ export function ConverterPage() {
               Workspace
             </span>
             <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl dark:text-white">
-              The editor stays in front. Everything else supports it.
+              Focus on the editor. Everything else stays out of the way.
             </h1>
             <p className="max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-300">
-              Write commands, check the output, then import, export, save, or share from the side without crowding the editing area.
+              Write commands, validate the structure, then import, export, save, or share from the side without crowding the main editing flow.
             </p>
           </div>
 
@@ -175,7 +194,7 @@ export function ConverterPage() {
               />
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-black/10 bg-[#081120] shadow-[0_24px_60px_rgba(15,23,42,0.2)] dark:border-white/10">
+            <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-black/10 bg-[linear-gradient(180deg,#0f172a_0%,#101a30_100%)] shadow-[0_24px_60px_rgba(15,23,42,0.2)] dark:border-white/10 dark:bg-[linear-gradient(180deg,#0b1222_0%,#10192f_100%)]">
               <div className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3">
                 <span className="h-3 w-3 rounded-full bg-white/30" />
                 <span className="h-3 w-3 rounded-full bg-white/20" />
@@ -197,7 +216,7 @@ export function ConverterPage() {
               <label className="sr-only" htmlFor="scriptInput">Script</label>
               <textarea
                 id="scriptInput"
-                className="script-fallback w-full resize-y border-0 bg-[#081120] px-4 py-4 text-sm leading-7 text-slate-100 outline-none"
+                className="script-fallback w-full resize-y border-0 bg-[#0d1728] px-4 py-4 text-sm leading-7 text-slate-100 outline-none dark:bg-[#0d1728]"
                 spellCheck="false"
                 defaultValue=""
               />
@@ -205,8 +224,8 @@ export function ConverterPage() {
           </article>
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="grid gap-6">
-              <article className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+            <div className="grid min-w-0 gap-6">
+              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Diagnostics</p>
@@ -219,7 +238,7 @@ export function ConverterPage() {
                 <pre id="status" className="workspace-status status-info mt-5">Booting workspace...</pre>
               </article>
 
-              <article className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
                 <div className="flex items-center justify-between gap-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Command browser</p>
@@ -233,8 +252,8 @@ export function ConverterPage() {
               </article>
             </div>
 
-            <aside className="grid gap-4 self-start">
-              <article className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+            <aside className="grid min-w-0 gap-4 self-start">
+              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
                 <div className="flex items-center gap-3">
                   <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-slate-100 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">
                     <Cloud className="h-4 w-4" />
@@ -308,14 +327,16 @@ export function ConverterPage() {
                 </label>
               </article>
 
-              <article className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Keep it tidy</p>
-                <ul className="mt-5 grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                  <li>Declare variables, lists, and broadcasts before the code that uses them.</li>
-                  <li>Keep Stage-only logic under `stage_code =`.</li>
-                  <li>Expressions that start with `@` belong inside another command.</li>
-                  <li>Open the reference page whenever you need the exact command form.</li>
-                </ul>
+              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Quick rules</p>
+                <div className="mt-5 grid gap-4">
+                  {workspaceRules.map((rule) => (
+                    <article key={rule.title} className="rounded-[1.4rem] border border-black/10 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
+                      <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{rule.title}</h3>
+                      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{rule.description}</p>
+                    </article>
+                  ))}
+                </div>
               </article>
             </aside>
           </div>

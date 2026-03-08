@@ -2,6 +2,7 @@ import { RefreshCw, Search, Share2, Sparkles, Users } from "lucide-react";
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { AppShell } from "../components/AppShell";
 import { CLOUD_TABLE, buildShareUrl, formatDateTime, formatSupabaseError, supabaseClient } from "../lib/supabase";
+import communityNetworkIllustrationUrl from "../assets/community-network-illustration.svg";
 
 interface CommunityProject {
   title: string | null;
@@ -86,7 +87,14 @@ export function CommunityPage() {
           </div>
 
           <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">How to use it</p>
+            <div className="overflow-hidden rounded-[1.6rem] border border-black/10 bg-slate-50 dark:border-white/10 dark:bg-white/5">
+              <img
+                src={communityNetworkIllustrationUrl}
+                alt="Illustration showing shared text2scratch projects connected through a community library."
+                className="block w-full"
+              />
+            </div>
+            <p className="mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">How to use it</p>
             <div className="mt-5 grid gap-4">
               <InfoItem title="Search by title or creator" description="Use the filters when you want examples from a specific author or project style." />
               <InfoItem title="Open read-only first" description="Shared links protect the source project until you explicitly fork it inside the workspace." />
