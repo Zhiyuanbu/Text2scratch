@@ -28,6 +28,24 @@ cat_code =
   end
 end`;
 
+const apiRouteExamples = `GET /Text2scratch/api/?code=YOUR_TEXT2SCRATCH_CODE
+
+GET /Text2scratch/api/?code64=BASE64_ENCODED_TEXT2SCRATCH_CODE
+
+GET /Text2scratch/api/?format=ts
+
+GET /Text2scratch/api/?format=ui&code=YOUR_TEXT2SCRATCH_CODE`;
+
+const apiResponseExample = `{
+  "ok": true,
+  "summary": {
+    "errors": 0,
+    "warnings": 0,
+    "lineCount": 8
+  },
+  "diagnostics": []
+}`;
+
 const commonMistakes = [
   "Forgetting to close nested blocks with `end`.",
   "Using reporter or boolean expressions as standalone commands on their own lines.",
@@ -138,6 +156,45 @@ export function DocsPage() {
               </article>
             ))}
           </div>
+        </div>
+      </section>
+
+      <section className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <div className="space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">API route</p>
+          <h2 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Use `/api/` when a script or AI needs validation output directly.</h2>
+          <p className="text-base leading-7 text-slate-600 dark:text-slate-300">
+            The validator route stays GitHub Pages compatible, so it cannot behave like a real server function, but it does support machine-friendly query modes. When you pass <code>code</code> or <code>code64</code>, the route returns raw JSON by default. Use <code>format=ts</code> for response types, or <code>format=ui</code> if you want the browser page instead.
+          </p>
+          <ul className="grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+            <li>Use <code>code</code> for plain URL-encoded text2scratch input. Escaped <code>\n</code> line breaks are accepted too.</li>
+            <li>Use <code>code64</code> when the source text is too awkward to URL-encode directly or spans many lines.</li>
+            <li>Use <code>format=ts</code> to fetch the TypeScript contract for the JSON shape.</li>
+          </ul>
+          <div className="flex flex-wrap gap-3">
+            <a href="api/" className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
+              Open API route
+            </a>
+            <a href="api/?format=ts" className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white">
+              View TS types
+            </a>
+          </div>
+        </div>
+
+        <div className="grid gap-4">
+          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 shadow-[0_28px_70px_rgba(15,23,42,0.22)] dark:border-white/10">
+            <div className="border-b border-white/10 px-5 py-4 text-sm text-white/60">Request examples</div>
+            <pre className="overflow-x-auto px-5 py-6 text-sm leading-7 text-slate-100">
+              <code>{apiRouteExamples}</code>
+            </pre>
+          </article>
+
+          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 shadow-[0_28px_70px_rgba(15,23,42,0.22)] dark:border-white/10">
+            <div className="border-b border-white/10 px-5 py-4 text-sm text-white/60">JSON response</div>
+            <pre className="overflow-x-auto px-5 py-6 text-sm leading-7 text-slate-100">
+              <code>{apiResponseExample}</code>
+            </pre>
+          </article>
         </div>
       </section>
 

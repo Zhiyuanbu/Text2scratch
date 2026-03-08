@@ -42,7 +42,7 @@
           <p class="kicker">Validation</p>
           <h1>Check text2scratch code and inspect the JSON result.</h1>
           <p class="lede">
-            This route is GitHub Pages compatible, so it runs entirely in the browser. It does structural syntax checks and returns a machine-readable JSON report on the page.
+            This route stays GitHub Pages compatible, but it also works like a static API. If you pass <code>code</code> or <code>code64</code> in the query string, it returns JSON by default. Multiline input can use URL-encoded newlines, escaped <code>\n</code>, or <code>code64</code>.
           </p>
         </section>
 
@@ -72,6 +72,20 @@
 
           <div class="pill-row" id="apiSummary"></div>
           <pre id="apiJsonOutput" class="code-block" aria-live="polite">{}</pre>
+        </section>
+
+        <section class="section-shell" data-reveal>
+          <div class="section-head">
+            <p class="eyebrow">Direct modes</p>
+            <h2>Machine-friendly route options</h2>
+            <p>Use query parameters when an agent or script wants a simpler response than the full page UI. For longer multiline payloads, <code>code64</code> is the safest option.</p>
+          </div>
+
+          <div class="field-stack">
+            <pre id="apiModeExamples" class="code-block" aria-label="API mode examples"></pre>
+            <pre id="apiResponseExample" class="code-block" aria-label="API response example"></pre>
+            <pre id="apiTypeDefinitions" class="code-block" aria-label="TypeScript type definitions"></pre>
+          </div>
         </section>
       </main>
     </div>
