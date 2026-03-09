@@ -59,18 +59,107 @@ const termsSections = [
     body: "If you create an account, you are responsible for activity performed through that account. Shared project links are intended for review and collaboration, not for illegal or abusive content."
   },
   {
-    title: "5. No warranty",
+    title: "5. Children under 13",
+    body: "Users under 13 may only use hosted account features through a parent- or guardian-managed flow. A parent or guardian should create and use a separate parent account first, then review and continue any child-account request before a child account is used."
+  },
+  {
+    title: "6. Parent-managed account controls",
+    body: "If you act as a parent or guardian, you agree to use your own parent account to review child-account requests, review the privacy policy, manage verification and password reset emails, supervise account use, and use the dashboard or account deletion tools when you need to review or remove hosted data."
+  },
+  {
+    title: "7. No warranty",
     body: "The site and software are provided as is, without warranties of any kind. Use the tool with appropriate backups and review generated output before publishing or teaching from it."
   },
   {
-    title: "6. Liability",
+    title: "8. Liability",
     body: "To the maximum extent permitted by law, the authors and contributors are not liable for damages arising from your use of the site or software."
   },
   {
-    title: "7. Conflicts",
+    title: "9. Conflicts",
     body: "If these terms conflict with the project license regarding software permissions, the license text controls those permissions."
   }
 ];
+
+const privacySections = [
+  {
+    title: "1. Local processing by default",
+    body: "text2scratch converts text and Scratch project data in your browser. Local imports, edits, and exports do not require a cloud account."
+  },
+  {
+    title: "2. Accounts and cloud storage",
+    body: "If you sign in and choose to save a project, project text and related metadata are stored in Supabase under your account. Public visibility only changes when you explicitly create a share link."
+  },
+  {
+    title: "3. Children under 13 and parent-managed accounts",
+    body: "Hosted account features for users under 13 are intended to be used only through a parent- or guardian-managed flow. A child can start a request, but a parent or guardian must create their own account and review the child-account request before the child uses hosted login, save, or sharing features."
+  },
+  {
+    title: "4. Parent handoff step on this device",
+    body: "If a child starts the under-13 signup flow before a parent takes over, the requested child username and parent email are stored locally in this browser so the parent can review the request on the same device. That local handoff can be cleared before any child account is created."
+  },
+  {
+    title: "5. Data used for parent and child accounts",
+    body: "Parent accounts store the parent email, parent username, and hosted project data. If a parent creates a separate child account, the child account stores its approved username, sign-in email, project data, and metadata that marks the account as parent-managed."
+  },
+  {
+    title: "6. Parent rights and controls",
+    body: "The parent or guardian who created or supervises a child account can sign in to the parent account, review the child-account request on the device, send recovery emails, review linked policy pages, and delete the hosted account through the dashboard."
+  },
+  {
+    title: "7. Downloads",
+    body: "Generated .sb3 and .t2sh files are created in-browser and downloaded directly to your device."
+  },
+  {
+    title: "8. Third-party services",
+    body: "The site loads JSZip, Monaco Editor, Supabase, Font Awesome, and Datadog Browser RUM from third-party CDNs. These services may process standard browser and performance metadata according to their own policies."
+  },
+  {
+    title: "9. Shared links",
+    body: "Shared links expose the saved project you intentionally publish. Treat share links as public content and avoid publishing sensitive data in project text."
+  },
+  {
+    title: "10. Hosting logs",
+    body: "If the site is hosted on GitHub Pages or another provider, that host may collect standard HTTP logs such as IP address, timestamps, and user agent strings."
+  },
+  {
+    title: "11. Related terms and child-account rules",
+    body: "Read the terms page together with this privacy policy if you are creating, supervising, or deleting an under-13 account. The terms page contains the matching child-account and parent-account rules for hosted features."
+  }
+];
+
+export function PrivacyPage() {
+  return (
+    <LegalLayout
+      page="privacy"
+      sectionId="privacy"
+      badge="Privacy policy"
+      title="Privacy details for hosted accounts, local browser use, and parent-managed child flows."
+      description="Last updated: March 9, 2026. This page explains what happens locally in the browser, what is stored when you use cloud features, how separate parent accounts and child-account requests work, and which third-party services are involved."
+      sideIcon={<ScrollText className="h-5 w-5" />}
+      sideTitle="Read this when"
+      sideBody="You are using hosted accounts, reviewing child-account requests, or checking what data is stored locally in the browser versus in hosted cloud features."
+    >
+      <div className="grid gap-4">
+        {privacySections.map((section) => (
+          <article
+            key={section.title}
+            className="rounded-[1.75rem] border border-black/10 bg-white/90 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5"
+          >
+            <h2 className="text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">{section.title}</h2>
+            <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{section.body}</p>
+          </article>
+        ))}
+
+        <article className="rounded-[1.75rem] border border-sky-200 bg-sky-50/90 p-6 shadow-[0_16px_40px_rgba(14,165,233,0.08)] dark:border-sky-500/30 dark:bg-sky-500/10">
+          <h2 className="text-2xl font-semibold tracking-tight text-sky-950 dark:text-sky-100">Related terms</h2>
+          <p className="mt-3 text-sm leading-7 text-sky-900 dark:text-sky-100">
+            The hosted child-account and parent-account rules also appear on <a href="terms.html#terms" className="font-semibold underline decoration-sky-400/70 underline-offset-4">the terms page</a>.
+          </p>
+        </article>
+      </div>
+    </LegalLayout>
+  );
+}
 
 export function TermsPage() {
   return (
@@ -79,10 +168,10 @@ export function TermsPage() {
       sectionId="terms"
       badge="Terms of service"
       title="Terms that govern the hosted site and shared project features."
-      description="Last updated: February 19, 2026. These terms clarify acceptable use, attribution expectations, and how the hosted experience relates to the underlying project license."
+      description="Last updated: March 9, 2026. These terms clarify acceptable use, attribution expectations, child-account rules, and how the hosted experience relates to the underlying project license."
       sideIcon={<Scale className="h-5 w-5" />}
       sideTitle="Read this when"
-      sideBody="You are using hosted accounts, publishing shared links, or redistributing a public derivative of the project."
+      sideBody="You are using hosted accounts, publishing shared links, creating a parent account or child account flow, or redistributing a public derivative of the project."
     >
       <div className="grid gap-4">
         {termsSections.map((section) => (
@@ -141,7 +230,7 @@ function LegalLayout({
   sideBody,
   children
 }: {
-  page: "terms" | "license";
+  page: "terms" | "license" | "privacy";
   sectionId: string;
   badge: string;
   title: string;

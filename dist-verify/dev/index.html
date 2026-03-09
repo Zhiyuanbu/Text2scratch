@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>text2scratch /dev reference</title>
+  <meta name="description" content="Plain technical reference for text2scratch syntax, project structure, command inventory, and implementation notes.">
+  <meta name="robots" content="noindex,nofollow">
+  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32-BXWyXFhI.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16-DpioKN-E.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon-BVV4M34c.png">
+  <link rel="manifest" href="../site.webmanifest">
+  <style>
+    :root {
+      color-scheme: light;
+    }
+
+    html {
+      font-size: 16px;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem 1rem 4rem;
+      max-width: 1120px;
+      color: #111827;
+      background: #ffffff;
+      font: 400 16px/1.6 "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+    }
+
+    main {
+      display: block;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin: 2rem 0 0.75rem;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    p,
+    li {
+      margin: 0 0 0.75rem;
+    }
+
+    nav,
+    section,
+    pre {
+      margin-bottom: 1.5rem;
+    }
+
+    a {
+      color: #0b57d0;
+    }
+
+    code,
+    pre {
+      font: inherit;
+      background: #f7f7f8;
+      border: 1px solid #d4d4d8;
+      border-radius: 8px;
+    }
+
+    code {
+      padding: 0.05rem 0.3rem;
+    }
+
+    pre {
+      overflow-x: auto;
+      padding: 1rem;
+      white-space: pre-wrap;
+    }
+
+    .plain-list {
+      padding-left: 1.25rem;
+    }
+
+    .status {
+      color: #4b5563;
+    }
+  </style>
+  <script type="module" crossorigin src="/assets/dev-DcQUiME4.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
+</head>
+<body>
+  <main>
+    <p style="display:flex;align-items:center;gap:0.8rem;margin:0 0 1rem;">
+      <img src="/assets/logo-B5sKEj8D.png" alt="text2scratch logo" style="width:44px;height:44px;border-radius:12px;display:block;">
+      <strong>text2scratch</strong>
+    </p>
+    <h1>text2scratch /dev reference</h1>
+    <p>This page is intentionally plain. It is the machine-readable technical reference for text2scratch syntax and command generation.</p>
+
+    <nav>
+      <a href="../index.html">Home</a>
+      |
+      <a href="../converter.html">Converter</a>
+      |
+      <a href="../docs.html">Docs</a>
+      |
+      <a href="../reference.html">Reference</a>
+      |
+      <a href="../blocks.json">blocks.json</a>
+    </nav>
+
+    <section>
+      <h2>1. System overview</h2>
+      <pre>text2scratch converts plain-text commands into Scratch 3 project data.
+
+Primary outputs:
+- .sb3: a standard Scratch project archive
+- .t2sh: a text2scratch session archive for fast restore
+
+Primary workflow:
+1. Write setup commands, stage code, and sprite code in text form.
+2. Validate structure and command compatibility.
+3. Export to .sb3 or .t2sh.
+4. Optionally save or share through the cloud workspace.
+
+Source of truth for commands:
+- ../blocks.json
+
+Use this page when you need:
+- exact syntax rules
+- project structure requirements
+- target compatibility rules
+- command metadata in deterministic form
+- implementation notes for automation workflows</pre>
+    </section>
+
+    <section>
+      <h2>2. Exact syntax rules</h2>
+      <pre>- Use one command per line.
+- Nested control blocks must end with a matching line containing only: end
+- else may only appear inside an if or if_else block and before the matching end.
+- Strings with spaces should use double quotes.
+- Expressions start with @ and are used inside other commands, not as standalone lines.
+- Reporter and boolean commands usually use function-style syntax such as:
+  @var(score)
+  @gt(@var(score), 5)
+  @join("Level ", @var(level))
+- Stage logic belongs under: stage_code =
+- Sprite logic belongs under:
+  sprite = "Name"
+  name_code =
+- Setup commands such as make_var, make_list, and make_broadcast should appear before scripts when possible.
+- Shared projects opened from a share link are read-only until forked into a personal editable copy.</pre>
+    </section>
+
+    <section>
+      <h2>3. Required project structure</h2>
+      <pre>Recommended file layout:
+
+make_var score 0
+make_broadcast round_start
+
+stage_code =
+  when_flag_clicked
+  broadcast round_start
+end
+
+sprite = "Cat"
+cat_code =
+  when_broadcast_received round_start
+  move 10
+end
+
+Notes:
+- stage_code = starts stage scripts.
+- sprite = "Name" declares a sprite section.
+- the matching script section is lower-case sprite name + _code =
+- multiple sprite sections are allowed.
+- additional sprite metadata such as svg = "..." may appear after sprite declaration.
+- missing end lines will block export.</pre>
+    </section>
+
+    <section>
+      <h2>4. Correct vs incorrect patterns</h2>
+      <pre>CORRECT
+set_var score @add(@var(score), 1)
+if @gt(@var(score), 3)
+  say "Ready"
+end
+
+INCORRECT
+@add(1, 2)
+@var(score)
+
+CORRECT
+stage_code =
+  when_flag_clicked
+  switch_backdrop_to backdrop1
+end
+
+INCORRECT
+stage_code =
+  when_flag_clicked
+  move 10
+end
+
+CORRECT
+sprite = "Ball"
+ball_code =
+  forever
+    move 5
+  end
+end
+
+INCORRECT
+sprite = "Ball"
+forever
+  move 5
+end</pre>
+    </section>
+
+    <section>
+      <h2>5. Common mistakes and edge cases</h2>
+      <pre>- Missing end after repeat, forever, if, if_else, or repeat_until.
+- Using reporter or boolean expressions as their own lines.
+- Using sprite-only commands in stage_code.
+- Forgetting to declare a sprite before its sprite_code section.
+- Guessing menu values instead of using allowed dropdown values from blocks.json.
+- Mixing up .sb3 and .t2sh: .sb3 is for Scratch, .t2sh is for text2scratch restore.
+- Opening a shared project and expecting direct editing: shared loads are read-only until forked.
+- Assuming aliases exist for every command. Only aliases listed in blocks.json are guaranteed.
+- Using unsupported or misspelled command names instead of the exact syntax form.</pre>
+    </section>
+
+    <section>
+      <h2>6. Implementation notes</h2>
+      <pre>- The browser app uses the generated command catalog bundle first and falls back to ../blocks.json when needed.
+- The converter UI lives on ../converter.html and is powered by ../app.js.
+- The search reference UI lives on ../reference.html and is powered by ../docs.js.
+- Auth and cloud save are optional and use Supabase from the browser.
+- Shared project URLs should resolve to the converter workspace with a share query parameter.
+- The safest command-generation strategy is:
+  1. choose exact syntax from blocks.json
+  2. keep one command per line
+  3. place expressions only inside inputs
+  4. close every open control block with end
+  5. respect stage vs sprite compatibility</pre>
+    </section>
+
+    <section>
+      <h2>7. Alias map</h2>
+      <pre id="aliasOutput" class="status">Loading aliases...</pre>
+    </section>
+
+    <section>
+      <h2>8. Command inventory summary</h2>
+      <pre id="catalogSummary" class="status">Loading command summary...</pre>
+    </section>
+
+    <section>
+      <h2>9. Full command inventory</h2>
+      <p>This inventory is generated directly from <a href="../blocks.json">blocks.json</a>.</p>
+      <pre id="catalogOutput" class="status">Loading command inventory...</pre>
+    </section>
+  </main>
+
+</body>
+</html>

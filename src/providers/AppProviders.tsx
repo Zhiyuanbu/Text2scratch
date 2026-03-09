@@ -9,8 +9,10 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
+import type { AccountRole, SignupAgeBand } from "../lib/coppa";
 import {
   buildConfirmUrl,
+  createEphemeralSupabaseClient,
   formatSupabaseError,
   isValidUsername,
   normalizeUsername,
@@ -49,7 +51,22 @@ interface AuthContextValue {
   profile: ProfileRecord | null;
   isLoading: boolean;
   signIn: (identifier: string, password: string, captchaToken?: string) => Promise<void>;
-  signUp: (payload: { username: string; email: string; password: string; captchaToken?: string }) => Promise<{ needsEmailVerification: boolean }>;
+  signUp: (payload: {
+    username: string;
+    email: string;
+    password: string;
+    captchaToken?: string;
+    ageBand: SignupAgeBand;
+    accountRole: AccountRole;
+    parentConsentAccepted?: boolean;
+  }) => Promise<{ needsEmailVerification: boolean }>;
+  createManagedChildAccount: (payload: {
+    username: string;
+    email: string;
+    password: string;
+    captchaToken?: string;
+    parentConsentAccepted: boolean;
+  }) => Promise<{ needsEmailVerification: boolean }>;
   signOut: () => Promise<void>;
   sendPasswordReset: (identifier: string, captchaToken?: string) => Promise<void>;
   sendPasswordResetForCurrentUser: (captchaToken?: string) => Promise<void>;
@@ -275,10 +292,17 @@ function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(formatSupabaseError(error));
       }
     },
-    signUp: async ({ username, email, password, captchaToken }) => {
+    signUp: async ({ username, email, password, captchaToken, ageBand, accountRole, parentConsentAccepted }) => {
       const normalized = normalizeUsername(username);
+      const normalizedEmail = email.trim().toLowerCase();
       if (!isValidUsername(normalized)) {
         throw new Error("Username must be 3 to 32 characters using lowercase letters, numbers, or underscores.");
+      }
+      if (!normalizedEmail) {
+        throw new Error("Email is required.");
+      }
+      if (ageBand === "under_13_with_parent" && !parentConsentAccepted) {
+        throw new Error("A parent or guardian must confirm consent before creating this account.");
       }
 
       const available = await isUsernameAvailable(normalized);
@@ -286,13 +310,80 @@ function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Username is already taken.");
       }
 
+      const metadata: Record<string, boolean | string> = {
+        username: normalized,
+        account_age_band: ageBand,
+        account_role: accountRole,
+        parent_managed: ageBand === "under_13_with_parent",
+        coppa_flow_version: "2026-03-09"
+      };
+
+      if (ageBand === "under_13_with_parent") {
+        metadata.coppa_parent_consent_acknowledged_at = new Date().toISOString();
+      }
+      if (accountRole === "parent_guardian") {
+        metadata.parent_controls_enabled = true;
+      }
+
       const { data, error } = await supabaseClient.auth.signUp({
-        email,
+        email: normalizedEmail,
+        password,
+        options: {
+          emailRedirectTo: buildConfirmUrl("verify"),
+          data: metadata,
+          captchaToken
+        }
+      });
+
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+
+      return {
+        needsEmailVerification: !data.session
+      };
+    },
+    createManagedChildAccount: async ({ username, email, password, captchaToken, parentConsentAccepted }) => {
+      if (!user?.id || !user?.email) {
+        throw new Error("Sign in to a parent or guardian account before creating a child account.");
+      }
+      if (String(user.user_metadata.account_role || "") !== "parent_guardian") {
+        throw new Error("Only a signed-in parent or guardian account can create a separate child account.");
+      }
+      if (!parentConsentAccepted) {
+        throw new Error("A parent or guardian must confirm consent before creating a child account.");
+      }
+
+      const normalized = normalizeUsername(username);
+      const normalizedEmail = email.trim().toLowerCase();
+      if (!isValidUsername(normalized)) {
+        throw new Error("Child username must be 3 to 32 characters using lowercase letters, numbers, or underscores.");
+      }
+      if (!normalizedEmail) {
+        throw new Error("Child email is required.");
+      }
+
+      const available = await isUsernameAvailable(normalized);
+      if (!available) {
+        throw new Error("Username is already taken.");
+      }
+
+      const childClient = createEphemeralSupabaseClient();
+      const { data, error } = await childClient.auth.signUp({
+        email: normalizedEmail,
         password,
         options: {
           emailRedirectTo: buildConfirmUrl("verify"),
           data: {
-            username: normalized
+            username: normalized,
+            account_age_band: "under_13_with_parent",
+            account_role: "standard",
+            parent_managed: true,
+            parent_controls_enabled: true,
+            parent_controller_user_id: user.id,
+            parent_controller_email: user.email,
+            coppa_flow_version: "2026-03-09",
+            coppa_parent_consent_acknowledged_at: new Date().toISOString()
           },
           captchaToken
         }
@@ -301,6 +392,8 @@ function AuthProvider({ children }: { children: ReactNode }) {
       if (error) {
         throw new Error(formatSupabaseError(error));
       }
+
+      await childClient.auth.signOut().catch(() => undefined);
 
       return {
         needsEmailVerification: !data.session

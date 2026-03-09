@@ -25,6 +25,17 @@ export const supabaseClient: SupabaseClient = createClient(SUPABASE_URL, SUPABAS
   }
 });
 
+export function createEphemeralSupabaseClient() {
+  return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+      storageKey: `text2scratch-ephemeral-${Date.now()}`
+    }
+  });
+}
+
 export function formatSupabaseError(error: unknown) {
   const message = String((error as { message?: string } | null)?.message || "Unknown Supabase error");
   if (/relation .* does not exist/i.test(message)) {

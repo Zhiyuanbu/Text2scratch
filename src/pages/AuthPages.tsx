@@ -1,10 +1,18 @@
 import type { FormEvent, ReactNode } from "react";
-import { Eye, EyeOff, KeyRound, ShieldCheck, Sparkles, UserRound } from "lucide-react";
+import { Eye, EyeOff, HeartHandshake, KeyRound, Mail, ShieldCheck, Sparkles, UserRound } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { HcaptchaPanel } from "../components/HcaptchaPanel";
 import { AppShell } from "../components/AppShell";
+import {
+  clearPendingParentManagedSignup,
+  readPendingParentManagedSignup,
+  readStoredAuthAudience,
+  storeAuthAudience,
+  storePendingParentManagedSignup,
+  type AuthAudience
+} from "../lib/coppa";
 import { isCaptchaError, type HcaptchaController } from "../lib/hcaptcha";
-import { buildLoginUrl } from "../lib/supabase";
+import { buildLoginUrl, isValidUsername, normalizeUsername } from "../lib/supabase";
 import { useAuth, useToast } from "../providers/AppProviders";
 
 type LoginMode = "signin" | "reset" | "recovery";
@@ -19,6 +27,8 @@ export function LoginPage() {
   const [recoveryPassword, setRecoveryPassword] = useState("");
   const [recoveryConfirm, setRecoveryConfirm] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const [audience, setAudience] = useState<AuthAudience>(() => readInitialAuthAudience());
+  const [pendingChildRequest] = useState(() => readPendingParentManagedSignup());
 
   useEffect(() => {
     if (shouldUseConfirmationPage()) {
@@ -50,7 +60,11 @@ export function LoginPage() {
       });
       clearQueryFeedback();
     }
-  }, []);
+  }, [pushToast]);
+
+  useEffect(() => {
+    storeAuthAudience(audience);
+  }, [audience]);
 
   useEffect(() => {
     if (user && mode !== "recovery") {
@@ -120,27 +134,34 @@ export function LoginPage() {
     }
   };
 
+  const loginCopy = getLoginCopy(mode, audience);
+
   return (
     <AppShell page="login">
       <AuthFrame
         page="login"
-        badge={mode === "recovery" ? "Recovery session" : "Secure account access"}
-        title={mode === "recovery"
-          ? "Set a new password to finish the recovery flow."
-          : "Sign in or reset your password."}
-        description={mode === "recovery"
-          ? "The recovery link has already handled identity verification. Choose a new password and return to the normal sign-in flow."
-          : "Use your email or username to sign in. After login, the dashboard gives you profile, appearance, and security controls in one place."}
-        accent={mode === "recovery" ? "Recovery" : "Sign in"}
-        sideTitle="After you sign in"
-        sideItems={[
-          "Cloud save and cross-device project access.",
-          "Profile, appearance, and security controls in one dashboard.",
-          "Captcha-protected auth actions."
-        ]}
+        badge={loginCopy.badge}
+        title={loginCopy.title}
+        description={loginCopy.description}
+        accent={loginCopy.accent}
+        sideTitle={loginCopy.sideTitle}
+        sideItems={loginCopy.sideItems}
       >
         <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
           <AuthSwitch current="login" />
+
+          {mode !== "recovery" ? (
+            <AudienceGate current={audience} onChange={setAudience} />
+          ) : null}
+
+          {mode !== "recovery" ? (
+            <AudienceNotice
+              audience={audience}
+              pendingChildRequest={pendingChildRequest}
+              context="login"
+              onSwitchToParent={() => setAudience("parent_guardian")}
+            />
+          ) : null}
 
           {mode !== "recovery" ? (
             <div className="mt-6 inline-flex rounded-full border border-black/10 bg-slate-100 p-1 dark:border-white/10 dark:bg-white/10">
@@ -236,9 +257,13 @@ export function SignupPage() {
   const { user, signUp } = useAuth();
   const { pushToast } = useToast();
   const captchaRef = useRef<HcaptchaController | null>(null);
+  const [audience, setAudience] = useState<AuthAudience>(() => readInitialAuthAudience());
+  const [pendingChildRequest, setPendingChildRequest] = useState(() => readPendingParentManagedSignup());
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [requestParentEmail, setRequestParentEmail] = useState(() => readPendingParentManagedSignup()?.parentEmail || "");
+  const [requestUsername, setRequestUsername] = useState(() => readPendingParentManagedSignup()?.requestedUsername || "");
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
@@ -247,18 +272,70 @@ export function SignupPage() {
     }
   }, [user]);
 
+  useEffect(() => {
+    storeAuthAudience(audience);
+  }, [audience]);
+
+  const saveParentHandoff = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const normalizedUsername = normalizeUsername(requestUsername);
+    const normalizedParentEmail = requestParentEmail.trim().toLowerCase();
+
+    try {
+      if (!isValidUsername(normalizedUsername)) {
+        throw new Error("Choose a username with 3 to 32 lowercase letters, numbers, or underscores.");
+      }
+      if (!isLikelyEmail(normalizedParentEmail)) {
+        throw new Error("Enter a valid parent or guardian email.");
+      }
+
+      const nextRequest = storePendingParentManagedSignup({
+        requestedUsername: normalizedUsername,
+        parentEmail: normalizedParentEmail
+      });
+
+      setRequestUsername(normalizedUsername);
+      setRequestParentEmail(normalizedParentEmail);
+      setPendingChildRequest(nextRequest);
+      pushToast({
+        title: "Parent step saved",
+        description: "Hand the device to a parent or guardian so they can finish account creation.",
+        variant: "success"
+      });
+    } catch (error) {
+      pushToast({
+        title: "Could not save parent step",
+        description: error instanceof Error ? error.message : "Something went wrong.",
+        variant: "error"
+      });
+    }
+  };
+
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsPending(true);
 
     try {
       const captchaToken = requireCaptchaToken(captchaRef.current, "creating an account");
-      const result = await signUp({ username, email, password, captchaToken });
+      const result = await signUp({
+        username,
+        email,
+        password,
+        captchaToken,
+        ageBand: "13_or_over",
+        accountRole: audience === "parent_guardian" ? "parent_guardian" : "standard"
+      });
+
       pushToast({
-        title: "Account created",
+        title: audience === "parent_guardian" ? "Parent account created" : "Account created",
         description: result.needsEmailVerification
-          ? "Check your inbox to confirm your email before logging in."
-          : "Your dashboard is ready.",
+          ? audience === "parent_guardian"
+            ? "Check the parent email inbox to confirm your account, then sign in and open Parent controls to review the child request on this device."
+            : "Check your inbox to confirm your email before logging in."
+          : audience === "parent_guardian"
+            ? "Your parent account is ready. Sign in and open Parent controls to review the child request on this device."
+            : "Your dashboard is ready.",
         variant: "success"
       });
 
@@ -279,62 +356,132 @@ export function SignupPage() {
     }
   };
 
+  const signupCopy = getSignupCopy(audience);
+
   return (
     <AppShell page="signup">
       <AuthFrame
         page="signup"
-        badge="Create account"
-        title="Sign up for cloud save, sharing, and account settings."
-        description="Create a username for shared projects and manage everything from the dashboard once you are signed in."
-        accent="Sign up"
-        sideTitle="What you get"
-        sideItems={[
-          "One dashboard for profile, theme, and security settings.",
-          "Consistent top navigation across the site.",
-          "Captcha-protected signup requests."
-        ]}
+        badge={signupCopy.badge}
+        title={signupCopy.title}
+        description={signupCopy.description}
+        accent={signupCopy.accent}
+        sideTitle={signupCopy.sideTitle}
+        sideItems={signupCopy.sideItems}
       >
         <div className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_48px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
           <AuthSwitch current="signup" />
+          <AudienceGate current={audience} onChange={setAudience} />
 
-          <form className="mt-8 grid gap-5" onSubmit={onSubmit}>
-            <TextField
-              label="Username"
-              value={username}
-              onChange={setUsername}
-              placeholder="project_builder"
-              autoComplete="username"
-            />
-            <TextField
-              label="Email"
-              value={email}
-              onChange={setEmail}
-              placeholder="you@example.com"
-              type="email"
-              autoComplete="email"
-            />
-            <PasswordField
-              label="Password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="new-password"
-              placeholder="Create a password"
-            />
+          {audience === "under_13" ? (
+            <div className="mt-8 space-y-5">
+              <AudienceNotice
+                audience={audience}
+                pendingChildRequest={pendingChildRequest}
+                context="signup"
+                onSwitchToParent={() => setAudience("parent_guardian")}
+              />
 
-            <HcaptchaPanel controllerRef={captchaRef} actionLabel="creating an account" />
+              <form className="grid gap-5" onSubmit={saveParentHandoff}>
+                <TextField
+                  label="Requested username"
+                  value={requestUsername}
+                  onChange={setRequestUsername}
+                  placeholder="project_builder"
+                  autoComplete="username"
+                />
+                <TextField
+                  label="Parent or guardian email"
+                  value={requestParentEmail}
+                  onChange={setRequestParentEmail}
+                  placeholder="parent@example.com"
+                  type="email"
+                  autoComplete="email"
+                />
 
-            <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
-              Usernames are normalized to lowercase letters, numbers, and underscores. Email confirmation may be required depending on your Supabase auth settings.
-            </p>
+                <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
+                  This step stays on this device until a parent or guardian finishes signup. It does not create an account yet.
+                </p>
 
-            <button
-              type="submit"
-              disabled={isPending}
-              className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-            >
-              {isPending ? "Creating account..." : "Create account"}
-            </button>
-          </form>
+                <div className="flex flex-wrap gap-3">
+                  <button
+                    type="submit"
+                    className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                  >
+                    Save parent step
+                  </button>
+                  {pendingChildRequest ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearPendingParentManagedSignup();
+                        setPendingChildRequest(null);
+                        setRequestUsername("");
+                        setRequestParentEmail("");
+                      }}
+                      className="inline-flex items-center justify-center rounded-full border border-black/10 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-950 hover:text-slate-950 dark:border-white/10 dark:text-slate-200 dark:hover:border-white dark:hover:text-white"
+                    >
+                      Clear saved step
+                    </button>
+                  ) : null}
+                </div>
+              </form>
+            </div>
+          ) : (
+            <form className="mt-8 grid gap-5" onSubmit={onSubmit}>
+              <AudienceNotice
+                audience={audience}
+                pendingChildRequest={pendingChildRequest}
+                context="signup"
+                onSwitchToParent={() => setAudience("parent_guardian")}
+              />
+
+              <TextField
+                label={audience === "parent_guardian" ? "Parent account username" : "Username"}
+                value={username}
+                onChange={setUsername}
+                placeholder="project_builder"
+                autoComplete="username"
+              />
+              <TextField
+                label={audience === "parent_guardian" ? "Parent or guardian email" : "Email"}
+                value={email}
+                onChange={setEmail}
+                placeholder={audience === "parent_guardian" ? "parent@example.com" : "you@example.com"}
+                type="email"
+                autoComplete="email"
+              />
+              <PasswordField
+                label={audience === "parent_guardian" ? "Parent account password" : "Password"}
+                value={password}
+                onChange={setPassword}
+                autoComplete="new-password"
+                placeholder="Create a password"
+              />
+
+              <HcaptchaPanel controllerRef={captchaRef} actionLabel="creating an account" />
+
+              <p className="text-sm leading-7 text-slate-500 dark:text-slate-400">
+                {audience === "parent_guardian"
+                  ? "Create your own parent or guardian account first. After login, use Parent controls in the dashboard to review the child request on this device and continue the child-account flow."
+                  : "Usernames are normalized to lowercase letters, numbers, and underscores. Email confirmation may be required depending on your Supabase auth settings."}
+              </p>
+
+              <button
+                type="submit"
+                disabled={isPending}
+                className="inline-flex items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+              >
+                {isPending
+                  ? audience === "parent_guardian"
+                    ? "Creating parent account..."
+                    : "Creating account..."
+                  : audience === "parent_guardian"
+                    ? "Create parent account"
+                    : "Create account"}
+              </button>
+            </form>
+          )}
         </div>
       </AuthFrame>
     </AppShell>
@@ -521,6 +668,149 @@ function BenefitStat({
   );
 }
 
+function AudienceGate({
+  current,
+  onChange
+}: {
+  current: AuthAudience;
+  onChange: (value: AuthAudience) => void;
+}) {
+  return (
+    <div className="mt-6 grid gap-3" aria-label="Age and account flow">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Choose the right account flow</p>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <AudienceOption
+          title="13 or older"
+          description="Use the standard login and signup flow."
+          active={current === "13_or_over"}
+          onClick={() => onChange("13_or_over")}
+        />
+        <AudienceOption
+          title="Under 13"
+          description="Use a parent-managed account for hosted features."
+          active={current === "under_13"}
+          onClick={() => onChange("under_13")}
+        />
+        <AudienceOption
+          title="Parent or guardian"
+          description="Create or manage an under-13 account."
+          active={current === "parent_guardian"}
+          onClick={() => onChange("parent_guardian")}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AudienceOption({
+  title,
+  description,
+  active,
+  onClick
+}: {
+  title: string;
+  description: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-[1.5rem] border px-4 py-4 text-left transition ${
+        active
+          ? "border-slate-950 bg-slate-950 text-white shadow-[0_18px_40px_rgba(15,23,42,0.16)] dark:border-white dark:bg-white dark:text-slate-950"
+          : "border-black/10 bg-slate-50 text-slate-700 hover:border-slate-950 hover:bg-white hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white dark:hover:bg-white/10 dark:hover:text-white"
+      }`}
+    >
+      <p className="text-sm font-semibold">{title}</p>
+      <p className={`mt-2 text-sm leading-6 ${active ? "text-white/80 dark:text-slate-700" : "text-slate-500 dark:text-slate-400"}`}>{description}</p>
+    </button>
+  );
+}
+
+function AudienceNotice({
+  audience,
+  pendingChildRequest,
+  context,
+  onSwitchToParent
+}: {
+  audience: AuthAudience;
+  pendingChildRequest: ReturnType<typeof readPendingParentManagedSignup>;
+  context: "login" | "signup";
+  onSwitchToParent: () => void;
+}) {
+  if (audience === "13_or_over") {
+    return null;
+  }
+
+  if (audience === "under_13") {
+    return (
+      <article className="mt-6 rounded-[1.5rem] border border-sky-200 bg-sky-50 px-4 py-4 text-sm leading-7 text-sky-900 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-100">
+        <div className="flex items-start gap-3">
+          <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-sky-200 bg-white/80 text-sky-700 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-200">
+            <HeartHandshake className="h-4 w-4" />
+          </span>
+          <div className="min-w-0">
+            <p className="font-semibold">Under-13 users need a parent-managed account.</p>
+            <p className="mt-2">
+              {context === "login"
+                ? "Sign in only to a child account that a parent or guardian already approved. If a parent has not created their own account and reviewed your request yet, start the parent handoff first."
+                : "A parent or guardian must create their own account before they can review and continue a child-account request. Start the parent handoff below, then let the parent or guardian continue."}
+            </p>
+            {pendingChildRequest ? (
+              <p className="mt-2">
+                Saved on this device: username <strong>{pendingChildRequest.requestedUsername}</strong>, parent email <strong>{pendingChildRequest.parentEmail}</strong>.
+              </p>
+            ) : null}
+            <div className="mt-3 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={onSwitchToParent}
+                className="inline-flex items-center gap-2 rounded-full border border-sky-300 bg-white px-4 py-2 font-semibold text-sky-900 transition hover:border-sky-500 hover:text-sky-950 dark:border-sky-400/30 dark:bg-sky-500/10 dark:text-sky-100 dark:hover:border-sky-300"
+              >
+                <Mail className="h-4 w-4" />
+                Parent or guardian continues
+              </button>
+              {context === "login" ? (
+                <a
+                  href="signup.html"
+                  className="inline-flex items-center rounded-full border border-sky-300 px-4 py-2 font-semibold text-sky-900 transition hover:border-sky-500 hover:text-sky-950 dark:border-sky-400/30 dark:text-sky-100 dark:hover:border-sky-300"
+                >
+                  Start signup instead
+                </a>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </article>
+    );
+  }
+
+  return (
+    <article className="mt-6 rounded-[1.5rem] border border-emerald-200 bg-emerald-50 px-4 py-4 text-sm leading-7 text-emerald-900 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-100">
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-emerald-200 bg-white/80 text-emerald-700 dark:border-emerald-400/30 dark:bg-emerald-500/10 dark:text-emerald-200">
+          <HeartHandshake className="h-4 w-4" />
+        </span>
+        <div className="min-w-0">
+          <p className="font-semibold">Parent or guardian controls this account flow.</p>
+          <p className="mt-2">
+            {context === "login"
+              ? "Use your own parent or guardian account to sign in. From there, review any saved child-account request on this device and continue the child flow."
+              : "Create your own parent or guardian account first. After login, use the dashboard Parent controls tab to review any saved child-account request and continue."}
+          </p>
+          {pendingChildRequest ? (
+            <p className="mt-2">
+              Pending handoff found on this device for <strong>{pendingChildRequest.requestedUsername}</strong> using <strong>{pendingChildRequest.parentEmail}</strong>.
+            </p>
+          ) : null}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function requireCaptchaToken(controller: HcaptchaController | null, actionLabel: string) {
   if (!controller?.isRequired) {
     return undefined;
@@ -581,4 +871,117 @@ function clearRecoveryState() {
   url.searchParams.delete("token_hash");
   url.hash = "";
   window.history.replaceState({}, "", url.toString());
+}
+
+function readInitialAuthAudience() {
+  return readStoredAuthAudience() || "13_or_over";
+}
+
+function getLoginCopy(mode: LoginMode, audience: AuthAudience) {
+  if (mode === "recovery") {
+    return {
+      badge: "Recovery session",
+      title: "Set a new password to finish the recovery flow.",
+      description: "The recovery link has already handled identity verification. Choose a new password and return to the normal sign-in flow.",
+      accent: "Recovery",
+      sideTitle: "After recovery",
+      sideItems: [
+        "Choose a new password and return to standard sign-in.",
+        "Account email verification has already been handled by the recovery link.",
+        "Use the dashboard after login to review account settings."
+      ]
+    };
+  }
+
+  if (audience === "under_13") {
+    return {
+      badge: "Parent-managed access",
+      title: "Sign in to a parent-managed account.",
+      description: "Under-13 users can use hosted features only through separate child accounts that a parent or guardian has already approved and created.",
+      accent: "Under 13",
+      sideTitle: "How access works",
+      sideItems: [
+        "Use the approved child username or child-account email to sign in.",
+        "A parent or guardian should create their own account before they continue any child-account request.",
+        "If no child account exists yet, start the under-13 request flow first."
+      ]
+    };
+  }
+
+  if (audience === "parent_guardian") {
+    return {
+      badge: "Parent or guardian access",
+      title: "Sign in to your parent or guardian account.",
+      description: "Parents and guardians should use their own account to review child-account requests, manage linked child controls, and handle recovery or deletion actions.",
+      accent: "Parent access",
+      sideTitle: "What you control",
+      sideItems: [
+        "Parent accounts stay separate from child accounts.",
+        "The dashboard can be used to review child-account requests and parent-policy links.",
+        "Recovery and deletion actions remain available from the parent account."
+      ]
+    };
+  }
+
+  return {
+    badge: "Secure account access",
+    title: "Sign in or reset your password.",
+    description: "Use your email or username to sign in. After login, the dashboard gives you profile, appearance, and security controls in one place.",
+    accent: "Sign in",
+    sideTitle: "After you sign in",
+    sideItems: [
+      "Cloud save and cross-device project access.",
+      "Profile, appearance, and security controls in one dashboard.",
+      "Captcha-protected auth actions."
+    ]
+  };
+}
+
+function getSignupCopy(audience: AuthAudience) {
+  if (audience === "under_13") {
+    return {
+      badge: "Parent-managed signup",
+      title: "Start signup with a parent or guardian.",
+      description: "Children under 13 can use hosted features only after a parent or guardian creates their own account and reviews the child-account request saved on this device.",
+      accent: "Under 13",
+      sideTitle: "What happens next",
+      sideItems: [
+        "Save the requested username and parent email on this device.",
+        "A parent or guardian creates their own account first.",
+        "After the parent signs in, they can continue the separate child-account flow from the dashboard."
+      ]
+    };
+  }
+
+  if (audience === "parent_guardian") {
+    return {
+      badge: "Create parent account",
+      title: "Create your own parent or guardian account first.",
+      description: "Parent accounts stay separate from child accounts. Create your own account first, then sign in and review any child-account request saved on this device from the dashboard.",
+      accent: "Parent signup",
+      sideTitle: "What you confirm",
+      sideItems: [
+        "The parent or guardian controls the email on the parent account.",
+        "Child requests are reviewed after the parent signs in.",
+        "Parents retain review and deletion controls through the dashboard."
+      ]
+    };
+  }
+
+  return {
+    badge: "Create account",
+    title: "Sign up for cloud save, sharing, and account settings.",
+    description: "Create a username for shared projects and manage everything from the dashboard once you are signed in.",
+    accent: "Sign up",
+    sideTitle: "What you get",
+    sideItems: [
+      "One dashboard for profile, theme, and security settings.",
+      "Consistent top navigation across the site.",
+      "Captcha-protected signup requests."
+    ]
+  };
+}
+
+function isLikelyEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
 }

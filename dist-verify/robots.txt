@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /Text2scratch/
+Disallow: /Text2scratch/login.html
+Disallow: /Text2scratch/signup.html
+Disallow: /Text2scratch/dashboard.html
+Disallow: /Text2scratch/account.html
+Disallow: /Text2scratch/profile.html
+Disallow: /Text2scratch/settings.html
+Disallow: /Text2scratch/confirm.html
+Disallow: /Text2scratch/home.html
+Disallow: /Text2scratch/dev/
+Disallow: /Text2scratch/api/
+
+Sitemap: https://zhiyuanbu.github.io/Text2scratch/sitemap.xml

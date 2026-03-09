@@ -28,17 +28,61 @@ cat_code =
   end
 end`;
 
-const apiRouteExamples = `GET /Text2scratch/api/
+const learningPath = [
+  {
+    title: "Start with project shape",
+    description: "Declare shared data first, then add `stage_code =`, then sprite sections. The file shape is part of the language."
+  },
+  {
+    title: "Use working examples early",
+    description: "Pick known-good commands from the docs or reference first, then change one detail at a time while the validator stays green."
+  },
+  {
+    title: "Validate before export",
+    description: "Use the workspace diagnostics for authoring and `/api/` when another script, tool, or AI needs JSON validation output."
+  }
+];
 
-GET /Text2scratch/api/?input=YOUR_TEXT2SCRATCH_CODE
+const apiParameterCards = [
+  {
+    title: "`input`",
+    description: "Pass URL-encoded source text directly in the query string.",
+    note: "Best for short snippets, links, and simple browser calls."
+  },
+  {
+    title: "`input64`",
+    description: "Pass base64-encoded UTF-8 text when multiline source would be awkward in a URL.",
+    note: "Best for larger payloads or generated requests."
+  },
+  {
+    title: "`pretty`",
+    description: "Controls formatting only. Use `pretty=0` for compact JSON.",
+    note: "Good for logging pipelines or smaller responses."
+  },
+  {
+    title: "`sample`",
+    description: "Validates the built-in example script without sending your own source.",
+    note: "Useful for integration smoke tests."
+  }
+];
 
-GET /Text2scratch/api/?input=stage_code%20%3D%5Cnwhen_flag_clicked
+const apiResponseModes = [
+  "No input returns a docs object that explains parameters, examples, errors, and the TypeScript contract.",
+  "Validation requests return `ok`, `data`, and `meta` so callers can separate diagnostics from transport details.",
+  "Unsupported query parameters return `ok: false` with an `error` object and the docs block for recovery guidance."
+];
 
-GET /Text2scratch/api/?input64=BASE64_ENCODED_TEXT2SCRATCH_CODE
+const apiRouteExamples = `GET /api/
 
-GET /Text2scratch/api/?sample=1
+GET /api/?input=YOUR_TEXT2SCRATCH_CODE
 
-GET /Text2scratch/api/?input=YOUR_TEXT2SCRATCH_CODE&pretty=0`;
+GET /api/?input=stage_code%20%3D%5Cnwhen_flag_clicked
+
+GET /api/?input64=BASE64_ENCODED_TEXT2SCRATCH_CODE
+
+GET /api/?sample=1
+
+GET /api/?input=YOUR_TEXT2SCRATCH_CODE&pretty=0`;
 
 const apiResponseExample = `{
   "ok": true,
@@ -116,6 +160,28 @@ export function DocsPage() {
         </div>
       </section>
 
+      <section className="mx-auto w-full max-w-7xl px-5 py-16">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Learning path</p>
+          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Use the docs in a practical order instead of reading everything front to back.</h2>
+        </div>
+
+        <div className="mt-10 grid gap-4 lg:grid-cols-3">
+          {learningPath.map((step, index) => (
+            <article
+              key={step.title}
+              className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5"
+            >
+              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white dark:bg-white dark:text-slate-950">
+                0{index + 1}
+              </span>
+              <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{step.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{step.description}</p>
+            </article>
+          ))}
+        </div>
+      </section>
+
       <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-16 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Quick start</p>
@@ -185,6 +251,23 @@ export function DocsPage() {
             <li>Use <code>pretty=0</code> if you want compact JSON instead of pretty-printed output.</li>
             <li>The route is JSON-only now, so old UI or alternate format flags are rejected.</li>
           </ul>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {apiParameterCards.map((item) => (
+              <article key={item.title} className="rounded-[1.6rem] border border-black/10 bg-white/90 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+                <h3 className="text-base font-semibold tracking-tight text-slate-950 dark:text-white">{item.title}</h3>
+                <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.description}</p>
+                <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">{item.note}</p>
+              </article>
+            ))}
+          </div>
+          <div className="rounded-[1.75rem] border border-black/10 bg-white/90 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Response modes</p>
+            <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
+              {apiResponseModes.map((mode) => (
+                <li key={mode}>{mode}</li>
+              ))}
+            </ul>
+          </div>
           <div className="flex flex-wrap gap-3">
             <a href="api/" className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
               Open API route

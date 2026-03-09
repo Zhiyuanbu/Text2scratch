@@ -30,6 +30,34 @@ export interface ValidationResult {
     lineCount: number;
   };
   diagnostics: ValidationDiagnostic[];
+}
+
+export interface ApiRequestError {
+  code: string;
+  message: string;
+}
+
+export interface ApiValidationMeta {
+  endpoint: string;
+  source: "input" | "input64" | "sample";
+  inputLength: number;
+  lineCount: number;
+  pretty: boolean;
+}
+
+export interface ApiDocs {
+  endpoint: string;
+  description: string;
+  quickStart: string[];
+  notes: string[];
+}
+
+export interface ApiValidationEnvelope {
+  ok: boolean;
+  data?: ValidationResult;
+  meta?: ApiValidationMeta;
+  error?: ApiRequestError;
+  docs?: ApiDocs;
 }`;
 
 init();
@@ -174,6 +202,12 @@ function buildDocs() {
   return {
     endpoint,
     description: "Static text2scratch validator route for GitHub Pages.",
+    quickStart: [
+      "Open `/api/` with no parameters to read the docs object.",
+      "Use `input` for URL-encoded source text or `input64` for base64-encoded UTF-8 text.",
+      "Set `pretty=0` when you want compact JSON output.",
+      "Use `sample=1` to validate the built-in example script."
+    ],
     notes: [
       "This route always emits JSON text in the document body.",
       "Use `input` for URL-encoded source text.",
@@ -201,13 +235,71 @@ function buildDocs() {
         description: "Validate the built-in sample script."
       }
     },
+    responses: {
+      docs: {
+        description: "Returned when no validation input is provided.",
+        shape: {
+          ok: true,
+          docs: "ApiDocs"
+        }
+      },
+      validation: {
+        description: "Returned when `input`, `input64`, or `sample=1` is provided.",
+        shape: {
+          ok: "boolean",
+          data: "ValidationResult",
+          meta: {
+            endpoint: "string",
+            source: "input | input64 | sample",
+            inputLength: "number",
+            lineCount: "number",
+            pretty: "boolean"
+          }
+        }
+      },
+      error: {
+        description: "Returned for unsupported query parameters or malformed `input64`.",
+        shape: {
+          ok: false,
+          error: {
+            code: "string",
+            message: "string"
+          },
+          docs: "ApiDocs"
+        }
+      }
+    },
+    errors: {
+      invalid_input64: "The `input64` value could not be decoded as base64-encoded UTF-8 text.",
+      unsupported_format: "Only JSON output is supported on `/api/`.",
+      unsupported_mode: "TypeScript-only output mode was removed; read the TypeScript contract from `docs.contracts.typescript`.",
+      unsupported_parameter: "Legacy `code` and `code64` parameters are rejected. Use `input` or `input64`."
+    },
     examples: {
-      docs: endpoint,
-      validate: `${endpoint}?input=YOUR_TEXT2SCRATCH_CODE`,
-      validateMultiline: `${endpoint}?input=stage_code%20%3D%5Cnwhen_flag_clicked%5Cn%20%20say(%22Hello%22)`,
-      validateBase64: `${endpoint}?input64=BASE64_ENCODED_TEXT2SCRATCH_CODE`,
-      compact: `${endpoint}?input=YOUR_TEXT2SCRATCH_CODE&pretty=0`,
-      sample: `${endpoint}?sample=1`
+      docs: {
+        description: "Read the docs object only.",
+        url: endpoint
+      },
+      validate: {
+        description: "Validate source passed directly in the query string.",
+        url: `${endpoint}?input=YOUR_TEXT2SCRATCH_CODE`
+      },
+      validateMultiline: {
+        description: "Validate a multiline snippet using escaped newlines.",
+        url: `${endpoint}?input=stage_code%20%3D%5Cnwhen_flag_clicked%5Cn%20%20say(%22Hello%22)`
+      },
+      validateBase64: {
+        description: "Validate base64-encoded UTF-8 source text.",
+        url: `${endpoint}?input64=BASE64_ENCODED_TEXT2SCRATCH_CODE`
+      },
+      compact: {
+        description: "Return compact JSON instead of pretty-printed JSON.",
+        url: `${endpoint}?input=YOUR_TEXT2SCRATCH_CODE&pretty=0`
+      },
+      sample: {
+        description: "Validate the built-in sample script.",
+        url: `${endpoint}?sample=1`
+      }
     },
     contracts: {
       typescript: API_TYPE_DEFINITIONS
@@ -226,9 +318,10 @@ function renderJson(data: unknown, pretty: boolean) {
   document.body.style.whiteSpace = "pre-wrap";
   document.body.style.wordBreak = "break-word";
   document.body.style.fontFamily = 'ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+  document.body.style.fontSize = "14px";
   document.body.style.lineHeight = "1.5";
-  document.body.style.background = "#ffffff";
-  document.body.style.color = "#0f172a";
+  document.body.style.background = "#f7f9fc";
+  document.body.style.color = "#13203a";
 }
 
 function readBoolean(value: string | null, fallback: boolean) {

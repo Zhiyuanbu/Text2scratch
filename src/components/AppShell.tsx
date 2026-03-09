@@ -13,6 +13,7 @@ type PageKey =
   | "login"
   | "signup"
   | "dashboard"
+  | "privacy"
   | "terms"
   | "license"
   | "notfound";

@@ -12,6 +12,7 @@ type PageKey =
   | "login"
   | "signup"
   | "dashboard"
+  | "privacy"
   | "terms"
   | "license"
   | "notfound";
@@ -55,6 +56,8 @@ async function loadPage(pageKey: PageKey): Promise<ComponentType> {
       return (await import("./pages/AuthPages")).SignupPage;
     case "dashboard":
       return (await import("./pages/DashboardPage")).DashboardPage;
+    case "privacy":
+      return (await import("./pages/LegalPages")).PrivacyPage;
     case "terms":
       return (await import("./pages/LegalPages")).TermsPage;
     case "license":
