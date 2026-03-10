@@ -1,4 +1,4 @@
-import rawCatalog from "../../../blocks.json";
+import rawCatalog from "../../../data/blocks.json";
 
 interface BlockField {
   name?: string;

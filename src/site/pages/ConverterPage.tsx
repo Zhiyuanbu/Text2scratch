@@ -14,6 +14,7 @@ import { loadExternalScript } from "../lib/loadExternalScript";
 
 const JSZIP_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
 const MONACO_LOADER_URL = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js";
+const SCAFFOLDING_SCRIPT_URL = "https://unpkg.com/@turbowarp/scaffolding@0.2.0/dist/scaffolding-min.js";
 
 const workspaceRules = [
   {
@@ -44,7 +45,8 @@ export function ConverterPage() {
       try {
         await Promise.all([
           loadExternalScript(JSZIP_SCRIPT_URL),
-          loadExternalScript(MONACO_LOADER_URL)
+          loadExternalScript(MONACO_LOADER_URL),
+          loadExternalScript(SCAFFOLDING_SCRIPT_URL).catch(() => undefined)
         ]);
 
         if (cancelled) {
@@ -225,6 +227,46 @@ export function ConverterPage() {
 
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
             <div className="grid min-w-0 gap-6">
+              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Preview</p>
+                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Stage</h2>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      id="previewRunBtn"
+                      type="button"
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                    >
+                      Run preview
+                    </button>
+                    <button
+                      id="previewStopBtn"
+                      type="button"
+                      className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
+                    >
+                      Stop
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-5">
+                  <div className="stage-viewport border border-black/10 shadow-[0_18px_40px_rgba(15,23,42,0.16)] dark:border-white/10">
+                    <div id="previewHost" className="stage-host" role="img" aria-label="Scratch stage preview" />
+                    <div id="previewOverlay" className="stage-overlay">
+                      Run preview to render the Scratch stage.
+                    </div>
+                  </div>
+                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                    <span id="previewStatus" className="preview-status status-info">Preview idle</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+                      TurboWarp stage
+                    </span>
+                  </div>
+                </div>
+              </article>
+
               <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
                   <div>

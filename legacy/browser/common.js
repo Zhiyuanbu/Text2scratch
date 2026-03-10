@@ -773,7 +773,7 @@ function initNavigationPrefetch() {
 
 function warmCommonAssets() {
   if (window.fetch && !window.TEXT2SCRATCH_BLOCKS) {
-    fetch("blocks.json", { cache: "force-cache" }).catch(() => {});
+    fetch("../../data/blocks.json", { cache: "force-cache" }).catch(() => {});
   }
 }
 

@@ -1,4 +1,4 @@
-import blockCatalog from "../../../blocks.json";
+import blockCatalog from "../../../data/blocks.json";
 
 type Severity = "error" | "warning";
 

@@ -9,7 +9,7 @@ import {
   isDuplicateError,
   isMissingRowError
 } from "../auth/supabase-client.js";
-import bundledBlockCatalog from "../../../blocks.json";
+import bundledBlockCatalog from "../../../data/blocks.json";
 import { showConfirmDialog } from "../shared/dialog-client.js";
 
 const STAGE_BACKDROP = {
@@ -52,6 +52,10 @@ const CORE_PREFIX_LABELS = {
 
 const INDENT_UNIT = "  ";
 const MONACO_VS_PATH = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs";
+const PREVIEW_STAGE_WIDTH = 480;
+const PREVIEW_STAGE_HEIGHT = 360;
+const PREVIEW_IDLE_MESSAGE = "Preview idle.";
+const PREVIEW_UNAVAILABLE_MESSAGE = "Preview unavailable. TurboWarp player failed to load.";
 const MARKER_OWNER = "text2scratch-diagnostics";
 const DIAGNOSTIC_DEBOUNCE_MS = 220;
 const TOAST_LIFETIME_MS = 3600;
@@ -148,6 +152,11 @@ const ui = {
   sample: document.getElementById("sampleBtn"),
   status: document.getElementById("status"),
   commands: document.getElementById("commandList"),
+  previewHost: document.getElementById("previewHost"),
+  previewOverlay: document.getElementById("previewOverlay"),
+  previewStatus: document.getElementById("previewStatus"),
+  previewRun: document.getElementById("previewRunBtn"),
+  previewStop: document.getElementById("previewStopBtn"),
   authState: document.getElementById("cloudAuthState"),
   signOut: document.getElementById("signOutBtn"),
   saveCloud: document.getElementById("saveCloudBtn"),
@@ -205,11 +214,19 @@ const shareState = {
   ownerName: ""
 };
 
+const previewState = {
+  instance: null,
+  ready: false,
+  loading: false,
+  resizeObserver: null
+};
+
 init();
 
 async function init() {
   ensureToastHost();
   await initEditor();
+  initPreview();
   setProjectName(DEFAULT_PROJECT_NAME);
 
   try {
@@ -245,6 +262,14 @@ async function init() {
     scheduleDiagnosticsUpdate();
   });
 
+  ui.previewRun?.addEventListener("click", () => {
+    void runPreview();
+  });
+
+  ui.previewStop?.addEventListener("click", () => {
+    stopPreview();
+  });
+
   initProfileAuthUi();
   initSupabaseWorkspace().catch((error) => {
     setStatus(`Cloud setup error: ${error.message}`, "warning");
@@ -260,7 +285,7 @@ async function loadBlockCatalog() {
     return bundledBlockCatalog;
   }
 
-  const response = await fetch(new URL("../../../blocks.json", import.meta.url), { cache: "no-store" });
+  const response = await fetch(new URL("../../../data/blocks.json", import.meta.url), { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Could not load blocks.json (${response.status})`);
   }
@@ -2543,7 +2568,7 @@ function toHex(value) {
   return (value >>> 0).toString(16).padStart(8, "0");
 }
 
-async function downloadSb3(project, fileName, assets) {
+async function createSb3Package(project, assets, type = "blob") {
   if (typeof JSZip === "undefined") {
     throw new Error("JSZip is not available.");
   }
@@ -2555,11 +2580,15 @@ async function downloadSb3(project, fileName, assets) {
     zip.file(name, content);
   });
 
-  const blob = await zip.generateAsync({
-    type: "blob",
+  return zip.generateAsync({
+    type,
     compression: "DEFLATE",
     compressionOptions: { level: 6 }
   });
+}
+
+async function downloadSb3(project, fileName, assets) {
+  const blob = await createSb3Package(project, assets, "blob");
 
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -2569,6 +2598,150 @@ async function downloadSb3(project, fileName, assets) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function initPreview() {
+  if (!ui.previewHost || !ui.previewStatus || !ui.previewOverlay) {
+    return;
+  }
+
+  setPreviewOverlayVisible(true);
+  setPreviewStatus(PREVIEW_IDLE_MESSAGE, "info");
+
+  if (!window.Scaffolding?.Scaffolding) {
+    setPreviewStatus(PREVIEW_UNAVAILABLE_MESSAGE, "warning");
+    setPreviewOverlayMessage(PREVIEW_UNAVAILABLE_MESSAGE);
+    setPreviewControlsEnabled(false);
+    return;
+  }
+
+  const scaffolding = new window.Scaffolding.Scaffolding();
+  scaffolding.width = PREVIEW_STAGE_WIDTH;
+  scaffolding.height = PREVIEW_STAGE_HEIGHT;
+  scaffolding.resizeMode = "preserve-ratio";
+  scaffolding.setup();
+  scaffolding.appendTo(ui.previewHost);
+
+  previewState.instance = scaffolding;
+  previewState.ready = true;
+  setPreviewControlsEnabled(true);
+
+  if (typeof ResizeObserver === "function") {
+    previewState.resizeObserver = new ResizeObserver(() => {
+      previewState.instance?.relayout?.();
+    });
+    previewState.resizeObserver.observe(ui.previewHost);
+  }
+
+  window.addEventListener("resize", () => {
+    previewState.instance?.relayout?.();
+  });
+}
+
+function setPreviewStatus(message, severity = "info") {
+  if (!ui.previewStatus) {
+    return;
+  }
+
+  const safeSeverity = ["info", "success", "warning", "error"].includes(severity) ? severity : "info";
+  ui.previewStatus.textContent = message;
+  ui.previewStatus.classList.remove("status-info", "status-success", "status-warning", "status-error");
+  ui.previewStatus.classList.add(`status-${safeSeverity}`);
+  ui.previewStatus.setAttribute("data-severity", safeSeverity);
+}
+
+function setPreviewOverlayVisible(visible) {
+  if (!ui.previewOverlay) {
+    return;
+  }
+
+  ui.previewOverlay.hidden = !visible;
+}
+
+function setPreviewOverlayMessage(message) {
+  if (!ui.previewOverlay) {
+    return;
+  }
+
+  ui.previewOverlay.textContent = message;
+}
+
+function setPreviewControlsEnabled(enabled) {
+  if (ui.previewRun) {
+    ui.previewRun.disabled = !enabled || previewState.loading;
+  }
+  if (ui.previewStop) {
+    ui.previewStop.disabled = !enabled;
+  }
+}
+
+function setPreviewLoading(loading) {
+  previewState.loading = loading;
+  setPreviewControlsEnabled(previewState.ready);
+}
+
+async function runPreview() {
+  if (!previewState.instance || !previewState.ready) {
+    setPreviewStatus(PREVIEW_UNAVAILABLE_MESSAGE, "warning");
+    setPreviewOverlayMessage(PREVIEW_UNAVAILABLE_MESSAGE);
+    setPreviewOverlayVisible(true);
+    return;
+  }
+
+  if (!blockCatalog) {
+    setPreviewStatus("Block catalog is not loaded.", "warning");
+    return;
+  }
+
+  if (previewState.loading) {
+    return;
+  }
+
+  const blocking = getBlockingDiagnostics();
+  if (blocking.length > 0) {
+    const first = blocking[0];
+    const lineInfo = Number.isFinite(first?.startLineNumber) ? `Line ${first.startLineNumber}: ` : "";
+    setPreviewStatus(`Preview blocked. ${lineInfo}${first.message}`, "error");
+    setPreviewOverlayMessage("Fix syntax errors before previewing.");
+    setPreviewOverlayVisible(true);
+    return;
+  }
+
+  setPreviewLoading(true);
+  setPreviewStatus("Building preview...", "info");
+
+  try {
+    const parsed = parseScript(getEditorValue(), blockCatalog);
+    const build = await buildProject(parsed);
+    const payload = await createSb3Package(build.project, build.assets, "uint8array");
+
+    previewState.instance.stopAll?.();
+    await previewState.instance.loadProject(payload);
+    previewState.instance.greenFlag?.();
+
+    const warningCount = build.assetWarnings?.length || 0;
+    const message = warningCount > 0
+      ? `Preview running with ${warningCount} asset warning${warningCount === 1 ? "" : "s"}.`
+      : "Preview running.";
+
+    setPreviewStatus(message, warningCount > 0 ? "warning" : "success");
+    setPreviewOverlayVisible(false);
+  } catch (error) {
+    setPreviewStatus(`Preview failed: ${error.message}`, "error");
+    setPreviewOverlayMessage("Preview failed. Fix errors and try again.");
+    setPreviewOverlayVisible(true);
+  } finally {
+    setPreviewLoading(false);
+  }
+}
+
+function stopPreview() {
+  if (!previewState.instance || !previewState.ready) {
+    return;
+  }
+
+  previewState.instance.stopAll?.();
+  setPreviewStatus("Preview stopped.", "info");
 }
 
 function renderCommandList(catalog) {

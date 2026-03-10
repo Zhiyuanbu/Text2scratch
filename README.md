@@ -21,11 +21,19 @@ apps/
   next-site/        Next.js static-export starter
 config/
   site-entries.ts   Shared HTML entry manifest for Vite
+data/
+  blocks.json       Command catalog and shared syntax metadata
+legacy/
+  browser/          Archived browser scripts kept out of the root
+scripts/
+  test.js           Local ad hoc script entry
 src/
   legacy/           Browser runtime preserved for the converter and old helpers
   site/             React UI surface (pages, components, providers, assets, lib)
   api.ts            Static JSON validator entry
   confirm.ts        Confirm/reset flow entry
+styles/
+  legacy/           Archived global CSS files
 public/             Static assets copied directly into the build
 ```
 
