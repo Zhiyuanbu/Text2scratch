@@ -1,4 +1,4 @@
-import { VALIDATOR_SAMPLE, validateText2Scratch } from "./lib/validator";
+import { VALIDATOR_SAMPLE, validateText2Scratch } from "./site/lib/validator";
 
 type InputSource = "input" | "input64" | "sample";
 

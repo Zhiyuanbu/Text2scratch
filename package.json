@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "next:dev": "npm --prefix apps/next-site run dev",
+    "next:build": "npm --prefix apps/next-site run build"
   },
   "repository": {
     "type": "git",

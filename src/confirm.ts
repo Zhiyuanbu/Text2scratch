@@ -2,7 +2,7 @@ import {
   createSupabaseClient,
   formatSupabaseError,
   getLoginPageUrl
-} from "../supabase-client.js";
+} from "./legacy/auth/supabase-client.js";
 
 type Severity = "info" | "success" | "warning" | "error";
 

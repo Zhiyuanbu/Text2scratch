@@ -10,8 +10,24 @@ text.
 - Vite for local development and production builds
 - React + TypeScript for the marketing, auth, docs, reference, and dashboard UI
 - Tailwind CSS for the new website surface
+- Next.js App Router starter in `apps/next-site` with static export enabled
 - Supabase browser auth for login, signup, password recovery, and profile data
 - GitHub Actions workflow for GitHub Pages deployment
+
+## Project structure
+
+```text
+apps/
+  next-site/        Next.js static-export starter
+config/
+  site-entries.ts   Shared HTML entry manifest for Vite
+src/
+  legacy/           Browser runtime preserved for the converter and old helpers
+  site/             React UI surface (pages, components, providers, assets, lib)
+  api.ts            Static JSON validator entry
+  confirm.ts        Confirm/reset flow entry
+public/             Static assets copied directly into the build
+```
 
 ## Main routes
 
@@ -51,6 +67,8 @@ Useful commands:
 npm run typecheck
 npm run build
 npm run preview
+npm run next:dev
+npm run next:build
 ```
 
 ## GitHub Pages deployment
@@ -85,8 +103,8 @@ The frontend expects a Supabase project with:
 
 Current frontend configuration lives in:
 
-- `src/lib/supabase.ts` for the React/TypeScript app
-- `supabase-client.js` for the legacy workspace and remaining static pages
+- `src/site/lib/supabase.ts` for the React/TypeScript app
+- `src/legacy/auth/supabase-client.js` for the legacy workspace and remaining static pages
 
 If your Supabase project values change, update the relevant client file or set:
 

@@ -26,6 +26,8 @@ build/
 coverage/
 .tmp/
 temp/
+.next/
+out/
 
 # Python cache (common when using python -m http.server tooling)
 __pycache__/
