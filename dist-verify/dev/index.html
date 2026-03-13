@@ -1,264 +1,408 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>text2scratch /dev reference</title>
-  <meta name="description" content="Plain technical reference for text2scratch syntax, project structure, command inventory, and implementation notes.">
-  <meta name="robots" content="noindex,nofollow">
-  <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32-BXWyXFhI.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16-DpioKN-E.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon-BVV4M34c.png">
-  <link rel="manifest" href="../site.webmanifest">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text2Scratch - Convert Text into Scratch Projects</title>
+  <meta name="description" content="Text2Scratch converts natural language prompts into Scratch-style project logic, helping you create Scratch projects faster and more easily.">
+  <meta name="robots" content="index, follow">
+  <meta name="theme-color" content="#ff9800">
+
+  <link rel="canonical" href="https://zhiyuanbu.github.io/Text2scratch/">
+
+  <link rel="icon" href="https://zhiyuanbu.github.io/Text2scratch/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="https://zhiyuanbu.github.io/Text2scratch/apple-touch-icon.png">
+  <link rel="manifest" href="https://zhiyuanbu.github.io/Text2scratch/site.webmanifest">
+
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://zhiyuanbu.github.io/Text2scratch/">
+  <meta property="og:title" content="Text2Scratch">
+  <meta property="og:description" content="Convert text prompts into Scratch-style project logic.">
+  <meta property="og:image" content="https://zhiyuanbu.github.io/Text2scratch/og-image.png">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Text2Scratch">
+  <meta name="twitter:description" content="Convert text prompts into Scratch-style project logic.">
+  <meta name="twitter:image" content="https://zhiyuanbu.github.io/Text2scratch/og-image.png">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Text2Scratch",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Web",
+    "url": "https://zhiyuanbu.github.io/Text2scratch/",
+    "image": "https://zhiyuanbu.github.io/Text2scratch/logo.png",
+    "description": "A web app that converts text prompts into Scratch-style project logic.",
+    "publisher": {
+      "@type": "Person",
+      "name": "Zhiyuan Bu"
+    }
+  }
+  </script>
+
   <style>
     :root {
-      color-scheme: light;
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #f4f4f4;
+      --muted: #b8bec9;
+      --accent: #ff9800;
+      --accent-dark: #d97d00;
+      --line: #2b3140;
     }
 
-    html {
-      font-size: 16px;
+    * {
+      box-sizing: border-box;
     }
 
-    body {
+    html, body {
       margin: 0;
-      padding: 2rem 1rem 4rem;
-      max-width: 1120px;
-      color: #111827;
-      background: #ffffff;
-      font: 400 16px/1.6 "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
-    }
-
-    main {
-      display: block;
-    }
-
-    h1,
-    h2,
-    h3 {
-      margin: 2rem 0 0.75rem;
-      font-size: 1rem;
-      font-weight: 700;
-    }
-
-    p,
-    li {
-      margin: 0 0 0.75rem;
-    }
-
-    nav,
-    section,
-    pre {
-      margin-bottom: 1.5rem;
+      padding: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
     }
 
     a {
-      color: #0b57d0;
+      color: inherit;
+      text-decoration: none;
     }
 
-    code,
-    pre {
-      font: inherit;
-      background: #f7f7f8;
-      border: 1px solid #d4d4d8;
-      border-radius: 8px;
+    .wrap {
+      width: min(1100px, 92%);
+      margin: 0 auto;
     }
 
-    code {
-      padding: 0.05rem 0.3rem;
+    header {
+      border-bottom: 1px solid var(--line);
+      background: rgba(15, 17, 21, 0.96);
+      position: sticky;
+      top: 0;
+      z-index: 10;
     }
 
-    pre {
-      overflow-x: auto;
-      padding: 1rem;
-      white-space: pre-wrap;
+    .nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 16px 0;
     }
 
-    .plain-list {
-      padding-left: 1.25rem;
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
     }
 
-    .status {
-      color: #4b5563;
+    .brand img {
+      width: 44px;
+      height: 44px;
+      object-fit: contain;
+      border-radius: 10px;
+      background: #fff;
+      flex-shrink: 0;
+    }
+
+    .brand-text {
+      min-width: 0;
+    }
+
+    .brand-text strong {
+      display: block;
+      font-size: 1.1rem;
+      line-height: 1.2;
+    }
+
+    .brand-text span {
+      display: block;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 18px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .nav-links a:hover {
+      color: #fff;
+    }
+
+    .hero {
+      padding: 56px 0 28px;
+    }
+
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 28px;
+      align-items: center;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 152, 0, 0.35);
+      background: rgba(255, 152, 0, 0.12);
+      color: #ffd08a;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 4vw, 3.4rem);
+      line-height: 1.08;
+      margin: 0 0 16px;
+    }
+
+    .lead {
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.7;
+      margin: 0 0 24px;
+      max-width: 700px;
+    }
+
+    .actions {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 22px;
+    }
+
+    .btn {
+      padding: 13px 18px;
+      border-radius: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #111;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dark);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: #fff;
+      border-color: var(--line);
+    }
+
+    .btn-secondary:hover {
+      border-color: #4d566b;
+    }
+
+    .hero-card {
+      background: linear-gradient(180deg, #1a1f28, #12161d);
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      padding: 22px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.28);
+    }
+
+    .hero-card img {
+      width: 100%;
+      max-width: 320px;
+      display: block;
+      margin: 0 auto 16px;
+      border-radius: 18px;
+      background: #fff;
+    }
+
+    .hero-card h2 {
+      margin: 8px 0 10px;
+      font-size: 1.25rem;
+      text-align: center;
+    }
+
+    .hero-card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+      text-align: center;
+    }
+
+    section {
+      padding: 24px 0 42px;
+    }
+
+    .section-title {
+      font-size: 1.7rem;
+      margin: 0 0 16px;
+    }
+
+    .section-text {
+      color: var(--muted);
+      line-height: 1.7;
+      margin: 0 0 22px;
+      max-width: 780px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 20px;
+    }
+
+    .card h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 1.1rem;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 26px 0 40px;
+      color: var(--muted);
+    }
+
+    .footer-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      flex-wrap: wrap;
+    }
+
+    @media (max-width: 900px) {
+      .hero-grid,
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .nav {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
-  <script type="module" crossorigin src="/assets/dev-DcQUiME4.js"></script>
-  <link rel="modulepreload" crossorigin href="/assets/modulepreload-polyfill-B5Qt9EMX.js">
 </head>
 <body>
+  <header>
+    <div class="wrap nav">
+      <a class="brand" href="https://zhiyuanbu.github.io/Text2scratch/">
+        <img src="https://zhiyuanbu.github.io/Text2scratch/logo.png" alt="Text2Scratch logo">
+        <div class="brand-text">
+          <strong>Text2Scratch</strong>
+          <span>Convert text into Scratch-style project logic</span>
+        </div>
+      </a>
+
+      <nav class="nav-links" aria-label="Main navigation">
+        <a href="#about">About</a>
+        <a href="#features">Features</a>
+        <a href="https://github.com/zhiyuanbu/Text2scratch" rel="noopener noreferrer">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
   <main>
-    <p style="display:flex;align-items:center;gap:0.8rem;margin:0 0 1rem;">
-      <img src="/assets/logo-B5sKEj8D.png" alt="text2scratch logo" style="width:44px;height:44px;border-radius:12px;display:block;">
-      <strong>text2scratch</strong>
-    </p>
-    <h1>text2scratch /dev reference</h1>
-    <p>This page is intentionally plain. It is the machine-readable technical reference for text2scratch syntax and command generation.</p>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div>
+          <div class="badge">Web app for Scratch-style project generation</div>
+          <h1>Text2Scratch</h1>
+          <p class="lead">
+            Text2Scratch helps you transform natural language ideas into Scratch-style project logic.
+            Describe your game, animation, or interaction in plain text, then use the generated structure
+            to speed up project creation and experimentation.
+          </p>
 
-    <nav>
-      <a href="../index.html">Home</a>
-      |
-      <a href="../converter.html">Converter</a>
-      |
-      <a href="../docs.html">Docs</a>
-      |
-      <a href="../reference.html">Reference</a>
-      |
-      <a href="../blocks.json">blocks.json</a>
-    </nav>
+          <div class="actions">
+            <a class="btn btn-primary" href="https://zhiyuanbu.github.io/Text2scratch/">Open Text2Scratch</a>
+            <a class="btn btn-secondary" href="https://github.com/zhiyuanbu/Text2scratch" rel="noopener noreferrer">View GitHub Repo</a>
+          </div>
 
-    <section>
-      <h2>1. System overview</h2>
-      <pre>text2scratch converts plain-text commands into Scratch 3 project data.
+          <p class="section-text">
+            This page is built to be easy for users and search engines to understand: clear branding,
+            stable asset links, plain HTML content, and structured metadata.
+          </p>
+        </div>
 
-Primary outputs:
-- .sb3: a standard Scratch project archive
-- .t2sh: a text2scratch session archive for fast restore
-
-Primary workflow:
-1. Write setup commands, stage code, and sprite code in text form.
-2. Validate structure and command compatibility.
-3. Export to .sb3 or .t2sh.
-4. Optionally save or share through the cloud workspace.
-
-Source of truth for commands:
-- ../blocks.json
-
-Use this page when you need:
-- exact syntax rules
-- project structure requirements
-- target compatibility rules
-- command metadata in deterministic form
-- implementation notes for automation workflows</pre>
+        <aside class="hero-card" aria-label="App branding preview">
+          <img src="https://zhiyuanbu.github.io/Text2scratch/logo.png" alt="Text2Scratch app logo">
+          <h2>Text2Scratch</h2>
+          <p>
+            A browser-based tool focused on turning text prompts into Scratch-oriented project ideas
+            and logic representations.
+          </p>
+        </aside>
+      </div>
     </section>
 
-    <section>
-      <h2>2. Exact syntax rules</h2>
-      <pre>- Use one command per line.
-- Nested control blocks must end with a matching line containing only: end
-- else may only appear inside an if or if_else block and before the matching end.
-- Strings with spaces should use double quotes.
-- Expressions start with @ and are used inside other commands, not as standalone lines.
-- Reporter and boolean commands usually use function-style syntax such as:
-  @var(score)
-  @gt(@var(score), 5)
-  @join("Level ", @var(level))
-- Stage logic belongs under: stage_code =
-- Sprite logic belongs under:
-  sprite = "Name"
-  name_code =
-- Setup commands such as make_var, make_list, and make_broadcast should appear before scripts when possible.
-- Shared projects opened from a share link are read-only until forked into a personal editable copy.</pre>
+    <section id="about">
+      <div class="wrap">
+        <h2 class="section-title">About Text2Scratch</h2>
+        <p class="section-text">
+          Text2Scratch is designed for students, educators, makers, and developers who want a faster
+          workflow for planning Scratch projects. Instead of starting from a blank canvas, you can begin
+          with a written concept and convert it into a more structured project idea.
+        </p>
+      </div>
     </section>
 
-    <section>
-      <h2>3. Required project structure</h2>
-      <pre>Recommended file layout:
+    <section id="features">
+      <div class="wrap">
+        <h2 class="section-title">Features</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Natural Language Input</h3>
+            <p>Describe a game, animation, or interactive idea in plain text and use it as the basis for a Scratch-style project.</p>
+          </article>
 
-make_var score 0
-make_broadcast round_start
+          <article class="card">
+            <h3>Scratch-Oriented Output</h3>
+            <p>Generate structure and logic aligned with the way Scratch projects are commonly planned and built.</p>
+          </article>
 
-stage_code =
-  when_flag_clicked
-  broadcast round_start
-end
-
-sprite = "Cat"
-cat_code =
-  when_broadcast_received round_start
-  move 10
-end
-
-Notes:
-- stage_code = starts stage scripts.
-- sprite = "Name" declares a sprite section.
-- the matching script section is lower-case sprite name + _code =
-- multiple sprite sections are allowed.
-- additional sprite metadata such as svg = "..." may appear after sprite declaration.
-- missing end lines will block export.</pre>
-    </section>
-
-    <section>
-      <h2>4. Correct vs incorrect patterns</h2>
-      <pre>CORRECT
-set_var score @add(@var(score), 1)
-if @gt(@var(score), 3)
-  say "Ready"
-end
-
-INCORRECT
-@add(1, 2)
-@var(score)
-
-CORRECT
-stage_code =
-  when_flag_clicked
-  switch_backdrop_to backdrop1
-end
-
-INCORRECT
-stage_code =
-  when_flag_clicked
-  move 10
-end
-
-CORRECT
-sprite = "Ball"
-ball_code =
-  forever
-    move 5
-  end
-end
-
-INCORRECT
-sprite = "Ball"
-forever
-  move 5
-end</pre>
-    </section>
-
-    <section>
-      <h2>5. Common mistakes and edge cases</h2>
-      <pre>- Missing end after repeat, forever, if, if_else, or repeat_until.
-- Using reporter or boolean expressions as their own lines.
-- Using sprite-only commands in stage_code.
-- Forgetting to declare a sprite before its sprite_code section.
-- Guessing menu values instead of using allowed dropdown values from blocks.json.
-- Mixing up .sb3 and .t2sh: .sb3 is for Scratch, .t2sh is for text2scratch restore.
-- Opening a shared project and expecting direct editing: shared loads are read-only until forked.
-- Assuming aliases exist for every command. Only aliases listed in blocks.json are guaranteed.
-- Using unsupported or misspelled command names instead of the exact syntax form.</pre>
-    </section>
-
-    <section>
-      <h2>6. Implementation notes</h2>
-      <pre>- The browser app uses the generated command catalog bundle first and falls back to ../blocks.json when needed.
-- The converter UI lives on ../converter.html and is powered by ../app.js.
-- The search reference UI lives on ../reference.html and is powered by ../docs.js.
-- Auth and cloud save are optional and use Supabase from the browser.
-- Shared project URLs should resolve to the converter workspace with a share query parameter.
-- The safest command-generation strategy is:
-  1. choose exact syntax from blocks.json
-  2. keep one command per line
-  3. place expressions only inside inputs
-  4. close every open control block with end
-  5. respect stage vs sprite compatibility</pre>
-    </section>
-
-    <section>
-      <h2>7. Alias map</h2>
-      <pre id="aliasOutput" class="status">Loading aliases...</pre>
-    </section>
-
-    <section>
-      <h2>8. Command inventory summary</h2>
-      <pre id="catalogSummary" class="status">Loading command summary...</pre>
-    </section>
-
-    <section>
-      <h2>9. Full command inventory</h2>
-      <p>This inventory is generated directly from <a href="../blocks.json">blocks.json</a>.</p>
-      <pre id="catalogOutput" class="status">Loading command inventory...</pre>
+          <article class="card">
+            <h3>Web-Based Access</h3>
+            <p>Use Text2Scratch directly in the browser without requiring a complex local installation workflow.</p>
+          </article>
+        </div>
+      </div>
     </section>
   </main>
 
+  <footer>
+    <div class="wrap footer-row">
+      <div>© 2026 Text2Scratch</div>
+      <div>
+        <a href="https://zhiyuanbu.github.io/Text2scratch/">Website</a> ·
+        <a href="https://github.com/zhiyuanbu/Text2scratch" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
 </body>
 </html>
