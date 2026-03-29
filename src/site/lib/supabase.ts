@@ -146,3 +146,7 @@ export function buildShareUrl(slug: string) {
 export function getTurnstileSiteKey() {
   return TURNSTILE_SITE_KEY.trim();
 }
+
+export function getHcaptchaSiteKey() {
+  return "a52804d0-570c-4f04-83d0-65b60e3a93c2";
+}

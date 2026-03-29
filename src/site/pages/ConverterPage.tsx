@@ -133,11 +133,11 @@ export function ConverterPage() {
         <div className="flex flex-1 overflow-hidden p-0.5 gap-0.5">
           
           {/* Column 1: Categories Bar (Extreme Slim) */}
-          <div className="flex w-14 flex-col items-center gap-2 border-r border-black/5 bg-white py-3 dark:border-slate-800 dark:bg-[#161b22]">
+          <div className="flex w-16 flex-col items-center gap-3 border-r border-black/5 bg-white py-4 dark:border-slate-800 dark:bg-[#161b22]">
             {categories.map(cat => (
-              <button key={cat.id} className="flex flex-col items-center gap-1 group">
-                <div className={`h-6 w-6 rounded-full ${cat.color} group-hover:scale-110 transition-transform shadow-sm`}></div>
-                <span className="text-[0.55rem] font-black uppercase tracking-tighter text-slate-400 group-hover:text-slate-600 dark:group-hover:text-slate-200">{cat.label}</span>
+              <button key={cat.id} className="flex flex-col items-center gap-1 group transition-all hover:translate-x-0.5">
+                <div className={`h-8 w-8 rounded-full ${cat.color} shadow-sm group-hover:shadow-md group-hover:scale-110 transition-all border-2 border-white dark:border-slate-700`}></div>
+                <span className="text-[0.5rem] font-black uppercase tracking-tight text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">{cat.label}</span>
               </button>
             ))}
           </div>

@@ -1,4 +1,4 @@
-import { RefreshCw, Search, Share2, Sparkles, Users, Globe, Trash2, ShieldAlert } from "lucide-react";
+import { RefreshCw, Search, Share2, Sparkles, Users, Globe, Trash2, ShieldAlert, UserRound } from "lucide-react";
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { AppShell } from "../components/AppShell";
 import { CLOUD_TABLE, buildShareUrl, formatDateTime, formatSupabaseError, supabaseClient } from "../lib/supabase";
@@ -157,32 +157,46 @@ export function CommunityPage() {
 
 function ProjectCard({ project, isAdmin, onPurge }: { project: CommunityProject, isAdmin: boolean, onPurge: () => void }) {
   const shareUrl = buildShareUrl(project.share_slug || "");
+  // Generate a consistent but "random" color based on project ID
+  const colors = ["bg-blue-500", "bg-purple-500", "bg-orange-500", "bg-green-500", "bg-pink-500"];
+  const colorIndex = project.id.charCodeAt(0) % colors.length;
+  const bgColor = colors[colorIndex];
+
   return (
-    <article className="group flex flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-400 transition-all dark:border-slate-800 dark:bg-[#161b22]">
-      <div className="mb-4">
-        <h3 className="text-sm font-black tracking-tight mb-1 truncate" title={project.title || ""}>{project.title || "Untitled_Node"}</h3>
-        <div className="flex items-center gap-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-tighter">
-          <UserRound size={10} />
-          <span>{project.owner_username || "anonymous"}</span>
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm hover:border-blue-400 hover:shadow-md transition-all dark:border-slate-800 dark:bg-[#161b22]">
+      <div className={`h-24 w-full ${bgColor} relative overflow-hidden flex items-center justify-center`}>
+        <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
+        <Globe size={40} className="text-white/40" />
+        <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded bg-black/20 px-1.5 py-0.5 text-[0.55rem] font-black text-white backdrop-blur-md">
+          <RefreshCw size={8} /> {formatDateTime(project.updated_at || "").split(",")[0]}
         </div>
       </div>
-
-      <div className="mt-auto space-y-3">
-        <div className="flex items-center justify-between text-[0.6rem] font-bold text-slate-400">
-          <span className="flex items-center gap-1"><RefreshCw size={8} /> {formatDateTime(project.updated_at || "")}</span>
-          {isAdmin && (
-            <button onClick={onPurge} className="text-rose-600 hover:text-rose-700 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/20">
-              <Trash2 size={12} />
-            </button>
-          )}
+      
+      <div className="flex flex-1 flex-col p-4">
+        <div className="mb-4">
+          <h3 className="text-sm font-black tracking-tight mb-1 truncate" title={project.title || ""}>{project.title || "Untitled_Node"}</h3>
+          <div className="flex items-center gap-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-tighter">
+            <UserRound size={10} className="text-blue-500" />
+            <span>{project.owner_username || "anonymous"}</span>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <a href={shareUrl} className="flex-1 flex items-center justify-center gap-2 rounded-md border border-slate-200 bg-slate-50 py-1.5 text-xs font-bold hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 transition-colors">
-            <Share2 size={12} /> Open
-          </a>
-          <a href={shareUrl} className="flex-1 flex items-center justify-center gap-2 rounded-md bg-blue-600 text-white py-1.5 text-xs font-bold hover:bg-blue-700 shadow-sm transition-colors">
-            Workspace
-          </a>
+
+        <div className="mt-auto space-y-2">
+          {isAdmin && (
+            <div className="flex justify-end">
+              <button onClick={onPurge} className="text-rose-600 hover:text-rose-700 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                <Trash2 size={12} />
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2">
+            <a href={shareUrl} className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-[0.65rem] font-black uppercase hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 transition-colors">
+              <Share2 size={12} /> Open
+            </a>
+            <a href={shareUrl} className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#4d97ff] text-white py-2 text-[0.65rem] font-black uppercase hover:bg-blue-500 shadow-sm transition-colors">
+              Workspace
+            </a>
+          </div>
         </div>
       </div>
     </article>

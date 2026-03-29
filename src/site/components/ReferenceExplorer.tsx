@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { ReactNode, useDeferredValue, useState } from "react";
 import { Copy, Search, Sparkles, Terminal, Filter, Code2, Tag } from "lucide-react";
 import { getReferenceCategories, getReferenceEntries, type ReferenceEntry } from "../lib/blocks";
 import { useToast } from "../providers/AppProviders";

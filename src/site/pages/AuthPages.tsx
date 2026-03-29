@@ -21,14 +21,14 @@ import { useAuth, useToast } from "../providers/AppProviders";
 type AuthStep = "age" | "form" | "recovery";
 
 export function LoginPage() {
-  return <AuthContainer mode="signin" />;
+  return <AuthContainer mode="login" />;
 }
 
 export function SignupPage() {
   return <AuthContainer mode="signup" />;
 }
 
-function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
+function AuthContainer({ mode }: { mode: "login" | "signup" }) {
   const { user, signIn, signInWithGoogle, signUp, signOut, sendPasswordReset, updatePassword } = useAuth();
   const { pushToast } = useToast();
   const turnstileRef = useRef<TurnstileController | null>(null);
@@ -71,7 +71,7 @@ function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
         return;
       }
       const captchaToken = turnstileRef.current?.getToken();
-      if (mode === "signin") {
+      if (mode === "login") {
         if (!isReset) {
           await signIn(identifier, password, captchaToken);
           window.location.assign("dashboard.html");
@@ -100,18 +100,27 @@ function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
 
   return (
     <AppShell page={mode}>
-      <div className="flex h-full items-center justify-center bg-[#f6f8fa] p-4 dark:bg-[#0d1117]">
-        <div className="w-full max-w-[340px] animate-in fade-in slide-in-from-bottom-4 duration-500">
-          <div className="mb-6 text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#4d97ff] text-white shadow-sm">
-              <Shield size={24} />
+      <div className="relative flex min-h-[calc(100vh-2.5rem)] items-center justify-center bg-[#f6f8fa] p-4 dark:bg-[#0d1117] overflow-hidden">
+        {/* Decorative Scratch Blocks in background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-[0.03] dark:opacity-[0.05]">
+          <div className="absolute top-10 left-10 w-48 h-12 bg-[#4d97ff] rounded-r-full rotate-12"></div>
+          <div className="absolute top-40 right-20 w-32 h-10 bg-[#ffab19] rounded-full -rotate-12"></div>
+          <div className="absolute bottom-20 left-1/4 w-40 h-10 bg-[#9966ff] rounded-l-full rotate-45"></div>
+          <div className="absolute top-1/2 right-10 w-24 h-8 bg-[#40bf4a] rounded-full rotate-90"></div>
+        </div>
+
+        <div className="relative z-10 w-full max-w-[360px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="mb-8 text-center">
+            <div className="mx-auto mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#4d97ff] text-white shadow-lg shadow-blue-500/20 ring-4 ring-white dark:ring-slate-800 transition-transform hover:scale-110 duration-300">
+              <Shield size={28} />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">
-              {mode === "signin" ? "Sign in to text2scratch" : "Join the community"}
+            <h1 className="text-2xl font-black tracking-tighter">
+              {mode === "login" ? "Sign in to text2scratch" : "Join the community"}
             </h1>
+            <p className="mt-2 text-xs font-bold uppercase tracking-widest text-slate-400">Secure Protocol Access</p>
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-800 dark:bg-[#161b22]">
             {step === "age" && (
               <div className="space-y-4">
                 <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Select Age Group</p>
@@ -147,7 +156,7 @@ function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
                   <div className="flex-grow border-t border-slate-100 dark:border-slate-800"></div>
                 </div>
 
-                {mode === "signin" ? (
+                {mode === "login" ? (
                   <AuthInput label="Username or email" value={identifier} onChange={setIdentifier} />
                 ) : (
                   <>
@@ -169,10 +178,10 @@ function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
                   disabled={isPending}
                   className="w-full rounded-md bg-[#2da44e] py-2 text-sm font-bold text-white hover:bg-[#2c974b] disabled:opacity-50 transition-colors"
                 >
-                  {isPending ? "Connecting..." : (mode === "signin" ? (isReset ? "Send reset link" : "Sign in") : "Create account")}
+                  {isPending ? "Connecting..." : (mode === "login" ? (isReset ? "Send reset link" : "Sign in") : "Create account")}
                 </button>
 
-                {mode === "signin" && (
+                {mode === "login" && (
                   <button type="button" onClick={() => setIsReset(!isReset)} className="w-full text-center text-xs font-medium text-blue-600 hover:underline">
                     {isReset ? "Return to sign in" : "Forgot password?"}
                   </button>
@@ -191,9 +200,9 @@ function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
 
           <div className="mt-4 rounded-md border border-slate-200 bg-[#f6f8fa]/50 p-4 text-center dark:border-slate-800 dark:bg-transparent">
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              {mode === "signin" ? "New to text2scratch?" : "Already have an account?"}{" "}
-              <a href={mode === "signin" ? "signup.html" : "login.html"} className="font-bold text-blue-600 hover:underline">
-                {mode === "signin" ? "Create an account" : "Sign in"}
+              {mode === "login" ? "New to text2scratch?" : "Already have an account?"}{" "}
+              <a href={mode === "login" ? "signup.html" : "login.html"} className="font-bold text-blue-600 hover:underline">
+                {mode === "login" ? "Create an account" : "Sign in"}
               </a>
             </p>
           </div>

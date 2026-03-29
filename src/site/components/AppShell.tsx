@@ -22,17 +22,24 @@ export function AppShell({ page, children }: AppShellProps) {
   const fullBrandName = "text2scratch";
 
   useEffect(() => {
+    if (sessionStorage.getItem("text2scratch.intro_played")) {
+      setTypewriterText(fullBrandName);
+      return;
+    }
     let i = 0;
     const interval = setInterval(() => {
       setTypewriterText(fullBrandName.slice(0, i));
       i++;
-      if (i > fullBrandName.length) clearInterval(interval);
-    }, 80);
+      if (i > fullBrandName.length) {
+        clearInterval(interval);
+        sessionStorage.setItem("text2scratch.intro_played", "true");
+      }
+    }, 60);
     return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsPageLoading(false), 600);
+    const timer = setTimeout(() => setIsPageLoading(false), 200);
     return () => clearTimeout(timer);
   }, [page]);
 
