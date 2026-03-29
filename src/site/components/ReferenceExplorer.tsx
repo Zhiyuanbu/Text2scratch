@@ -1,5 +1,5 @@
 import { useDeferredValue, useState } from "react";
-import { Copy, Search, Sparkles } from "lucide-react";
+import { Copy, Search, Sparkles, Terminal, Filter, Code2, Tag } from "lucide-react";
 import { getReferenceCategories, getReferenceEntries, type ReferenceEntry } from "../lib/blocks";
 import { useToast } from "../providers/AppProviders";
 
@@ -15,56 +15,32 @@ export function ReferenceExplorer() {
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
 
   const filtered = entries.filter((entry) => {
-    if (kind !== "all" && entry.kind !== kind) {
-      return false;
-    }
-    if (category !== "all" && entry.extension !== category) {
-      return false;
-    }
-    if (target !== "all" && entry.target !== target) {
-      return false;
-    }
-    if (deferredQuery && !entry.searchText.includes(deferredQuery)) {
-      return false;
-    }
+    if (kind !== "all" && entry.kind !== kind) return false;
+    if (category !== "all" && entry.extension !== category) return false;
+    if (target !== "all" && entry.target !== target) return false;
+    if (deferredQuery && !entry.searchText.includes(deferredQuery)) return false;
     return true;
   });
 
   const sections = groupBySection(filtered);
 
   return (
-    <div className="grid gap-8">
-      <section className="grid gap-4 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_28px_80px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
-        <div className="grid gap-2 md:grid-cols-[minmax(0,1.4fr)_minmax(0,0.6fr)] md:items-end">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Searchable syntax catalog</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Exact commands, minimal friction.</h2>
-            <p className="mt-3 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
-              Search by command name, opcode, or concept. Filter by kind, extension, and target compatibility, then copy a working example directly into the workspace.
-            </p>
+    <div className="space-y-6 animate-in fade-in duration-500">
+      {/* Search Header */}
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
+        <div className="grid gap-4 md:grid-cols-[1fr_repeat(3,160px)]">
+          <div className="relative group">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search protocol commands..."
+              className="w-full rounded-md border border-slate-200 bg-slate-50 py-2 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900 transition-all"
+            />
           </div>
-          <div className="rounded-2xl border border-black/10 bg-slate-950 p-4 text-sm text-white dark:border-white/10 dark:bg-white dark:text-slate-950">
-            <p className="font-medium">{filtered.length} commands visible</p>
-            <p className="mt-2 text-white/70 dark:text-slate-600">Powered directly by the current command catalog instead of a separate hand-maintained page.</p>
-          </div>
-        </div>
 
-        <div className="grid gap-4 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(0,0.6fr))]">
-          <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-            Search
-            <span className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                placeholder="broadcast, variables, looks, clone, reporter"
-                className="w-full rounded-2xl border border-black/10 bg-slate-50 px-12 py-3 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
-              />
-            </span>
-          </label>
-
-          <SelectField label="Kind" value={kind} onChange={setKind} options={[
-            ["all", "All kinds"],
+          <SelectField icon={<Tag size={12} />} value={kind} onChange={setKind} options={[
+            ["all", "All Kinds"],
             ["stack", "Stack"],
             ["hat", "Hat"],
             ["reporter", "Reporter"],
@@ -73,81 +49,68 @@ export function ReferenceExplorer() {
             ["define", "Define"]
           ]} />
 
-          <SelectField label="Category" value={category} onChange={setCategory} options={[
-            ["all", "All categories"],
-            ...categories.map((item) => [item, item === "core" ? "Core" : item])
+          <SelectField icon={<Filter size={12} />} value={category} onChange={setCategory} options={[
+            ["all", "All Categories"],
+            ...categories.map((item) => [item, item.charAt(0).toUpperCase() + item.slice(1)])
           ]} />
 
-          <SelectField label="Target" value={target} onChange={setTarget} options={[
-            ["all", "All targets"],
+          <SelectField icon={<Terminal size={12} />} value={target} onChange={setTarget} options={[
+            ["all", "All Targets"],
             ["both", "Stage + Sprite"],
-            ["sprite", "Sprite only"]
+            ["sprite", "Sprite Only"]
           ]} />
+        </div>
+        <div className="mt-3 flex items-center justify-between text-[0.65rem] font-bold uppercase tracking-widest text-slate-400">
+          <span>Catalog Index</span>
+          <span className="text-blue-600">{filtered.length} nodes matched</span>
         </div>
       </section>
 
-      <section className="grid gap-6">
+      {/* Results */}
+      <section className="space-y-8">
         {sections.length === 0 ? (
-          <div className="rounded-[2rem] border border-dashed border-black/15 bg-white/80 p-8 text-sm text-slate-600 dark:border-white/15 dark:bg-white/5 dark:text-slate-300">
-            No commands match your current filters.
+          <div className="rounded-lg border border-dashed border-slate-200 bg-white py-12 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-[#161b22]">
+            No commands matching criteria found in protocol registry.
           </div>
         ) : (
           sections.map(([section, sectionEntries]) => (
-            <div key={section} className="grid gap-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{section}</p>
-                  <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{sectionEntries.length} matching commands</h3>
-                </div>
-                <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                  <Sparkles className="h-3.5 w-3.5" />
-                  Search-first workflow
-                </span>
+            <div key={section} className="space-y-4">
+              <div className="flex items-center gap-3">
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-400">{section}</h3>
+                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800"></div>
               </div>
 
-              <div className="grid gap-4 lg:grid-cols-2">
+              <div className="grid gap-3 lg:grid-cols-2">
                 {sectionEntries.map((entry) => (
-                  <article key={`${section}-${entry.name}`} className="grid gap-4 rounded-[1.75rem] border border-black/10 bg-white/90 p-5 shadow-[0_18px_40px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div className="grid gap-2">
-                        <code className="w-fit rounded-full bg-slate-950 px-3 py-1 text-xs font-semibold text-white dark:bg-white dark:text-slate-950">
-                          {entry.syntax}
-                        </code>
-                        <p className="text-sm text-slate-600 dark:text-slate-300">{entry.description}</p>
+                  <article key={`${section}-${entry.name}`} className="group flex flex-col rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-400 transition-all dark:border-slate-800 dark:bg-[#161b22]">
+                    <div className="flex items-start justify-between gap-4 mb-3">
+                      <div className="space-y-1">
+                        <code className="text-xs font-bold text-blue-600 dark:text-blue-400">{entry.syntax}</code>
+                        <p className="text-[0.8rem] text-slate-600 dark:text-slate-400 leading-snug">{entry.description}</p>
                       </div>
-                      <span className="rounded-full border border-black/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500 dark:border-white/10 dark:text-slate-300">
-                        {entry.kind}
-                      </span>
+                      <span className="shrink-0 text-[0.6rem] font-black uppercase tracking-widest px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">{entry.kind}</span>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-xs font-medium text-slate-500 dark:text-slate-300">
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/10">Category: {entry.extension}</span>
-                      <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/10">Target: {entry.target}</span>
-                      {entry.opcode ? <span className="rounded-full bg-slate-100 px-3 py-1.5 dark:bg-white/10">Opcode: {entry.opcode}</span> : null}
-                    </div>
-
-                    <div className="rounded-2xl border border-black/10 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Example</p>
-                      <pre className="mt-3 overflow-x-auto whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{entry.example}</pre>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                      <button
-                        type="button"
-                        onClick={() => void copyText(entry.syntax, "Syntax copied", pushToast)}
-                        className="inline-flex items-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
-                      >
-                        <Copy className="h-4 w-4" />
-                        Copy syntax
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void copyText(entry.example, "Example copied", pushToast)}
-                        className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                      >
-                        <Copy className="h-4 w-4" />
-                        Copy example
-                      </button>
+                    <div className="mt-auto pt-3 border-t border-slate-50 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => void copyText(entry.syntax, "Syntax copied", pushToast)}
+                          className="flex items-center gap-1.5 text-[0.7rem] font-bold text-slate-500 hover:text-blue-600 transition-colors"
+                        >
+                          <Copy size={12} /> Syntax
+                        </button>
+                        <button
+                          onClick={() => void copyText(entry.example, "Example copied", pushToast)}
+                          className="flex items-center gap-1.5 text-[0.7rem] font-bold text-slate-500 hover:text-blue-600 transition-colors"
+                        >
+                          <Copy size={12} /> Example
+                        </button>
+                      </div>
+                      <div className="flex gap-2 text-[0.6rem] font-bold uppercase text-slate-300">
+                        <span>{entry.extension}</span>
+                        <span>•</span>
+                        <span>{entry.target}</span>
+                      </div>
                     </div>
                   </article>
                 ))}
@@ -161,31 +124,52 @@ export function ReferenceExplorer() {
 }
 
 function SelectField({
-  label,
+  icon,
   value,
   onChange,
   options
 }: {
-  label: string;
+  icon: ReactNode;
   value: string;
   onChange: (value: string) => void;
   options: string[][];
 }) {
   return (
-    <label className="grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-      {label}
+    <div className="relative group">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+        {icon}
+      </div>
       <select
         value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-md border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-bold outline-none focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900 transition-all cursor-pointer"
       >
-        {options.map(([optionValue, optionLabel]) => (
-          <option key={optionValue} value={optionValue}>
-            {optionLabel}
-          </option>
+        {options.map(([val, label]) => (
+          <option key={val} value={val}>{label}</option>
         ))}
       </select>
-    </label>
+      <ChevronRight size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 rotate-90 pointer-events-none" />
+    </div>
+  );
+}
+
+function ChevronRight({ size, className, rotate = 0 }: { size: number, className?: string, rotate?: number }) {
+  return (
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+      style={{ transform: `rotate(${rotate}deg)` }}
+    >
+      <path d="m9 18 6-6-6-6"/>
+    </svg>
   );
 }
 
@@ -206,16 +190,8 @@ async function copyText(
 ) {
   try {
     await navigator.clipboard.writeText(value);
-    pushToast({
-      title,
-      description: "The command is ready to paste into the workspace.",
-      variant: "success"
-    });
+    pushToast({ title, variant: "success" });
   } catch {
-    pushToast({
-      title: "Copy failed",
-      description: "Clipboard access is not available in this browser.",
-      variant: "error"
-    });
+    pushToast({ title: "Copy failed", variant: "error" });
   }
 }

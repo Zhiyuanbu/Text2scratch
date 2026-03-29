@@ -1,33 +1,24 @@
-import type { FormEvent, ReactNode } from "react";
+import type { FormEvent } from "react";
 import { 
   ArrowLeft, 
-  ArrowRight, 
   ChevronRight, 
   Eye, 
   EyeOff, 
-  Fingerprint, 
-  KeyRound, 
-  Mail, 
-  ShieldCheck, 
-  UserRound,
-  Zap
+  Shield
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { HcaptchaPanel } from "../components/HcaptchaPanel";
+import { TurnstilePanel } from "../components/TurnstilePanel";
 import { AppShell } from "../components/AppShell";
 import {
-  clearPendingParentManagedSignup,
   readPendingParentManagedSignup,
   storeAuthAudience,
   storePendingParentManagedSignup,
   type AuthAudience
 } from "../lib/coppa";
-import { isCaptchaError, type HcaptchaController } from "../lib/hcaptcha";
-import { buildLoginUrl, isValidUsername, normalizeUsername } from "../lib/supabase";
+import { type TurnstileController } from "../lib/turnstile";
 import { useAuth, useToast } from "../providers/AppProviders";
 
-type AuthStep = "age" | "options" | "email" | "recovery";
-type LoginMode = "signin" | "reset" | "recovery";
+type AuthStep = "age" | "form" | "recovery";
 
 export function LoginPage() {
   return <AuthContainer mode="signin" />;
@@ -37,23 +28,19 @@ export function SignupPage() {
   return <AuthContainer mode="signup" />;
 }
 
-function AuthContainer({ mode: initialMode }: { mode: "signin" | "signup" }) {
+function AuthContainer({ mode }: { mode: "signin" | "signup" }) {
   const { user, signIn, signInWithGoogle, signUp, signOut, sendPasswordReset, updatePassword } = useAuth();
   const { pushToast } = useToast();
-  const captchaRef = useRef<HcaptchaController | null>(null);
+  const turnstileRef = useRef<TurnstileController | null>(null);
   
   const [step, setStep] = useState<AuthStep>(() => {
     const params = new URLSearchParams(window.location.search);
-    const hash = window.location.hash;
-    if (params.get("mode") === "recovery" || params.get("type") === "recovery" || hash.includes("type=recovery")) {
-      return "recovery";
-    }
+    if (params.get("mode") === "recovery") return "recovery";
     return "age";
   });
   
-  const [loginMode, setLoginMode] = useState<LoginMode>(initialMode === "signin" ? "signin" : "signin");
+  const [isReset, setIsReset] = useState(false);
   const [audience, setAudience] = useState<AuthAudience | null>(null);
-  
   const [identifier, setIdentifier] = useState("");
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
@@ -63,384 +50,188 @@ function AuthContainer({ mode: initialMode }: { mode: "signin" | "signup" }) {
   const [isPending, setIsPending] = useState(false);
 
   useEffect(() => {
-    if (user && step !== "recovery") {
-      window.location.replace("dashboard.html");
-    }
+    if (user && step !== "recovery") window.location.replace("dashboard.html");
   }, [user, step]);
 
   const onAgeSelect = (selected: AuthAudience) => {
     setAudience(selected);
     storeAuthAudience(selected);
-    setStep("options");
-  };
-
-  const onGoogleAuth = async () => {
-    setIsPending(true);
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      pushToast({
-        title: "Google Auth Failed",
-        description: error instanceof Error ? error.message : "Connection error.",
-        variant: "error"
-      });
-    } finally {
-      setIsPending(false);
-    }
+    setStep("form");
   };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsPending(true);
-
     try {
       if (step === "recovery") {
-        if (recoveryPassword.length < 6) throw new Error("Password too short.");
-        if (recoveryPassword !== recoveryConfirm) throw new Error("Passwords do not match.");
+        if (recoveryPassword !== recoveryConfirm) throw new Error("Passwords mismatch.");
         await updatePassword(recoveryPassword);
         await signOut();
         window.location.assign("login.html?updated=1");
         return;
       }
-
-      const captchaToken = captchaRef.current?.getToken();
-
-      if (initialMode === "signin") {
-        if (loginMode === "signin") {
+      const captchaToken = turnstileRef.current?.getToken();
+      if (mode === "signin") {
+        if (!isReset) {
           await signIn(identifier, password, captchaToken);
           window.location.assign("dashboard.html");
         } else {
           await sendPasswordReset(identifier, captchaToken);
-          pushToast({ title: "Reset link sent", description: "Check your inbox.", variant: "success" });
+          pushToast({ title: "Email sent", description: "Check your inbox.", variant: "success" });
         }
       } else {
         if (audience === "under_13") {
-          // Handle parent handoff step
           storePendingParentManagedSignup({ requestedUsername: username, parentEmail: email });
-          pushToast({ title: "Request Saved", description: "Let a parent finish on this device.", variant: "success" });
+          pushToast({ title: "Saved", description: "Parent must complete setup.", variant: "success" });
           setStep("age");
         } else {
-          const result = await signUp({
-            username,
-            email,
-            password,
-            captchaToken,
+          await signUp({
+            username, email, password, captchaToken,
             ageBand: "13_or_over",
             accountRole: audience === "parent_guardian" ? "parent_guardian" : "standard"
           });
-          if (result.needsEmailVerification) {
-            pushToast({ title: "Verification required", description: "Check your email to confirm.", variant: "success" });
-          } else {
-            window.location.assign("dashboard.html");
-          }
+          pushToast({ title: "Account created", description: "Verify your email.", variant: "success" });
         }
       }
     } catch (error) {
-      if (isCaptchaError(error)) captchaRef.current?.reset({ clearCache: true });
-      pushToast({
-        title: "Action failed",
-        description: error instanceof Error ? error.message : "Something went wrong.",
-        variant: "error"
-      });
-    } finally {
-      setIsPending(false);
-    }
+      pushToast({ title: "Error", description: String(error), variant: "error" });
+    } finally { setIsPending(false); }
   };
 
   return (
-    <AppShell page={initialMode}>
-      <section className="mx-auto flex min-h-[85vh] w-full max-w-6xl items-center px-6 py-12 lg:py-20">
-        <div className="grid w-full gap-16 lg:grid-cols-[1fr_420px]">
-          <div className="flex flex-col justify-center space-y-10">
-            <div className="space-y-6">
-              <span className="inline-flex items-center gap-2.5 rounded-full border border-blue-200 bg-blue-50/50 px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.2em] text-blue-600 backdrop-blur-sm dark:border-blue-500/20 dark:bg-blue-500/5 dark:text-blue-400">
-                <ShieldCheck className="h-4 w-4" />
-                Secure Identity Protocol
-              </span>
-              <h1 className="text-6xl font-extrabold tracking-tight text-slate-950 dark:text-white xl:text-7xl">
-                {step === "age" ? "Welcome back." : initialMode === "signin" ? "Sign in to text2scratch." : "Create your account."}
-              </h1>
-              <p className="max-w-xl text-xl leading-relaxed text-slate-600 dark:text-slate-400">
-                {step === "age" 
-                  ? "Select your age bracket to initialize the correct authoring environment and safety controls."
-                  : "Access your cloud workspace, shared projects, and premium authoring tools."}
-              </p>
+    <AppShell page={mode}>
+      <div className="flex h-full items-center justify-center bg-[#f6f8fa] p-4 dark:bg-[#0d1117]">
+        <div className="w-full max-w-[340px] animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="mb-6 text-center">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-[#4d97ff] text-white shadow-sm">
+              <Shield size={24} />
             </div>
-
-            <div className="hidden grid-cols-2 gap-6 lg:grid">
-              <div className="rounded-[2rem] border border-slate-100 bg-white/50 p-6 backdrop-blur-sm dark:border-white/5 dark:bg-white/5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600 dark:bg-blue-400/10 dark:text-blue-400">
-                  <Zap className="h-5 w-5" />
-                </div>
-                <h3 className="mt-4 font-bold text-slate-950 dark:text-white">Instant Sync</h3>
-                <p className="mt-2 text-sm text-slate-500">Your projects follow you across every device.</p>
-              </div>
-              <div className="rounded-[2rem] border border-slate-100 bg-white/50 p-6 backdrop-blur-sm dark:border-white/5 dark:bg-white/5">
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-600/10 text-emerald-600 dark:bg-emerald-400/10 dark:text-emerald-400">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <h3 className="mt-4 font-bold text-slate-950 dark:text-white">Safety First</h3>
-                <p className="mt-2 text-sm text-slate-500">Industry standard COPPA compliant protection.</p>
-              </div>
-            </div>
+            <h1 className="text-xl font-bold tracking-tight">
+              {mode === "signin" ? "Sign in to text2scratch" : "Join the community"}
+            </h1>
           </div>
 
-          <div className="relative">
-            {/* Animated Glow Effect */}
-            <div className="absolute -inset-4 z-0 bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 blur-3xl opacity-50 dark:opacity-30"></div>
-            
-            <div className="relative z-10 overflow-hidden rounded-[3rem] border border-slate-200/60 bg-white/90 p-8 shadow-[0_40px_100px_rgba(15,23,42,0.1)] backdrop-blur-2xl transition-all duration-500 dark:border-slate-800/60 dark:bg-slate-950/80">
-              {step === "age" && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                  <div className="text-center">
-                    <h2 className="text-2xl font-extrabold text-slate-950 dark:text-white">Verify Age</h2>
-                    <p className="mt-2 text-sm font-semibold text-slate-500 uppercase tracking-widest">Initial Selection</p>
-                  </div>
-                  
-                  <div className="grid gap-3">
-                    <AgeButton label="Adult (18+)" description="Standard full access" onClick={() => onAgeSelect("adult")} />
-                    <AgeButton label="Teen (13-17)" description="Standard with safety focus" onClick={() => onAgeSelect("teen_13_to_17")} />
-                    <AgeButton label="Under 13" description="Parent-managed flow" onClick={() => onAgeSelect("under_13")} />
-                    <AgeButton label="Parent/Guardian" description="Manage child accounts" onClick={() => onAgeSelect("parent_guardian")} />
-                  </div>
-
-                  <div className="text-center pt-4 border-t border-slate-100 dark:border-white/5">
-                    <a href={initialMode === "signin" ? "signup.html" : "login.html"} className="text-sm font-bold text-blue-600 hover:text-blue-700">
-                      {initialMode === "signin" ? "Don't have an account?" : "Already have an account?"}
-                    </a>
-                  </div>
+          <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
+            {step === "age" && (
+              <div className="space-y-4">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Select Age Group</p>
+                <div className="grid gap-2">
+                  <AgeSelectButton label="Adult (18+)" onClick={() => onAgeSelect("adult")} />
+                  <AgeSelectButton label="Teen (13-17)" onClick={() => onAgeSelect("teen_13_to_17")} />
+                  <AgeSelectButton label="Under 13" onClick={() => onAgeSelect("under_13")} />
+                  <AgeSelectButton label="Parent/Guardian" onClick={() => onAgeSelect("parent_guardian")} />
                 </div>
-              )}
+              </div>
+            )}
 
-              {step === "options" && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                  <button onClick={() => setStep("age")} className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-600 transition-colors">
-                    <ArrowLeft className="h-4 w-4" /> Back
+            {step === "form" && (
+              <form onSubmit={onSubmit} className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <button type="button" onClick={() => setStep("age")} className="flex items-center gap-1 text-[0.7rem] font-bold text-blue-600 hover:underline">
+                    <ArrowLeft size={12} /> CHANGE AGE
                   </button>
-                  
-                  <div className="text-center">
-                    <h2 className="text-2xl font-extrabold text-slate-950 dark:text-white">
-                      {initialMode === "signin" ? "Welcome Back" : "Identity Setup"}
-                    </h2>
-                    <p className="mt-2 text-sm font-bold text-blue-600 uppercase tracking-[0.2em]">{audience?.replace("_", " ")}</p>
-                  </div>
-
-                  <div className="grid gap-4">
-                    <button 
-                      onClick={onGoogleAuth}
-                      disabled={isPending}
-                      className="group relative flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-6 py-4 font-bold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:bg-slate-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-                    >
-                      <GoogleLogo className="h-5 w-5" />
-                      Continue with Google
-                    </button>
-                    
-                    <div className="relative flex items-center py-2">
-                      <div className="flex-grow border-t border-slate-100 dark:border-white/5"></div>
-                      <span className="mx-4 text-[10px] font-bold uppercase tracking-widest text-slate-400">or use email</span>
-                      <div className="flex-grow border-t border-slate-100 dark:border-white/5"></div>
-                    </div>
-
-                    <button 
-                      onClick={() => setStep("email")}
-                      className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white px-6 py-4 font-bold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-600/30 dark:border-white/10 dark:bg-white/5 dark:text-white"
-                    >
-                      <div className="flex items-center gap-3">
-                        <Mail className="h-5 w-5 text-blue-600" />
-                        {initialMode === "signin" ? "Sign in with Email" : "Sign up with Email"}
-                      </div>
-                      <ChevronRight className="h-4 w-4 text-slate-300" />
-                    </button>
-                  </div>
+                  <span className="text-[0.7rem] font-bold uppercase text-slate-400">{audience?.replace("_", " ")}</span>
                 </div>
-              )}
 
-              {step === "email" && (
-                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                  <div className="flex items-center justify-between">
-                    <button onClick={() => setStep("options")} className="inline-flex items-center gap-2 text-sm font-bold text-slate-400 hover:text-slate-600">
-                      <ArrowLeft className="h-4 w-4" /> Back
-                    </button>
-                    {initialMode === "signin" && (
-                      <button 
-                        onClick={() => setLoginMode(loginMode === "signin" ? "reset" : "signin")}
-                        className="text-xs font-bold text-blue-600 uppercase tracking-widest"
-                      >
-                        {loginMode === "signin" ? "Forgot?" : "Sign in"}
-                      </button>
-                    )}
-                  </div>
+                <button 
+                  type="button"
+                  onClick={() => signInWithGoogle()}
+                  className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
+                >
+                  <GoogleLogo className="h-4 w-4" /> Continue with Google
+                </button>
 
-                  <form onSubmit={onSubmit} className="grid gap-5">
-                    {initialMode === "signin" ? (
-                      <Input
-                        label="Identity"
-                        icon={<Fingerprint className="h-4 w-4" />}
-                        placeholder="Email or username"
-                        value={identifier}
-                        onChange={setIdentifier}
-                        autoComplete="username"
-                      />
-                    ) : (
-                      <>
-                        <Input
-                          label="Preferred Username"
-                          icon={<UserRound className="h-4 w-4" />}
-                          placeholder="project_author"
-                          value={username}
-                          onChange={setUsername}
-                          autoComplete="username"
-                        />
-                        <Input
-                          label="Email Address"
-                          icon={<Mail className="h-4 w-4" />}
-                          type="email"
-                          placeholder="you@domain.com"
-                          value={email}
-                          onChange={setEmail}
-                          autoComplete="email"
-                        />
-                      </>
-                    )}
-
-                    {loginMode === "signin" && (
-                      <Input
-                        label="Security Key"
-                        icon={<KeyRound className="h-4 w-4" />}
-                        type="password"
-                        placeholder="••••••••"
-                        value={password}
-                        onChange={setPassword}
-                        autoComplete={initialMode === "signin" ? "current-password" : "new-password"}
-                      />
-                    )}
-
-                    <div className="pt-2">
-                      <HcaptchaPanel controllerRef={captchaRef} actionLabel="verification" />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={isPending}
-                      className="group relative flex items-center justify-center gap-3 overflow-hidden rounded-2xl bg-slate-950 px-6 py-4 text-[1rem] font-bold text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-slate-800 dark:bg-white dark:text-slate-950"
-                    >
-                      {isPending ? "Connecting..." : (
-                        <>
-                          {initialMode === "signin" 
-                            ? (loginMode === "signin" ? "Initialize Session" : "Send Reset Link") 
-                            : (audience === "under_13" ? "Save Handoff" : "Create Core Account")}
-                          <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                        </>
-                      )}
-                    </button>
-                  </form>
+                <div className="relative flex items-center py-1">
+                  <div className="flex-grow border-t border-slate-100 dark:border-slate-800"></div>
+                  <span className="mx-2 text-[0.6rem] font-bold uppercase text-slate-400">or</span>
+                  <div className="flex-grow border-t border-slate-100 dark:border-slate-800"></div>
                 </div>
-              )}
 
-              {step === "recovery" && (
-                <div className="space-y-8 animate-in fade-in duration-500">
-                  <div className="text-center">
-                    <h2 className="text-2xl font-extrabold text-slate-950 dark:text-white">Reset Security</h2>
-                    <p className="mt-2 text-sm font-bold text-blue-600 uppercase tracking-widest">Protocol Recovery</p>
-                  </div>
-                  <form onSubmit={onSubmit} className="grid gap-5">
-                    <Input
-                      label="New Security Key"
-                      type="password"
-                      icon={<KeyRound className="h-4 w-4" />}
-                      placeholder="••••••••"
-                      value={recoveryPassword}
-                      onChange={setRecoveryPassword}
-                    />
-                    <Input
-                      label="Confirm Key"
-                      type="password"
-                      icon={<KeyRound className="h-4 w-4" />}
-                      placeholder="••••••••"
-                      value={recoveryConfirm}
-                      onChange={setRecoveryConfirm}
-                    />
-                    <button
-                      type="submit"
-                      disabled={isPending}
-                      className="flex items-center justify-center gap-3 rounded-2xl bg-blue-600 px-6 py-4 font-bold text-white shadow-lg transition-all hover:bg-blue-700"
-                    >
-                      {isPending ? "Updating..." : "Authorize Update"}
-                    </button>
-                  </form>
+                {mode === "signin" ? (
+                  <AuthInput label="Username or email" value={identifier} onChange={setIdentifier} />
+                ) : (
+                  <>
+                    <AuthInput label="Username" value={username} onChange={setUsername} />
+                    <AuthInput label="Email" value={email} onChange={setEmail} type="email" />
+                  </>
+                )}
+
+                {!isReset && (
+                  <AuthInput label="Password" value={password} onChange={setPassword} type="password" />
+                )}
+
+                <div className="py-1">
+                  <TurnstilePanel controllerRef={turnstileRef} actionLabel="auth" />
                 </div>
-              )}
-            </div>
+
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="w-full rounded-md bg-[#2da44e] py-2 text-sm font-bold text-white hover:bg-[#2c974b] disabled:opacity-50 transition-colors"
+                >
+                  {isPending ? "Connecting..." : (mode === "signin" ? (isReset ? "Send reset link" : "Sign in") : "Create account")}
+                </button>
+
+                {mode === "signin" && (
+                  <button type="button" onClick={() => setIsReset(!isReset)} className="w-full text-center text-xs font-medium text-blue-600 hover:underline">
+                    {isReset ? "Return to sign in" : "Forgot password?"}
+                  </button>
+                )}
+              </form>
+            )}
+
+            {step === "recovery" && (
+              <form onSubmit={onSubmit} className="space-y-4">
+                <AuthInput label="New password" value={recoveryPassword} onChange={setRecoveryPassword} type="password" />
+                <AuthInput label="Confirm password" value={recoveryConfirm} onChange={setRecoveryConfirm} type="password" />
+                <button type="submit" className="w-full rounded-md bg-blue-600 py-2 text-sm font-bold text-white hover:bg-blue-700">Update Password</button>
+              </form>
+            )}
+          </div>
+
+          <div className="mt-4 rounded-md border border-slate-200 bg-[#f6f8fa]/50 p-4 text-center dark:border-slate-800 dark:bg-transparent">
+            <p className="text-xs text-slate-600 dark:text-slate-400">
+              {mode === "signin" ? "New to text2scratch?" : "Already have an account?"}{" "}
+              <a href={mode === "signin" ? "signup.html" : "login.html"} className="font-bold text-blue-600 hover:underline">
+                {mode === "signin" ? "Create an account" : "Sign in"}
+              </a>
+            </p>
           </div>
         </div>
-      </section>
+      </div>
     </AppShell>
   );
 }
 
-function AgeButton({ label, description, onClick }: { label: string; description: string; onClick: () => void }) {
+function AgeSelectButton({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button
-      onClick={onClick}
-      className="group flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-5 text-left transition-all hover:-translate-y-0.5 hover:border-blue-600/30 hover:shadow-md dark:border-white/5 dark:bg-white/5"
-    >
-      <div>
-        <p className="text-[1.05rem] font-bold text-slate-950 dark:text-white transition-colors group-hover:text-blue-600 dark:group-hover:text-blue-400">{label}</p>
-        <p className="mt-1 text-sm text-slate-500">{description}</p>
-      </div>
-      <ChevronRight className="h-5 w-5 text-slate-300 group-hover:text-blue-600 dark:group-hover:text-blue-400" />
+    <button onClick={onClick} className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-bold hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-transparent dark:hover:bg-slate-800 transition-all">
+      {label} <ChevronRight size={14} className="text-slate-300" />
     </button>
   );
 }
 
-function Input({ 
-  label, 
-  value, 
-  onChange, 
-  placeholder, 
-  type = "text", 
-  icon, 
-  autoComplete 
-}: { 
-  label: string; 
-  value: string; 
-  onChange: (v: string) => void; 
-  placeholder: string; 
-  type?: string; 
-  icon?: ReactNode;
-  autoComplete?: string;
-}) {
+function AuthInput({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
   const [visible, setVisible] = useState(false);
-  const isPassword = type === "password";
-  const finalType = isPassword ? (visible ? "text" : "password") : type;
-
+  const isPass = type === "password";
   return (
-    <label className="block space-y-2">
-      <span className="text-[0.85rem] font-bold text-slate-700 dark:text-slate-300 ml-1">{label}</span>
-      <div className="relative group">
-        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-blue-600">
-          {icon}
-        </div>
+    <div className="space-y-1">
+      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">{label}</label>
+      <div className="relative">
         <input
-          type={finalType}
+          type={isPass ? (visible ? "text" : "password") : type}
           value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          autoComplete={autoComplete}
-          className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-4 pl-11 pr-12 text-sm font-medium outline-none transition-all focus:border-blue-600 focus:bg-white focus:ring-4 focus:ring-blue-600/5 dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:bg-white/10"
+          onChange={e => onChange(e.target.value)}
+          className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900 transition-all"
           required
         />
-        {isPassword && (
-          <button
-            type="button"
-            onClick={() => setVisible(!visible)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-slate-400 hover:text-slate-600"
-          >
-            {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+        {isPass && (
+          <button type="button" onClick={() => setVisible(!visible)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+            {visible ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         )}
       </div>
-    </label>
+    </div>
   );
 }
 

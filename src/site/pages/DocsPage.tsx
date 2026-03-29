@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowRight, CircleAlert, Code2, Layers3, WandSparkles } from "lucide-react";
+import { ArrowRight, CircleAlert, Code2, Layers3, WandSparkles, Cpu, Book, Zap, Info } from "lucide-react";
 import { aliases, getReferenceEntries } from "../lib/blocks";
 import { AppShell } from "../components/AppShell";
 
@@ -28,321 +28,145 @@ cat_code =
   end
 end`;
 
-const learningPath = [
-  {
-    title: "Start with project shape",
-    description: "Declare shared data first, then add `stage_code =`, then sprite sections. The file shape is part of the language."
-  },
-  {
-    title: "Use working examples early",
-    description: "Pick known-good commands from the docs or reference first, then change one detail at a time while the validator stays green."
-  },
-  {
-    title: "Validate before export",
-    description: "Use the workspace diagnostics for authoring and `/api/` when another script, tool, or AI needs JSON validation output."
-  }
-];
-
-const apiParameterCards = [
-  {
-    title: "`input`",
-    description: "Pass URL-encoded source text directly in the query string.",
-    note: "Best for short snippets, links, and simple browser calls."
-  },
-  {
-    title: "`input64`",
-    description: "Pass base64-encoded UTF-8 text when multiline source would be awkward in a URL.",
-    note: "Best for larger payloads or generated requests."
-  },
-  {
-    title: "`pretty`",
-    description: "Controls formatting only. Use `pretty=0` for compact JSON.",
-    note: "Good for logging pipelines or smaller responses."
-  },
-  {
-    title: "`sample`",
-    description: "Validates the built-in example script without sending your own source.",
-    note: "Useful for integration smoke tests."
-  }
-];
-
-const apiResponseModes = [
-  "No input returns a docs object that explains parameters, examples, errors, and the TypeScript contract.",
-  "Validation requests return `ok`, `data`, and `meta` so callers can separate diagnostics from transport details.",
-  "Unsupported query parameters return `ok: false` with an `error` object and the docs block for recovery guidance."
-];
-
-const apiRouteExamples = `GET /api/
-
-GET /api/?input=YOUR_TEXT2SCRATCH_CODE
-
-GET /api/?input=stage_code%20%3D%5Cnwhen_flag_clicked
-
-GET /api/?input64=BASE64_ENCODED_TEXT2SCRATCH_CODE
-
-GET /api/?sample=1
-
-GET /api/?input=YOUR_TEXT2SCRATCH_CODE&pretty=0`;
-
-const apiResponseExample = `{
-  "ok": true,
-  "data": {
-    "ok": true,
-    "summary": {
-      "errors": 0,
-      "warnings": 0,
-      "lineCount": 8
-    },
-    "diagnostics": []
-  },
-  "meta": {
-    "source": "input",
-    "inputLength": 84,
-    "lineCount": 8,
-    "pretty": true
-  }
-}`;
-
-const commonMistakes = [
-  "Forgetting to close nested blocks with `end`.",
-  "Using reporter or boolean expressions as standalone commands on their own lines.",
-  "Placing sprite-only commands inside `stage_code =` blocks.",
-  "Guessing argument values instead of using the documented menu values or examples."
-];
-
 export function DocsPage() {
   return (
     <AppShell page="docs">
-      <section className="hero-glow border-b border-black/5 dark:border-white/10">
-        <div className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-          <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-              <Code2 className="h-3.5 w-3.5" />
-              Guided documentation
-            </span>
-            <div className="space-y-4">
-              <h1 className="max-w-3xl text-5xl font-semibold tracking-tight text-slate-950 dark:text-white">Learn the syntax in the order people actually need it.</h1>
-              <p className="max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300">
-                Start with project structure, then move into commands. This guide is optimized for first-time users who want to get productive quickly without reverse-engineering the reference catalog.
+      <div className="bg-[#f6f8fa] dark:bg-[#0d1117] animate-in fade-in duration-500">
+        
+        {/* Header Section */}
+        <section className="border-b border-slate-200 bg-white py-12 dark:border-slate-800 dark:bg-[#161b22]">
+          <div className="mx-auto max-w-5xl px-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-2 text-[#4d97ff] dark:text-blue-400">
+                <Book size={20} />
+                <span className="text-[0.7rem] font-bold uppercase tracking-widest">Protocol Documentation</span>
+              </div>
+              <h1 className="text-3xl font-black tracking-tighter sm:text-4xl">System Specification</h1>
+              <p className="max-w-2xl text-[0.95rem] text-slate-500 dark:text-slate-400">
+                Official guide for the text2scratch authoring protocol. Learn how to structure projects, define sprites, and execute commands using plain-text syntax.
               </p>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <a href="reference.html" className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
-                Open full reference
-                <ArrowRight className="h-4 w-4" />
-              </a>
-              <a href="converter.html" className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white">
-                Open workspace
-              </a>
-            </div>
           </div>
+        </section>
 
-          <div className="rounded-[2rem] border border-black/10 bg-white/85 p-6 shadow-[0_24px_60px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Quick orientation</p>
-            <div className="mt-5 grid gap-4">
-              <MiniPanel
-                icon={<Layers3 className="h-5 w-5" />}
-                title="Project structure"
-                description="Define data first, then Stage code, then sprite sections. The structure is part of the syntax."
-              />
-              <MiniPanel
-                icon={<WandSparkles className="h-5 w-5" />}
-                title="Fast lookup"
-                description={`Alias support is available for ${Object.keys(aliases).length} shorthand forms, but the reference always shows canonical syntax first.`}
-              />
-              <MiniPanel
-                icon={<CircleAlert className="h-5 w-5" />}
-                title="Common failure mode"
-                description="Most broken files come from missing `end` lines or putting value expressions where stack commands belong."
-              />
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="mx-auto w-full max-w-7xl px-5 py-16">
-        <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Learning path</p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Use the docs in a practical order instead of reading everything front to back.</h2>
-        </div>
-
-        <div className="mt-10 grid gap-4 lg:grid-cols-3">
-          {learningPath.map((step, index) => (
-            <article
-              key={step.title}
-              className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5"
-            >
-              <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-950 text-sm font-semibold text-white dark:bg-white dark:text-slate-950">
-                0{index + 1}
-              </span>
-              <h3 className="mt-5 text-xl font-semibold tracking-tight text-slate-950 dark:text-white">{step.title}</h3>
-              <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{step.description}</p>
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto grid w-full max-w-7xl gap-6 px-5 py-16 lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1fr)]">
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Quick start</p>
-          <h2 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Build your first project with a minimal, valid file.</h2>
-          <p className="text-base leading-7 text-slate-600 dark:text-slate-300">
-            If you only remember one pattern, remember this: declare project-level data, start a top-level section with <code>stage_code =</code> or <code>&lt;sprite&gt;_code =</code>, then close every nested block with <code>end</code>.
-          </p>
-          <ul className="grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-            <li>Use `make_var`, `make_list`, and `make_broadcast` before any script needs them.</li>
-            <li>Put Stage-only scripts inside `stage_code =`.</li>
-            <li>
-              Create each sprite with <code>sprite = "Name"</code> and follow it with a matching <code>&lt;name&gt;_code =</code> section.
-            </li>
-          </ul>
-        </div>
-
-        <div className="overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 shadow-[0_28px_70px_rgba(15,23,42,0.22)] dark:border-white/10">
-          <div className="border-b border-white/10 px-5 py-4 text-sm text-white/60">quick-start.t2s</div>
-          <pre className="overflow-x-auto px-5 py-6 text-sm leading-7 text-slate-100">
-            <code>{quickStartExample}</code>
-          </pre>
-        </div>
-      </section>
-
-      <section className="border-y border-black/5 bg-white/60 py-16 dark:border-white/10 dark:bg-white/5">
-        <div className="mx-auto w-full max-w-7xl px-5">
-          <div className="max-w-2xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Core concepts</p>
-            <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">These are the commands most first projects touch immediately.</h2>
-          </div>
-
-          <div className="mt-10 grid gap-4 lg:grid-cols-2">
-            {quickStartEntries.map((entry) => (
-              <article
-                key={entry.name}
-                className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_16px_40px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5"
-              >
-                <div className="flex flex-wrap items-center gap-3">
-                  <code className="rounded-full bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white dark:bg-white dark:text-slate-950">
-                    {entry.syntax}
-                  </code>
-                  <span className="rounded-full border border-black/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-white/10 dark:text-slate-300">
-                    {entry.kind}
-                  </span>
+        <div className="mx-auto max-w-5xl px-4 py-12">
+          <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
+            
+            {/* Main Docs Content */}
+            <div className="space-y-12">
+              
+              {/* Section: Project Anatomy */}
+              <section className="space-y-6">
+                <h2 className="text-xl font-bold flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
+                  <Layers3 size={18} className="text-blue-600" /> Project Anatomy
+                </h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <DocCard 
+                    title="Shared Registry" 
+                    description="Variables, lists, and broadcasts must be declared at the top of the file before initialization." 
+                  />
+                  <DocCard 
+                    title="Stage Context" 
+                    description="Logic specific to the backdrop and global stage environment belongs in the `stage_code` block." 
+                  />
+                  <DocCard 
+                    title="Sprite Definitions" 
+                    description="Sprites are initialized via `sprite = 'Name'` and followed by their respective script blocks." 
+                  />
+                  <DocCard 
+                    title="Block Closure" 
+                    description="Every control structure (if, repeat, forever) must be terminated with an `end` command." 
+                  />
                 </div>
-                <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">{entry.description}</p>
-                <div className="mt-5 rounded-2xl border border-black/10 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Example</p>
-                  <pre className="mt-3 whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-200">{entry.example}</pre>
+              </section>
+
+              {/* Section: Quick Start */}
+              <section className="space-y-6">
+                <h2 className="text-xl font-bold flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
+                  <Zap size={18} className="text-amber-500" /> Quick Start
+                </h2>
+                <div className="rounded-lg border border-slate-200 bg-[#0d1117] overflow-hidden shadow-sm">
+                  <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-slate-800">
+                    <span className="text-[0.65rem] font-bold text-slate-500 uppercase tracking-widest">boilerplate.t2s</span>
+                    <div className="flex gap-1">
+                      <div className="h-2 w-2 rounded-full bg-rose-500/50"></div>
+                      <div className="h-2 w-2 rounded-full bg-amber-500/50"></div>
+                      <div className="h-2 w-2 rounded-full bg-emerald-500/50"></div>
+                    </div>
+                  </div>
+                  <pre className="p-4 text-[0.85rem] font-mono text-slate-300 overflow-x-auto leading-relaxed">
+                    <code>{quickStartExample}</code>
+                  </pre>
                 </div>
-              </article>
-            ))}
+              </section>
+
+              {/* Section: Core Primitives */}
+              <section className="space-y-6">
+                <h2 className="text-xl font-bold flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
+                  <Cpu size={18} className="text-emerald-600" /> Core Primitives
+                </h2>
+                <div className="space-y-3">
+                  {quickStartEntries.map(entry => (
+                    <div key={entry.name} className="p-4 rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#161b22] hover:border-blue-400 transition-colors">
+                      <div className="flex items-center gap-3 mb-2">
+                        <code className="text-xs font-bold bg-slate-100 px-2 py-1 rounded dark:bg-slate-800 dark:text-blue-400">{entry.syntax}</code>
+                        <span className="text-[0.65rem] font-bold uppercase text-slate-400">{entry.kind}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{entry.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+            </div>
+
+            {/* Sidebar / Quick Info */}
+            <aside className="space-y-6">
+              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
+                <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                  <Info size={12} /> Pro Tips
+                </h3>
+                <ul className="text-xs space-y-4 text-slate-600 dark:text-slate-400 font-medium">
+                  <li className="flex gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    Use aliases like `move` instead of `move_steps` for faster typing.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    The validator in the workspace catch errors before you export.
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    Nested expressions always start with the `@` symbol.
+                  </li>
+                </ul>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
+                <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                  <CircleAlert size={12} className="text-amber-500" /> Validation
+                </h3>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Missing `end` tags are the most common cause of compilation failure. Always ensure your blocks are properly closed.
+                </p>
+                <a href="reference.html" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:underline">
+                  Full API Reference <ArrowRight size={12} />
+                </a>
+              </div>
+            </aside>
+
           </div>
         </div>
-      </section>
-
-      <section className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-        <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">API route</p>
-          <h2 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Use `/api/` when a script or AI needs validation output directly.</h2>
-          <p className="text-base leading-7 text-slate-600 dark:text-slate-300">
-            The validator route stays GitHub Pages compatible, so it cannot behave like a real server function, but it now behaves like a JSON-only static endpoint. Open <code>/api/</code> with no parameters to get JSON docs, then use <code>input</code> or <code>input64</code> to validate code.
-          </p>
-          <ul className="grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-            <li>Use <code>input</code> for URL-encoded source text. Escaped <code>\n</code> line breaks are accepted too.</li>
-            <li>Use <code>input64</code> when the source text is too awkward to URL-encode directly or spans many lines.</li>
-            <li>Use <code>pretty=0</code> if you want compact JSON instead of pretty-printed output.</li>
-            <li>The route is JSON-only now, so old UI or alternate format flags are rejected.</li>
-          </ul>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {apiParameterCards.map((item) => (
-              <article key={item.title} className="rounded-[1.6rem] border border-black/10 bg-white/90 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-                <h3 className="text-base font-semibold tracking-tight text-slate-950 dark:text-white">{item.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-slate-600 dark:text-slate-300">{item.description}</p>
-                <p className="mt-3 text-sm font-medium text-slate-500 dark:text-slate-400">{item.note}</p>
-              </article>
-            ))}
-          </div>
-          <div className="rounded-[1.75rem] border border-black/10 bg-white/90 p-5 shadow-[0_12px_30px_rgba(15,23,42,0.05)] dark:border-white/10 dark:bg-white/5">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Response modes</p>
-            <ul className="mt-4 grid gap-3 text-sm leading-7 text-slate-600 dark:text-slate-300">
-              {apiResponseModes.map((mode) => (
-                <li key={mode}>{mode}</li>
-              ))}
-            </ul>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <a href="api/" className="inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">
-              Open API route
-            </a>
-            <a href="api/?sample=1" className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-6 py-3 text-sm font-semibold text-slate-700 transition hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white">
-              View sample response
-            </a>
-          </div>
-        </div>
-
-        <div className="grid gap-4">
-          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 shadow-[0_28px_70px_rgba(15,23,42,0.22)] dark:border-white/10">
-            <div className="border-b border-white/10 px-5 py-4 text-sm text-white/60">Request examples</div>
-            <pre className="overflow-x-auto px-5 py-6 text-sm leading-7 text-slate-100">
-              <code>{apiRouteExamples}</code>
-            </pre>
-          </article>
-
-          <article className="overflow-hidden rounded-[2rem] border border-black/10 bg-slate-950 shadow-[0_28px_70px_rgba(15,23,42,0.22)] dark:border-white/10">
-            <div className="border-b border-white/10 px-5 py-4 text-sm text-white/60">JSON response</div>
-            <pre className="overflow-x-auto px-5 py-6 text-sm leading-7 text-slate-100">
-              <code>{apiResponseExample}</code>
-            </pre>
-          </article>
-        </div>
-      </section>
-
-      <section className="mx-auto grid w-full max-w-7xl gap-8 px-5 py-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]">
-        <div className="rounded-[2rem] border border-black/10 bg-white/90 p-7 shadow-[0_20px_50px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Common mistakes</p>
-          <div className="mt-6 grid gap-4">
-            {commonMistakes.map((mistake) => (
-              <article key={mistake} className="rounded-2xl border border-black/10 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-700 dark:border-white/10 dark:bg-white/5 dark:text-slate-200">
-                {mistake}
-              </article>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] border border-black/10 bg-slate-950 p-7 text-white shadow-[0_28px_80px_rgba(15,23,42,0.22)] dark:border-white/10 dark:bg-white dark:text-slate-950">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-white/60 dark:text-slate-500">Next step</p>
-          <h2 className="mt-4 text-3xl font-semibold tracking-tight">Use the docs for learning. Use the reference for precision.</h2>
-          <p className="mt-4 text-sm leading-7 text-white/75 dark:text-slate-600">
-            Once you understand the project shape, jump to the full reference page for exact syntax, command categories, and copy-ready examples.
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <a href="reference.html" className="inline-flex items-center rounded-full bg-white px-5 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-200 dark:bg-slate-950 dark:text-white dark:hover:bg-slate-800">
-              Browse reference
-            </a>
-            <a href="dev/" className="inline-flex items-center rounded-full border border-white/20 px-5 py-3 text-sm font-semibold text-white transition hover:bg-white/10 dark:border-slate-300 dark:text-slate-950 dark:hover:bg-slate-950/10">
-              Open /dev
-            </a>
-          </div>
-        </div>
-      </section>
+      </div>
     </AppShell>
   );
 }
 
-function MiniPanel({
-  icon,
-  title,
-  description
-}: {
-  icon: ReactNode;
-  title: string;
-  description: string;
-}) {
+function DocCard({ title, description }: { title: string, description: string }) {
   return (
-    <article className="rounded-2xl border border-black/10 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-white text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">
-        {icon}
-      </span>
-      <h3 className="mt-4 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">{title}</h3>
-      <p className="mt-2 text-sm leading-7 text-slate-600 dark:text-slate-300">{description}</p>
-    </article>
+    <div className="p-4 rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#161b22] shadow-sm">
+      <h4 className="text-sm font-bold mb-2">{title}</h4>
+      <p className="text-xs text-slate-500 leading-relaxed dark:text-slate-400">{description}</p>
+    </div>
   );
 }

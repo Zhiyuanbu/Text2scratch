@@ -12,7 +12,7 @@ export interface ProfileRecord {
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://ytsrvbrdxhyrazhnqohb.supabase.co";
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
-const HCAPTCHA_SITE_KEY = import.meta.env.VITE_HCAPTCHA_SITE_KEY || "a52804d0-570c-4f04-83d0-65b60e3a93c2";
+const TURNSTILE_SITE_KEY = "0x4AAAAAACxhNG0J87F16OOI";
 
 /**
  * Google Auth Configuration (Client-side trigger):
@@ -124,13 +124,13 @@ export function formatDateTime(value?: string) {
 }
 
 export function buildConfirmUrl(mode = "verify") {
-  const url = new URL("confirm.html", window.location.href);
+  const url = new URL("confirm.html", window.location.origin + window.location.pathname.split("/").slice(0, -1).join("/") + "/");
   url.searchParams.set("mode", mode);
   return url.toString();
 }
 
 export function buildLoginUrl(mode?: string) {
-  const url = new URL("login.html", window.location.href);
+  const url = new URL("login.html", window.location.origin + window.location.pathname.split("/").slice(0, -1).join("/") + "/");
   if (mode) {
     url.searchParams.set("mode", mode);
   }
@@ -138,11 +138,11 @@ export function buildLoginUrl(mode?: string) {
 }
 
 export function buildShareUrl(slug: string) {
-  const url = new URL("converter.html", window.location.href);
+  const url = new URL("converter.html", window.location.origin + window.location.pathname.split("/").slice(0, -1).join("/") + "/");
   url.searchParams.set(SHARE_QUERY_PARAM, slug);
   return url.toString();
 }
 
-export function getHcaptchaSiteKey() {
-  return HCAPTCHA_SITE_KEY.trim();
+export function getTurnstileSiteKey() {
+  return TURNSTILE_SITE_KEY.trim();
 }

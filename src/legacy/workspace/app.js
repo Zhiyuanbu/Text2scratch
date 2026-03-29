@@ -243,10 +243,10 @@ async function init() {
     setStatus(`Startup error: ${error.message}`, true);
   }
 
-  ui.download.addEventListener("click", onExportClick);
-  ui.upload.addEventListener("click", onUploadClick);
-  ui.importInput.addEventListener("change", onImportFilePicked);
-  ui.sample.addEventListener("click", () => {
+  ui.download?.addEventListener("click", onExportClick);
+  ui.upload?.addEventListener("click", onUploadClick);
+  ui.importInput?.addEventListener("change", onImportFilePicked);
+  ui.sample?.addEventListener("click", () => {
     if (!blockCatalog) {
       setStatus("Block catalog is not loaded.", true);
       return;

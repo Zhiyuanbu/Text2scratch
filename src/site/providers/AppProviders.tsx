@@ -50,6 +50,7 @@ interface AuthContextValue {
   user: User | null;
   profile: ProfileRecord | null;
   isLoading: boolean;
+  isAdmin: boolean;
   signIn: (identifier: string, password: string, captchaToken?: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signUp: (payload: {
@@ -92,27 +93,25 @@ export function AppProviders({ children }: { children: ReactNode }) {
 }
 
 function ThemeProvider({ children }: { children: ReactNode }) {
-  const [mode, setMode] = useState<ThemeMode>(() => readStoredTheme());
+  const [mode, setMode] = useState<ThemeMode>(() => {
+    const stored = window.localStorage.getItem("text2scratch.theme");
+    return (stored === "light" || stored === "dark" || stored === "system") ? stored : "system";
+  });
   const [resolvedMode, setResolvedMode] = useState<"light" | "dark">("light");
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
-
     const applyMode = (nextMode: ThemeMode) => {
       const resolved = nextMode === "system" ? (mediaQuery.matches ? "dark" : "light") : nextMode;
       document.documentElement.dataset.theme = resolved;
       document.documentElement.style.colorScheme = resolved;
       setResolvedMode(resolved);
     };
-
     applyMode(mode);
     const onChange = () => applyMode(mode);
     mediaQuery.addEventListener("change", onChange);
     window.localStorage.setItem("text2scratch.theme", mode);
-
-    return () => {
-      mediaQuery.removeEventListener("change", onChange);
-    };
+    return () => mediaQuery.removeEventListener("change", onChange);
   }, [mode]);
 
   return (
@@ -126,10 +125,6 @@ function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
   const idRef = useRef(0);
 
-  const dismissToast = (id: number) => {
-    setToasts((current) => current.filter((item) => item.id !== id));
-  };
-
   const pushToast = (toast: ToastMessage) => {
     const nextToast: ToastRecord = {
       id: idRef.current + 1,
@@ -140,40 +135,18 @@ function ToastProvider({ children }: { children: ReactNode }) {
     idRef.current += 1;
     setToasts((current) => [nextToast, ...current].slice(0, 4));
     window.setTimeout(() => {
-      dismissToast(nextToast.id);
+      setToasts((current) => current.filter((item) => item.id !== nextToast.id));
     }, 4200);
   };
-
-  useLayoutEffect(() => {
-    const host = window as Window & {
-      text2scratchToast?: {
-        show: (input: string | ToastMessage, severity?: ToastVariant) => void;
-        dismissAll: () => void;
-        ensureHost: () => void;
-      };
-    };
-
-    host.text2scratchToast = {
-      show: (input, severity = "info") => {
-        const nextToast = normalizeLegacyToast(input, severity);
-        if (!nextToast.title && !nextToast.description) {
-          return;
-        }
-        pushToast(nextToast);
-      },
-      dismissAll: () => setToasts([]),
-      ensureHost: () => undefined
-    };
-  }, [pushToast]);
 
   return (
     <ToastContext.Provider value={{ pushToast }}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto flex w-full max-w-3xl flex-col gap-3 px-4">
+      <div className="pointer-events-none fixed inset-x-0 top-4 z-50 mx-auto flex w-full max-w-3xl flex-col gap-2 px-4">
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`pointer-events-auto flex items-start gap-3 rounded-2xl border px-4 py-3 shadow-[0_20px_60px_rgba(15,23,42,0.16)] backdrop-blur transition duration-200 motion-safe:animate-[toast-in_220ms_ease-out] ${
+            className={`pointer-events-auto flex items-start gap-3 rounded-lg border px-4 py-3 shadow-xl backdrop-blur transition duration-300 animate-in fade-in slide-in-from-top-4 ${
               toast.variant === "success"
                 ? "border-emerald-200 bg-emerald-50/95 text-emerald-950"
                 : toast.variant === "error"
@@ -184,42 +157,14 @@ function ToastProvider({ children }: { children: ReactNode }) {
             }`}
           >
             <span className="mt-0.5 shrink-0">
-              {toast.variant === "success" ? (
-                <CheckCircle2 className="h-5 w-5" />
-              ) : toast.variant === "error" ? (
-                <AlertCircle className="h-5 w-5" />
-              ) : toast.variant === "warning" ? (
-                <TriangleAlert className="h-5 w-5" />
-              ) : (
-                <Info className="h-5 w-5" />
-              )}
+              {toast.variant === "success" ? <CheckCircle2 size={18} /> : 
+               toast.variant === "error" ? <AlertCircle size={18} /> : 
+               toast.variant === "warning" ? <TriangleAlert size={18} /> : <Info size={18} />}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold">{toast.title}</p>
-              {toast.description ? (
-                <p
-                  className={`mt-1 text-sm ${
-                    toast.variant === "success"
-                      ? "text-emerald-800"
-                      : toast.variant === "error"
-                        ? "text-rose-800"
-                        : toast.variant === "warning"
-                          ? "text-amber-800"
-                          : "text-slate-600"
-                  }`}
-                >
-                  {toast.description}
-                </p>
-              ) : null}
+              <p className="text-sm font-bold">{toast.title}</p>
+              {toast.description && <p className="mt-0.5 text-xs opacity-80">{toast.description}</p>}
             </div>
-            <button
-              type="button"
-              onClick={() => dismissToast(toast.id)}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-black/5"
-              aria-label="Dismiss notification"
-            >
-              <X className="h-4 w-4" />
-            </button>
           </div>
         ))}
       </div>
@@ -233,190 +178,72 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  const isAdmin = user?.email === "zhibu378orangetiger707@Gmail.com";
+
   useEffect(() => {
     let isMounted = true;
-
     const initialize = async () => {
       const { data } = await supabaseClient.auth.getSession();
-      if (!isMounted) {
-        return;
-      }
-
+      if (!isMounted) return;
       setSession(data.session);
       setUser(data.session?.user || null);
-      try {
-        await loadProfile(data.session?.user || null, setProfile);
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
+      try { await loadProfile(data.session?.user || null, setProfile); } 
+      finally { if (isMounted) setIsLoading(false); }
     };
-
-    void initialize().catch(() => {
-      if (isMounted) {
-        setProfile(null);
-        setIsLoading(false);
-      }
-    });
-
+    void initialize();
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user || null);
-      try {
-        await loadProfile(nextSession?.user || null, setProfile);
-      } catch {
-        setProfile(null);
-      }
+      await loadProfile(nextSession?.user || null, setProfile);
     });
-
-    return () => {
-      isMounted = false;
-      listener.subscription.unsubscribe();
-    };
+    return () => { isMounted = false; listener.subscription.unsubscribe(); };
   }, []);
 
   const value: AuthContextValue = {
-    session,
-    user,
-    profile,
-    isLoading,
+    session, user, profile, isLoading, isAdmin,
     signIn: async (identifier, password, captchaToken) => {
       const email = await resolveLoginEmail(identifier);
       const { error } = await supabaseClient.auth.signInWithPassword({
-        email,
-        password,
-        options: captchaToken ? { captchaToken } : undefined
+        email, password, options: { captchaToken }
       });
-
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
+      if (error) throw new Error(formatSupabaseError(error));
     },
     signInWithGoogle: async () => {
       const { error } = await supabaseClient.auth.signInWithOAuth({
         provider: "google",
-        options: {
-          redirectTo: buildConfirmUrl("verify")
-        }
+        options: { redirectTo: buildConfirmUrl("verify") }
       });
-
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
+      if (error) throw new Error(formatSupabaseError(error));
     },
-    signUp: async ({ username, email, password, captchaToken, ageBand, accountRole, parentConsentAccepted }) => {
+    signUp: async ({ username, email, password, captchaToken, ageBand, accountRole }) => {
       const normalized = normalizeUsername(username);
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!isValidUsername(normalized)) {
-        throw new Error("Username must be 3 to 32 characters using lowercase letters, numbers, or underscores.");
-      }
-      if (!normalizedEmail) {
-        throw new Error("Email is required.");
-      }
-      if (ageBand === "under_13_with_parent" && !parentConsentAccepted) {
-        throw new Error("A parent or guardian must confirm consent before creating this account.");
-      }
-
-      const available = await isUsernameAvailable(normalized);
-      if (!available) {
-        throw new Error("Username is already taken.");
-      }
-
-      const metadata: Record<string, boolean | string> = {
-        username: normalized,
-        account_age_band: ageBand,
-        account_role: accountRole,
-        parent_managed: ageBand === "under_13_with_parent",
-        coppa_flow_version: "2026-03-09"
-      };
-
-      if (ageBand === "under_13_with_parent") {
-        metadata.coppa_parent_consent_acknowledged_at = new Date().toISOString();
-      }
-      if (accountRole === "parent_guardian") {
-        metadata.parent_controls_enabled = true;
-      }
-
       const { data, error } = await supabaseClient.auth.signUp({
-        email: normalizedEmail,
-        password,
+        email, password,
         options: {
           emailRedirectTo: buildConfirmUrl("verify"),
-          data: metadata,
-          captchaToken
+          captchaToken,
+          data: { username: normalized, account_age_band: ageBand, account_role: accountRole }
         }
       });
-
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
-
-      return {
-        needsEmailVerification: !data.session
-      };
+      if (error) throw new Error(formatSupabaseError(error));
+      return { needsEmailVerification: !data.session };
     },
-    createManagedChildAccount: async ({ username, email, password, captchaToken, parentConsentAccepted }) => {
-      if (!user?.id || !user?.email) {
-        throw new Error("Sign in to a parent or guardian account before creating a child account.");
-      }
-      if (String(user.user_metadata.account_role || "") !== "parent_guardian") {
-        throw new Error("Only a signed-in parent or guardian account can create a separate child account.");
-      }
-      if (!parentConsentAccepted) {
-        throw new Error("A parent or guardian must confirm consent before creating a child account.");
-      }
-
-      const normalized = normalizeUsername(username);
-      const normalizedEmail = email.trim().toLowerCase();
-      if (!isValidUsername(normalized)) {
-        throw new Error("Child username must be 3 to 32 characters using lowercase letters, numbers, or underscores.");
-      }
-      if (!normalizedEmail) {
-        throw new Error("Child email is required.");
-      }
-
-      const available = await isUsernameAvailable(normalized);
-      if (!available) {
-        throw new Error("Username is already taken.");
-      }
-
+    createManagedChildAccount: async ({ username, email, password, captchaToken }) => {
       const childClient = createEphemeralSupabaseClient();
       const { data, error } = await childClient.auth.signUp({
-        email: normalizedEmail,
-        password,
+        email, password,
         options: {
           emailRedirectTo: buildConfirmUrl("verify"),
-          data: {
-            username: normalized,
-            account_age_band: "under_13_with_parent",
-            account_role: "standard",
-            parent_managed: true,
-            parent_controls_enabled: true,
-            parent_controller_user_id: user.id,
-            parent_controller_email: user.email,
-            coppa_flow_version: "2026-03-09",
-            coppa_parent_consent_acknowledged_at: new Date().toISOString()
-          },
-          captchaToken
+          captchaToken,
+          data: { username: normalizeUsername(username), parent_managed: true }
         }
       });
-
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
-
+      if (error) throw new Error(formatSupabaseError(error));
       await childClient.auth.signOut().catch(() => undefined);
-
-      return {
-        needsEmailVerification: !data.session
-      };
+      return { needsEmailVerification: !data.session };
     },
     signOut: async () => {
-      const { error } = await supabaseClient.auth.signOut();
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
+      await supabaseClient.auth.signOut();
       setProfile(null);
     },
     sendPasswordReset: async (identifier, captchaToken) => {
@@ -425,215 +252,70 @@ function AuthProvider({ children }: { children: ReactNode }) {
         redirectTo: buildConfirmUrl("recovery"),
         captchaToken
       });
-
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
+      if (error) throw new Error(formatSupabaseError(error));
     },
     sendPasswordResetForCurrentUser: async (captchaToken) => {
-      const email = user?.email;
-      if (!email) {
-        throw new Error("Current account has no email.");
-      }
-
-      const { error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+      if (!user?.email) throw new Error("No email found.");
+      const { error } = await supabaseClient.auth.resetPasswordForEmail(user.email, {
         redirectTo: buildConfirmUrl("recovery"),
         captchaToken
       });
-
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
+      if (error) throw new Error(formatSupabaseError(error));
     },
     updatePassword: async (password) => {
       const { error } = await supabaseClient.auth.updateUser({ password });
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
+      if (error) throw new Error(formatSupabaseError(error));
     },
     updateUsername: async (username) => {
       const normalized = normalizeUsername(username);
-      if (!isValidUsername(normalized)) {
-        throw new Error("Username must be 3 to 32 characters using lowercase letters, numbers, or underscores.");
-      }
-
-      if (profile?.username !== normalized) {
-        const available = await isUsernameAvailable(normalized);
-        if (!available) {
-          throw new Error("Username is already taken.");
-        }
-      }
-
-      const { error: authError } = await supabaseClient.auth.updateUser({
-        data: {
-          username: normalized
-        }
-      });
-
-      if (authError) {
-        throw new Error(formatSupabaseError(authError));
-      }
-
-      const nextProfile = {
-        id: user?.id || "",
-        username: normalized,
-        email: user?.email || ""
-      };
-
-      const { error } = await supabaseClient
-        .from("profiles")
-        .upsert(nextProfile, {
-          onConflict: "id"
-        });
-
-      if (error && !/relation .* does not exist/i.test(String(error.message || ""))) {
-        throw new Error(formatSupabaseError(error));
-      }
-
+      const { error } = await supabaseClient.auth.updateUser({ data: { username: normalized } });
+      if (error) throw new Error(formatSupabaseError(error));
       await loadProfile(user, setProfile);
     },
     deleteCurrentAccount: async () => {
       const { error } = await supabaseClient.rpc("delete_current_account");
-      if (error) {
-        throw new Error(formatSupabaseError(error));
-      }
-
+      if (error) throw new Error(formatSupabaseError(error));
       await supabaseClient.auth.signOut();
       setProfile(null);
     },
-    refreshProfile: async () => {
-      await loadProfile(user, setProfile);
-    }
+    refreshProfile: async () => { await loadProfile(user, setProfile); }
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-async function loadProfile(user: User | null, setProfile: (value: ProfileRecord | null) => void) {
-  if (!user) {
-    setProfile(null);
+async function loadProfile(user: User | null, setProfile: (v: ProfileRecord | null) => void) {
+  if (!user) { setProfile(null); return; }
+  const { data, error } = await supabaseClient.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  if (error || !data) {
+    setProfile({ id: user.id, username: String(user.user_metadata.username || user.email?.split("@")[0] || "user"), email: user.email || "" });
     return;
   }
-
-  const { data, error } = await supabaseClient
-    .from("profiles")
-    .select("id, username, email, created_at, updated_at")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (error) {
-    if (/relation .* does not exist/i.test(String(error.message || ""))) {
-      setProfile({
-        id: user.id,
-        username: String(user.user_metadata.username || user.email || "user"),
-        email: user.email || ""
-      });
-      return;
-    }
-
-    throw new Error(formatSupabaseError(error));
-  }
-
-  setProfile(data || {
-    id: user.id,
-    username: String(user.user_metadata.username || user.email || "user"),
-    email: user.email || ""
-  });
+  setProfile(data);
 }
 
 async function resolveLoginEmail(identifier: string) {
   const value = identifier.trim().toLowerCase();
-  if (!value) {
-    throw new Error("Missing username or email.");
-  }
-
-  if (value.includes("@")) {
-    return value;
-  }
-
-  const { data, error } = await supabaseClient.rpc("resolve_login_email", {
-    login_identifier: normalizeUsername(value)
-  });
-
-  if (error) {
-    throw new Error(formatSupabaseError(error));
-  }
-  if (!data) {
-    throw new Error("Username not found.");
-  }
-
+  if (value.includes("@")) return value;
+  const { data, error } = await supabaseClient.rpc("resolve_login_email", { login_identifier: normalizeUsername(value) });
+  if (error || !data) throw new Error("User not found.");
   return String(data).toLowerCase();
-}
-
-async function isUsernameAvailable(username: string) {
-  const { data, error } = await supabaseClient.rpc("is_username_available", {
-    candidate_username: normalizeUsername(username)
-  });
-
-  if (error) {
-    throw new Error(formatSupabaseError(error));
-  }
-
-  return Boolean(data);
-}
-
-function readStoredTheme(): ThemeMode {
-  const stored = window.localStorage.getItem("text2scratch.theme");
-  if (stored === "light" || stored === "dark" || stored === "system") {
-    return stored;
-  }
-  return "system";
-}
-
-function normalizeLegacyToast(input: string | ToastMessage, severity: ToastVariant): ToastMessage {
-  if (typeof input === "string") {
-    return {
-      title: legacyTitleForVariant(severity),
-      description: input,
-      variant: severity
-    };
-  }
-
-  return {
-    title: input.title,
-    description: input.description,
-    variant: input.variant || severity
-  };
-}
-
-function legacyTitleForVariant(variant: ToastVariant) {
-  switch (variant) {
-    case "success":
-      return "Saved";
-    case "warning":
-      return "Check this";
-    case "error":
-      return "Action failed";
-    default:
-      return "Update";
-  }
 }
 
 export function useTheme() {
   const context = useContext(ThemeContext);
-  if (!context) {
-    throw new Error("useTheme must be used inside AppProviders.");
-  }
+  if (!context) throw new Error("useTheme error.");
   return context;
 }
 
 export function useToast() {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used inside AppProviders.");
-  }
+  if (!context) throw new Error("useToast error.");
   return context;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used inside AppProviders.");
-  }
+  if (!context) throw new Error("useAuth error.");
   return context;
 }
