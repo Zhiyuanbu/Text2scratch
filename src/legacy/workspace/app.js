@@ -2608,14 +2608,15 @@ function initPreview() {
   setPreviewOverlayVisible(true);
   setPreviewStatus(PREVIEW_IDLE_MESSAGE, "info");
 
-  if (!window.Scaffolding?.Scaffolding) {
+  const ScaffoldingCtor = window.Scaffolding?.Scaffolding || window.Scaffolding;
+  if (!ScaffoldingCtor) {
     setPreviewStatus(PREVIEW_UNAVAILABLE_MESSAGE, "warning");
     setPreviewOverlayMessage(PREVIEW_UNAVAILABLE_MESSAGE);
     setPreviewControlsEnabled(false);
     return;
   }
 
-  const scaffolding = new window.Scaffolding.Scaffolding();
+  const scaffolding = new ScaffoldingCtor();
   scaffolding.width = PREVIEW_STAGE_WIDTH;
   scaffolding.height = PREVIEW_STAGE_HEIGHT;
   scaffolding.resizeMode = "preserve-ratio";

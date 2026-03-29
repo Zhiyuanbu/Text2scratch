@@ -51,6 +51,7 @@ interface AuthContextValue {
   profile: ProfileRecord | null;
   isLoading: boolean;
   signIn: (identifier: string, password: string, captchaToken?: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (payload: {
     username: string;
     email: string;
@@ -286,6 +287,18 @@ function AuthProvider({ children }: { children: ReactNode }) {
         email,
         password,
         options: captchaToken ? { captchaToken } : undefined
+      });
+
+      if (error) {
+        throw new Error(formatSupabaseError(error));
+      }
+    },
+    signInWithGoogle: async () => {
+      const { error } = await supabaseClient.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: buildConfirmUrl("verify")
+        }
       });
 
       if (error) {

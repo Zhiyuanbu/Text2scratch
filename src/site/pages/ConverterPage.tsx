@@ -4,6 +4,7 @@ import {
   Download,
   FolderOpen,
   LibraryBig,
+  Lock,
   ScanSearch,
   Share2,
   Upload
@@ -11,10 +12,34 @@ import {
 import { useEffect, useState, type ReactNode } from "react";
 import { AppShell } from "../components/AppShell";
 import { loadExternalScript } from "../lib/loadExternalScript";
+import { useAuth } from "../providers/AppProviders";
 
 const JSZIP_SCRIPT_URL = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
 const MONACO_LOADER_URL = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs/loader.min.js";
-const SCAFFOLDING_SCRIPT_URL = "https://unpkg.com/@turbowarp/scaffolding@0.2.0/dist/scaffolding-min.js";
+const SCAFFOLDING_SCRIPT_URL = "./vendor/scaffolding-min.js";
+
+function loadExternalScriptNoAmd(src: string) {
+  const win = window as typeof window & { define?: { amd?: unknown } };
+  const previousDefine = win.define;
+  const previousAmd = previousDefine?.amd;
+
+  if (previousDefine) {
+    try {
+      delete win.define;
+    } catch {
+      win.define = undefined;
+    }
+  }
+
+  return loadExternalScript(src).finally(() => {
+    if (previousDefine) {
+      win.define = previousDefine;
+      if (previousAmd) {
+        win.define.amd = previousAmd;
+      }
+    }
+  });
+}
 
 const workspaceRules = [
   {
@@ -36,18 +61,25 @@ const workspaceRules = [
 ];
 
 export function ConverterPage() {
+  const { user, isLoading } = useAuth();
   const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
+    if (!user) {
+      return;
+    }
+
     let cancelled = false;
 
     const bootWorkspace = async () => {
       try {
-        await Promise.all([
-          loadExternalScript(JSZIP_SCRIPT_URL),
-          loadExternalScript(MONACO_LOADER_URL),
-          loadExternalScript(SCAFFOLDING_SCRIPT_URL).catch(() => undefined)
-        ]);
+        await loadExternalScript(JSZIP_SCRIPT_URL);
+        try {
+          await loadExternalScriptNoAmd(SCAFFOLDING_SCRIPT_URL);
+        } catch {
+          // Preview is optional, so ignore scaffolding load failures.
+        }
+        await loadExternalScript(MONACO_LOADER_URL);
 
         if (cancelled) {
           return;
@@ -66,321 +98,363 @@ export function ConverterPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [user]);
+
+  if (isLoading) {
+    return (
+      <AppShell page="converter">
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (!user) {
+    return (
+      <AppShell page="converter">
+        <section className="mx-auto flex min-h-[80vh] w-full max-w-5xl items-center px-6 py-20">
+          <div className="group relative w-full overflow-hidden rounded-[3rem] border border-slate-200/60 bg-white/80 p-12 text-center shadow-[0_40px_100px_rgba(15,23,42,0.08)] backdrop-blur-2xl dark:border-slate-800/40 dark:bg-slate-950/60">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(59,130,246,0.08),transparent_50%)]"></div>
+            <span className="relative z-10 mx-auto inline-flex h-20 w-20 items-center justify-center rounded-[2rem] bg-slate-950 text-white shadow-2xl dark:bg-white dark:text-slate-950">
+              <Lock className="h-10 w-10" />
+            </span>
+            <h1 className="relative z-10 mt-10 text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white sm:text-5xl">Workspace is protected.</h1>
+            <p className="relative z-10 mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
+              To create, save, and export Scratch projects using plain-text, you need to be part of the text2scratch platform. Sign in to unlock your personal workspace.
+            </p>
+            <div className="relative z-10 mt-12 flex flex-wrap justify-center gap-4">
+              <a href="login.html" className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-10 py-4 text-[1rem] font-bold text-white shadow-[0_15px_35px_rgba(37,99,235,0.25)] transition-all duration-300 hover:-translate-y-1 hover:bg-blue-700 hover:shadow-[0_20px_45px_rgba(37,99,235,0.3)]">
+                Sign in to account
+              </a>
+              <a href="signup.html" className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-10 py-4 text-[1rem] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                Create new account
+              </a>
+            </div>
+          </div>
+        </section>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell page="converter">
-      <section className="border-b border-black/5 bg-white/80 dark:border-white/10 dark:bg-slate-950/70">
-        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-5 py-8 lg:flex-row lg:items-end lg:justify-between">
-          <div className="space-y-3">
-            <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/85 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-              <Code2 className="h-3.5 w-3.5" />
-              Workspace
+      <section className="border-b border-black/5 bg-white/80 dark:border-white/10 dark:bg-slate-950/70 selection:bg-blue-600/10 selection:text-blue-700 dark:selection:bg-blue-500/20 dark:selection:text-blue-300">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-5 px-5 py-12 lg:flex-row lg:items-end lg:justify-between lg:py-16">
+          <div className="space-y-4">
+            <span className="inline-flex items-center gap-2.5 rounded-full border border-black/10 bg-white/80 px-4.5 py-2.5 text-[0.7rem] font-bold uppercase tracking-[0.22em] text-slate-600 backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
+              <Code2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+              Professional Workspace
             </span>
-            <h1 className="max-w-4xl text-4xl font-semibold tracking-tight text-slate-950 sm:text-5xl dark:text-white">
-              Focus on the editor. Everything else stays out of the way.
+            <h1 className="max-w-4xl text-5xl font-extrabold tracking-tight text-slate-950 sm:text-6xl dark:text-white">
+              Code with <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">Zero Friction</span>.
             </h1>
-            <p className="max-w-3xl text-base leading-8 text-slate-600 dark:text-slate-300">
-              Write commands, validate the structure, then import, export, save, or share from the side without crowding the main editing flow.
+            <p className="max-w-3xl text-lg leading-relaxed text-slate-600 dark:text-slate-400">
+              Your personal authoring environment is ready. Write commands, validate logic, and export native project files.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-3">
             <a
               href="docs.html"
-              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
+              className="inline-flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
             >
-              <LibraryBig className="h-4 w-4" />
+              <LibraryBig className="h-4.5 w-4.5" />
               Docs
             </a>
             <a
               href="reference.html"
-              className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
+              className="inline-flex items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-6 py-3.5 text-sm font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
             >
-              <ScanSearch className="h-4 w-4" />
+              <ScanSearch className="h-4.5 w-4.5" />
               Reference
             </a>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto w-full max-w-7xl px-5 py-8">
+      <section className="mx-auto w-full max-w-7xl px-5 py-12">
         {loadError ? (
-          <div className="mb-6 rounded-[1.75rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
-            The workspace shell loaded, but the editor runtime failed to start: {loadError}
+          <div className="mb-8 flex items-center gap-4 rounded-2xl border border-rose-200 bg-rose-50/80 p-6 text-rose-800 shadow-sm backdrop-blur dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-100 dark:bg-rose-500/20">
+              <Lock className="h-5 w-5" />
+            </div>
+            <p className="font-semibold">Runtime error: {loadError}</p>
           </div>
         ) : null}
 
-        <div id="sharedProjectNotice" className="shared-project-notice mb-6" hidden />
+        <div id="sharedProjectNotice" className="shared-project-notice mb-8" hidden />
 
-        <div className="grid gap-6">
-          <article className="rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Editor</p>
-                <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Scratch source</h2>
-              </div>
-              <p className="max-w-2xl text-sm leading-7 text-slate-600 dark:text-slate-300">
-                One command per line. Use `stage_code =` for Stage scripts, `name_code =` for sprite scripts, and close nested blocks with `end`.
-              </p>
-            </div>
-
-            <div className="mt-6 grid gap-4 xl:grid-cols-3">
-              <CompactActionCard
-                title="Export"
-                description="Download `.sb3` or `.t2sh`."
-                action={(
-                  <>
-                    <button
-                      id="downloadBtn"
-                      type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                    >
-                      <Download className="h-4 w-4" />
-                      Export file
-                    </button>
-                    <select
-                      id="downloadFormat"
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
-                      defaultValue="sb3"
-                      aria-label="Export format"
-                    >
-                      <option value="sb3">Scratch Project (.sb3)</option>
-                      <option value="t2sh">Session Backup (.t2sh)</option>
-                    </select>
-                  </>
-                )}
-              />
-
-              <CompactActionCard
-                title="Import"
-                description="Load an `.sb3` or `.t2sh` file."
-                action={(
-                  <>
-                    <button
-                      id="uploadBtn"
-                      type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
-                    >
-                      <Upload className="h-4 w-4" />
-                      Import file
-                    </button>
-                    <select
-                      id="uploadFormat"
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
-                      defaultValue="auto"
-                      aria-label="Import format"
-                    >
-                      <option value="auto">Auto detect</option>
-                      <option value="sb3">Scratch Project (.sb3)</option>
-                      <option value="t2sh">Session Backup (.t2sh)</option>
-                    </select>
-                    <input id="importInput" className="sr-only" type="file" aria-label="Import file" />
-                  </>
-                )}
-              />
-
-              <CompactActionCard
-                title="Example"
-                description="Start from a working sample."
-                action={(
-                  <button
-                    id="sampleBtn"
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
-                  >
-                    <FolderOpen className="h-4 w-4" />
-                    Load example
-                  </button>
-                )}
-              />
-            </div>
-
-            <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-black/10 bg-[linear-gradient(180deg,#0f172a_0%,#101a30_100%)] shadow-[0_24px_60px_rgba(15,23,42,0.2)] dark:border-white/10 dark:bg-[linear-gradient(180deg,#0b1222_0%,#10192f_100%)]">
-              <div className="flex flex-wrap items-center gap-3 border-b border-white/10 px-4 py-3">
-                <span className="h-3 w-3 rounded-full bg-white/30" />
-                <span className="h-3 w-3 rounded-full bg-white/20" />
-                <span className="h-3 w-3 rounded-full bg-white/10" />
-                <label htmlFor="projectNameInput" className="ml-2 text-xs font-semibold uppercase tracking-[0.18em] text-white/55">
-                  Project
-                </label>
-                <input
-                  id="projectNameInput"
-                  className="project-name-input min-w-[220px] flex-1 border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none"
-                  type="text"
-                  defaultValue="multi_sprite_project"
-                  maxLength={80}
-                  aria-label="Project name"
-                />
-                <span className="text-sm text-white/45">.t2s</span>
-              </div>
-              <div id="editorHost" className="code-editor min-h-[560px]" role="region" aria-label="text2scratch code editor" />
-              <label className="sr-only" htmlFor="scriptInput">Script</label>
-              <textarea
-                id="scriptInput"
-                className="script-fallback w-full resize-y border-0 bg-[#0d1728] px-4 py-4 text-sm leading-7 text-slate-100 outline-none dark:bg-[#0d1728]"
-                spellCheck="false"
-                defaultValue=""
-              />
-            </div>
-          </article>
-
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <div className="grid min-w-0 gap-6">
-              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="grid gap-8">
+          <div className="grid gap-8 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+            <div className="grid min-w-0 gap-8">
+              <article className="group relative min-w-0 overflow-hidden rounded-[2.5rem] border border-black/10 bg-white/90 p-8 shadow-[0_25px_60px_rgba(15,23,42,0.06)] transition-all duration-300 hover:shadow-[0_35px_80px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-white/5">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Preview</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Stage</h2>
+                    <p className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Live Preview</p>
+                    <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">Project Stage</h2>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2.5">
                     <button
                       id="previewRunBtn"
                       type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                      className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-slate-950 px-5 py-2.5 text-[0.9rem] font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
                     >
                       Run preview
                     </button>
                     <button
                       id="previewStopBtn"
                       type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
+                      className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-[0.9rem] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
                     >
                       Stop
                     </button>
                   </div>
                 </div>
 
-                <div className="mt-5">
-                  <div className="stage-viewport border border-black/10 shadow-[0_18px_40px_rgba(15,23,42,0.16)] dark:border-white/10">
+                <div className="relative z-10 mt-8">
+                  <div className="stage-viewport overflow-hidden rounded-[1.5rem] border border-slate-200 bg-slate-50 shadow-[0_30px_70px_rgba(15,23,42,0.12)] dark:border-slate-800 dark:bg-slate-900">
                     <div id="previewHost" className="stage-host" role="img" aria-label="Scratch stage preview" />
-                    <div id="previewOverlay" className="stage-overlay">
-                      Run preview to render the Scratch stage.
+                    <div id="previewOverlay" className="stage-overlay flex items-center justify-center text-sm font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                      Ready to execute
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                    <span id="previewStatus" className="preview-status status-info">Preview idle</span>
-                    <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                      TurboWarp stage
+                  <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
+                    <span id="previewStatus" className="preview-status text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-500">Preview idle</span>
+                    <span className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400">
+                      TurboWarp Core
                     </span>
                   </div>
                 </div>
               </article>
 
-              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <article className="group relative min-w-0 overflow-hidden rounded-[2.5rem] border border-black/10 bg-white/90 p-8 shadow-[0_25px_60px_rgba(15,23,42,0.06)] transition-all duration-300 hover:shadow-[0_35px_80px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-white/5">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                <div className="relative z-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Diagnostics</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Compiler output</h2>
+                    <p className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Diagnostics</p>
+                    <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">Compiler Output</h2>
                   </div>
-                  <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-slate-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-300">
-                    Live while you edit
+                  <span className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-slate-50 px-4 py-2 text-[0.7rem] font-bold uppercase tracking-[0.2em] text-slate-500 dark:border-white/10 dark:bg-white/5 dark:text-slate-400">
+                    Real-time Analysis
                   </span>
                 </div>
-                <pre id="status" className="workspace-status status-info mt-5">Booting workspace...</pre>
+                <pre id="status" className="workspace-status mt-6 max-h-[200px] overflow-y-auto rounded-2xl bg-slate-50 p-6 text-sm font-medium leading-relaxed text-slate-600 dark:bg-slate-900/50 dark:text-slate-400">Booting engine...</pre>
               </article>
 
-              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                <div className="flex items-center justify-between gap-4">
+              <article className="group relative min-w-0 overflow-hidden rounded-[2.5rem] border border-black/10 bg-white/90 p-8 shadow-[0_25px_60px_rgba(15,23,42,0.06)] transition-all duration-300 hover:shadow-[0_35px_80px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-white/5">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                <div className="relative z-10 flex items-center justify-between gap-4">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Command browser</p>
-                    <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Quick command list</h2>
+                    <p className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">API Browser</p>
+                    <h2 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white">Quick Reference</h2>
                   </div>
-                  <a href="reference.html" className="text-sm font-semibold text-slate-950 transition hover:text-slate-700 dark:text-white dark:hover:text-slate-300">
-                    Open full reference
+                  <a href="reference.html" className="text-sm font-bold text-blue-600 transition-colors hover:text-blue-700 dark:text-blue-400">
+                    Full Catalog
                   </a>
                 </div>
-                <ul id="commandList" className="command-list mt-5 grid gap-2 text-sm" aria-live="polite" />
+                <ul id="commandList" className="command-list mt-8 grid gap-2.5 text-sm" aria-live="polite" />
               </article>
             </div>
 
-            <aside className="grid min-w-0 gap-4 self-start">
-              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                <div className="flex items-center gap-3">
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-black/10 bg-slate-100 text-slate-950 dark:border-white/10 dark:bg-white/10 dark:text-white">
-                    <Cloud className="h-4 w-4" />
-                  </span>
+            <div className="grid min-w-0 gap-8">
+              <article className="group relative overflow-hidden rounded-[2.5rem] border border-black/10 bg-white/90 p-8 shadow-[0_30px_80px_rgba(15,23,42,0.08)] dark:border-white/10 dark:bg-white/5">
+                <div className="relative z-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Cloud</p>
-                    <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 dark:text-white">Save and share</h2>
+                    <p className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400">Source Editor</p>
+                    <h2 className="mt-3 text-4xl font-extrabold tracking-tight text-slate-950 dark:text-white uppercase tracking-tight">Main script</h2>
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm leading-7 text-slate-600 dark:text-slate-300">
-                  Sign in from the dashboard if you want to keep project snapshots online or publish a share link.
-                </p>
-                <p id="cloudAuthState" className="auth-inline-status status-info mt-4">Not signed in.</p>
+                <div className="mt-8 grid gap-4 xl:grid-cols-3">
+                  <CompactActionCard
+                    title="Export"
+                    description="Download natives."
+                    action={(
+                      <>
+                        <button
+                          id="downloadBtn"
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2.5 rounded-xl bg-slate-950 px-5 py-3.5 text-[0.9rem] font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                        >
+                          <Download className="h-4.5 w-4.5" />
+                          Execute Export
+                        </button>
+                        <select
+                          id="downloadFormat"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-blue-600 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                          defaultValue="sb3"
+                        >
+                          <option value="sb3">Native Project (.sb3)</option>
+                          <option value="t2sh">Core Backup (.t2sh)</option>
+                        </select>
+                      </>
+                    )}
+                  />
 
-                <div className="mt-5 grid gap-3">
-                  <button
-                    id="saveCloudBtn"
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-5 py-3 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
-                  >
-                    <Cloud className="h-4 w-4" />
-                    Save to cloud
-                  </button>
-                  <button
-                    id="shareProjectBtn"
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    Create share link
-                  </button>
-                  <button
-                    id="signOutBtn"
-                    type="button"
-                    className="inline-flex items-center justify-center gap-2 rounded-full border border-black/10 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
-                  >
-                    Sign out
-                  </button>
+                  <CompactActionCard
+                    title="Import"
+                    description="Load binaries."
+                    action={(
+                      <>
+                        <button
+                          id="uploadBtn"
+                          type="button"
+                          className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-[0.9rem] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                        >
+                          <Upload className="h-4.5 w-4.5" />
+                          Initialize Import
+                        </button>
+                        <select
+                          id="uploadFormat"
+                          className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700 outline-none transition-all focus:border-blue-600 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                          defaultValue="auto"
+                        >
+                          <option value="auto">Auto Protocol</option>
+                          <option value="sb3">Native Project (.sb3)</option>
+                          <option value="t2sh">Core Backup (.t2sh)</option>
+                        </select>
+                        <input id="importInput" className="sr-only" type="file" />
+                      </>
+                    )}
+                  />
+
+                  <CompactActionCard
+                    title="Template"
+                    description="Standard boilerplate."
+                    action={(
+                      <button
+                        id="sampleBtn"
+                        type="button"
+                        className="inline-flex items-center justify-center gap-2.5 rounded-xl border border-slate-200 bg-white px-5 py-3.5 text-[0.9rem] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                      >
+                        <FolderOpen className="h-4.5 w-4.5" />
+                        Load Template
+                      </button>
+                    )}
+                  />
                 </div>
 
-                <label className="mt-5 grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                  My projects
-                  <select
-                    id="cloudProjectsSelect"
-                    className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
-                    defaultValue=""
-                  >
-                    <option value="">Sign in to load projects</option>
-                  </select>
-                </label>
-
-                <label className="mt-5 grid gap-2 text-sm font-medium text-slate-700 dark:text-slate-200">
-                  Share link
-                  <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <div className="mt-8 overflow-hidden rounded-[2rem] border border-slate-800 bg-[#0b1222] shadow-[0_40px_100px_rgba(0,0,0,0.4)]">
+                  <div className="flex flex-wrap items-center gap-4 border-b border-white/10 bg-white/5 px-6 py-4">
+                    <div className="flex gap-2">
+                      <span className="h-3 w-3 rounded-full bg-rose-500/80" />
+                      <span className="h-3 w-3 rounded-full bg-amber-500/80" />
+                      <span className="h-3 w-3 rounded-full bg-emerald-500/80" />
+                    </div>
+                    <label htmlFor="projectNameInput" className="ml-2 text-[0.7rem] font-bold uppercase tracking-[0.25em] text-white/40">
+                      PROJECT_IDENTIFIER
+                    </label>
                     <input
-                      id="shareLinkOutput"
-                      className="w-full rounded-2xl border border-black/10 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-slate-950 focus:bg-white dark:border-white/10 dark:bg-white/5 dark:text-white dark:focus:border-white dark:focus:bg-white/10"
+                      id="projectNameInput"
+                      className="project-name-input min-w-[220px] flex-1 border-0 bg-transparent px-3 py-1 text-sm font-bold text-white outline-none selection:bg-blue-500/30"
                       type="text"
-                      readOnly
-                      placeholder="No share link yet"
+                      defaultValue="master_production_v1"
+                      maxLength={80}
                     />
-                    <button
-                      id="copyShareLinkBtn"
-                      type="button"
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl border border-black/10 px-4 py-3 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:border-black/20 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20 dark:hover:text-white"
-                    >
-                      Copy
-                    </button>
+                    <span className="text-xs font-bold text-white/20 uppercase">.t2sh</span>
                   </div>
-                </label>
-              </article>
-
-              <article className="min-w-0 rounded-[2rem] border border-black/10 bg-white/90 p-6 shadow-[0_18px_44px_rgba(15,23,42,0.06)] dark:border-white/10 dark:bg-white/5">
-                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Quick rules</p>
-                <div className="mt-5 grid gap-4">
-                  {workspaceRules.map((rule) => (
-                    <article key={rule.title} className="rounded-[1.4rem] border border-black/10 bg-slate-50 p-4 dark:border-white/10 dark:bg-white/5">
-                      <h3 className="text-sm font-semibold text-slate-950 dark:text-white">{rule.title}</h3>
-                      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{rule.description}</p>
-                    </article>
-                  ))}
+                  <div id="editorHost" className="code-editor min-h-[600px]" />
+                  <label className="sr-only" htmlFor="scriptInput">Script</label>
+                  <textarea
+                    id="scriptInput"
+                    className="script-fallback w-full resize-y border-0 bg-[#0d1728] px-6 py-6 text-sm font-medium leading-relaxed text-slate-100 outline-none selection:bg-blue-500/30"
+                    spellCheck="false"
+                    defaultValue=""
+                  />
                 </div>
               </article>
-            </aside>
+
+              <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-1">
+                <article className="group relative min-w-0 overflow-hidden rounded-[2.5rem] border border-black/10 bg-white/90 p-8 shadow-[0_25px_60px_rgba(15,23,42,0.06)] transition-all duration-300 hover:shadow-[0_35px_80px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-white/5">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                  <div className="relative z-10 flex items-center gap-4">
+                    <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-white shadow-lg dark:bg-blue-500">
+                      <Cloud className="h-6 w-6" />
+                    </span>
+                    <div>
+                      <p className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Persistence</p>
+                      <h2 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-950 dark:text-white">Cloud Synced</h2>
+                    </div>
+                  </div>
+
+                  <p id="cloudAuthState" className="relative z-10 mt-6 text-xs font-bold uppercase tracking-widest px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-500 inline-block">Connecting...</p>
+
+                  <div className="relative z-10 mt-8 grid gap-3.5">
+                    <button
+                      id="saveCloudBtn"
+                      type="button"
+                      className="inline-flex items-center justify-center gap-3 rounded-xl bg-slate-950 px-6 py-4 text-[0.95rem] font-bold text-white shadow-xl transition-all duration-300 hover:-translate-y-1 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                    >
+                      <Cloud className="h-5 w-5" />
+                      Synchronize to Cloud
+                    </button>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        id="shareProjectBtn"
+                        type="button"
+                        className="inline-flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[0.9rem] font-bold text-slate-700 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                      >
+                        <Share2 className="h-4.5 w-4.5" />
+                        Publish
+                      </button>
+                      <button
+                        id="signOutBtn"
+                        type="button"
+                        className="inline-flex items-center justify-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-[0.9rem] font-bold text-rose-600 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:bg-rose-50 dark:border-slate-800 dark:bg-slate-900 dark:text-rose-400"
+                      >
+                        Log out
+                      </button>
+                    </div>
+                  </div>
+
+                  <label className="relative z-10 mt-8 grid gap-3 text-[0.9rem] font-bold text-slate-700 dark:text-slate-200">
+                    Project Archive
+                    <select
+                      id="cloudProjectsSelect"
+                      className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-700 outline-none transition-all focus:border-blue-600 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"
+                      defaultValue=""
+                    >
+                      <option value="">Querying database...</option>
+                    </select>
+                  </label>
+
+                  <label className="relative z-10 mt-8 grid gap-3 text-[0.9rem] font-bold text-slate-700 dark:text-slate-200">
+                    Distribution Link
+                    <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <input
+                        id="shareLinkOutput"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm font-bold text-slate-700 outline-none transition-all focus:border-blue-600 focus:bg-white dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 selection:bg-blue-500/30"
+                        type="text"
+                        readOnly
+                        placeholder="Project is currently private"
+                      />
+                      <button
+                        id="copyShareLinkBtn"
+                        type="button"
+                        className="inline-flex items-center justify-center rounded-xl bg-slate-950 px-6 py-3.5 text-[0.9rem] font-bold text-white transition-all duration-300 hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </label>
+                </article>
+
+                <article className="group relative min-w-0 overflow-hidden rounded-[2.5rem] border border-black/10 bg-white/90 p-8 shadow-[0_25px_60px_rgba(15,23,42,0.06)] transition-all duration-300 hover:shadow-[0_35px_80px_rgba(15,23,42,0.1)] dark:border-white/10 dark:bg-white/5">
+                  <div className="absolute inset-0 bg-gradient-to-br from-blue-600/5 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"></div>
+                  <p className="relative z-10 text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400 group-hover:text-blue-600 dark:group-hover:text-blue-400">Guidelines</p>
+                  <div className="relative z-10 mt-8 grid gap-4">
+                    {workspaceRules.map((rule) => (
+                      <article key={rule.title} className="rounded-2xl border border-slate-100 bg-slate-50/50 p-5 transition-all hover:bg-white dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10">
+                        <h3 className="text-[0.9rem] font-bold text-slate-950 dark:text-white">{rule.title}</h3>
+                        <p className="mt-2 text-[0.85rem] leading-relaxed text-slate-600 dark:text-slate-400">{rule.description}</p>
+                      </article>
+                    ))}
+                  </div>
+                </article>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -398,10 +472,10 @@ function CompactActionCard({
   action: ReactNode;
 }) {
   return (
-    <article className="rounded-[1.6rem] border border-black/10 bg-slate-50 p-5 dark:border-white/10 dark:bg-white/5">
-      <p className="text-sm font-semibold text-slate-950 dark:text-white">{title}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{description}</p>
-      <div className="mt-4 grid gap-3">{action}</div>
+    <article className="rounded-2xl border border-slate-100 bg-slate-50/50 p-6 transition-all hover:bg-white dark:border-white/5 dark:bg-white/5 dark:hover:bg-white/10">
+      <p className="text-[0.7rem] font-bold uppercase tracking-[0.25em] text-slate-400 mb-4">{title}</p>
+      <div className="grid gap-3.5">{action}</div>
+      <p className="mt-4 text-[0.8rem] font-semibold text-slate-500 dark:text-slate-400">{description}</p>
     </article>
   );
 }
