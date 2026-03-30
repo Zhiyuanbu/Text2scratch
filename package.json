@@ -6,10 +6,11 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "npm run build && wrangler dev",
     "typecheck": "tsc --noEmit",
     "next:dev": "npm --prefix apps/next-site run dev",
-    "next:build": "npm --prefix apps/next-site run build"
+    "next:build": "npm --prefix apps/next-site run build",
+    "deploy": "npm run build && wrangler deploy"
   },
   "repository": {
     "type": "git",
@@ -32,6 +33,7 @@
     "scratchblocks": "^3.6.4"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.30.2",
     "@tailwindcss/vite": "^4.2.1",
     "@types/node": "^25.3.5",
     "@types/react": "^19.2.14",
@@ -39,6 +41,7 @@
     "@vitejs/plugin-react": "^4.7.0",
     "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
-    "vite": "^6.4.1"
+    "vite": "^6.4.1",
+    "wrangler": "^4.78.0"
   }
 }
