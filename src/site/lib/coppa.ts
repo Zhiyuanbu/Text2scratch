@@ -1,5 +1,5 @@
 export type AuthAudience = "adult" | "teen_13_to_17" | "under_13" | "parent_guardian";
-export type SignupAgeBand = "13_or_over" | "under_13_with_parent";
+export type SignupAgeBand = "13_or_over" | "under_13_with_parent" | "under_13";
 export type AccountRole = "standard" | "parent_guardian";
 
 export interface PendingParentManagedSignup {

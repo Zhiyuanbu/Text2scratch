@@ -14,15 +14,6 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://ytsrvbrdxhyra
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
 const TURNSTILE_SITE_KEY = "0x4AAAAAACxhNG0J87F16OOI";
 
-/**
- * Google Auth Configuration (Client-side trigger):
- * Client ID: 960123658343-1odjst6lqpcabntrl4l3o5uc4vpqctd4.apps.googleusercontent.com
- * Secret: AIzaSyCIIParJglzYaXmpPwhNb4l7fUdqwh9COE (API Key)
- * 
- * NOTE: For Supabase OAuth, you MUST also configure these in your Supabase 
- * project dashboard under Authentication > Providers > Google.
- */
-
 export const CLOUD_TABLE = "projects";
 export const SHARE_QUERY_PARAM = "share";
 
@@ -124,13 +115,13 @@ export function formatDateTime(value?: string) {
 }
 
 export function buildConfirmUrl(mode = "verify") {
-  const url = new URL("confirm.html", window.location.origin + window.location.pathname.split("/").slice(0, -1).join("/") + "/");
+  const url = buildAppPageUrl("confirm.html");
   url.searchParams.set("mode", mode);
   return url.toString();
 }
 
 export function buildLoginUrl(mode?: string) {
-  const url = new URL("login.html", window.location.origin + window.location.pathname.split("/").slice(0, -1).join("/") + "/");
+  const url = buildAppPageUrl("login.html");
   if (mode) {
     url.searchParams.set("mode", mode);
   }
@@ -138,7 +129,7 @@ export function buildLoginUrl(mode?: string) {
 }
 
 export function buildShareUrl(slug: string) {
-  const url = new URL("converter.html", window.location.origin + window.location.pathname.split("/").slice(0, -1).join("/") + "/");
+  const url = buildAppPageUrl("converter.html");
   url.searchParams.set(SHARE_QUERY_PARAM, slug);
   return url.toString();
 }
@@ -149,4 +140,9 @@ export function getTurnstileSiteKey() {
 
 export function getHcaptchaSiteKey() {
   return "a52804d0-570c-4f04-83d0-65b60e3a93c2";
+}
+
+function buildAppPageUrl(pageName: string) {
+  const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/";
+  return new URL(pageName, `${window.location.origin}${basePath}`);
 }

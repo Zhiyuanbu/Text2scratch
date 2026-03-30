@@ -10,6 +10,11 @@ import {
   isMissingRowError
 } from "../auth/supabase-client.js";
 import bundledBlockCatalog from "../../../data/blocks.json";
+import {
+  buildScratchblocksCode,
+  getBlockSectionLabel
+} from "../../site/lib/blockPresentation";
+import { renderScratchblocksInto } from "../../site/lib/scratchblocks";
 import { showConfirmDialog } from "../shared/dialog-client.js";
 
 const STAGE_BACKDROP = {
@@ -38,23 +43,12 @@ const STAGE_SVG =
 const SPRITE_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96"><circle cx="48" cy="48" r="34" fill="#ff9f1c" stroke="#2e2e2e" stroke-width="6"/><circle cx="36" cy="40" r="5" fill="#2e2e2e"/><circle cx="60" cy="40" r="5" fill="#2e2e2e"/><path d="M30 58 Q48 72 66 58" stroke="#2e2e2e" stroke-width="5" fill="none" stroke-linecap="round"/></svg>';
 
-const CORE_PREFIX_LABELS = {
-  event: "Events",
-  motion: "Motion",
-  looks: "Looks",
-  sound: "Sound",
-  control: "Control",
-  sensing: "Sensing",
-  operator: "Operators",
-  data: "Variables & Lists",
-  procedures: "My Blocks"
-};
-
 const INDENT_UNIT = "  ";
 const MONACO_VS_PATH = "https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.2/min/vs";
 const PREVIEW_STAGE_WIDTH = 480;
 const PREVIEW_STAGE_HEIGHT = 360;
 const PREVIEW_IDLE_MESSAGE = "Preview idle.";
+const PREVIEW_DIRTY_MESSAGE = "Preview out of date. Run again to refresh.";
 const PREVIEW_UNAVAILABLE_MESSAGE = "Preview unavailable. TurboWarp player failed to load.";
 const MARKER_OWNER = "text2scratch-diagnostics";
 const DIAGNOSTIC_DEBOUNCE_MS = 220;
@@ -165,6 +159,7 @@ const ui = {
   shareLinkOutput: document.getElementById("shareLinkOutput"),
   copyShareLink: document.getElementById("copyShareLinkBtn"),
   sharedProjectNotice: document.getElementById("sharedProjectNotice"),
+  publishCommunity: document.getElementById("publishCommunityBtn"),
   profileMenuBtn: document.getElementById("profileMenuBtn"),
   profileAvatarBadge: document.getElementById("profileAvatarBadge"),
   profileNavLabel: document.getElementById("profileNavLabel"),
@@ -218,16 +213,19 @@ const previewState = {
   instance: null,
   ready: false,
   loading: false,
+  hasRun: false,
+  dirty: false,
   resizeObserver: null
 };
 
-init();
+void init();
 
 async function init() {
   ensureToastHost();
   await initEditor();
   initPreview();
   setProjectName(DEFAULT_PROJECT_NAME);
+  let startupDegraded = false;
 
   try {
     blockCatalog = await loadBlockCatalog();
@@ -240,6 +238,7 @@ async function init() {
     setStatus("Ready. Import SB3, edit text commands, then export as .sb3 or .t2sh.");
     scheduleDiagnosticsUpdate();
   } catch (error) {
+    startupDegraded = true;
     setStatus(`Startup error: ${error.message}`, true);
   }
 
@@ -274,6 +273,7 @@ async function init() {
   initSupabaseWorkspace().catch((error) => {
     setStatus(`Cloud setup error: ${error.message}`, "warning");
   });
+  dispatchWorkspaceReady({ degraded: startupDegraded });
 }
 
 async function loadBlockCatalog() {
@@ -2681,6 +2681,17 @@ function setPreviewLoading(loading) {
   setPreviewControlsEnabled(previewState.ready);
 }
 
+function markPreviewDirty(message = PREVIEW_DIRTY_MESSAGE) {
+  if (!previewState.ready || previewState.loading || !previewState.hasRun) {
+    return;
+  }
+
+  previewState.dirty = true;
+  setPreviewStatus(message, "warning");
+  setPreviewOverlayMessage(message);
+  setPreviewOverlayVisible(true);
+}
+
 async function runPreview() {
   if (!previewState.instance || !previewState.ready) {
     setPreviewStatus(PREVIEW_UNAVAILABLE_MESSAGE, "warning");
@@ -2720,6 +2731,8 @@ async function runPreview() {
     await previewState.instance.loadProject(payload);
     previewState.instance.greenFlag?.();
 
+    previewState.hasRun = true;
+    previewState.dirty = false;
     const warningCount = build.assetWarnings?.length || 0;
     const message = warningCount > 0
       ? `Preview running with ${warningCount} asset warning${warningCount === 1 ? "" : "s"}.`
@@ -2746,10 +2759,7 @@ function stopPreview() {
 }
 
 function renderCommandList(catalog) {
-  if (!ui.commands) {
-    return;
-  }
-
+  if (!ui.commands) return;
   ui.commands.innerHTML = "";
 
   const entries = Object.entries(catalog.commands)
@@ -2757,59 +2767,55 @@ function renderCommandList(catalog) {
     .map(([name, definition]) => ({
       name,
       definition,
-      section: getCommandSectionLabel(name, definition)
+      section: getBlockSectionLabel(name, definition).replace(" / ", ": ")
     }))
     .sort((a, b) => {
-      if (a.section !== b.section) {
-        return a.section.localeCompare(b.section);
-      }
+      if (a.section !== b.section) return a.section.localeCompare(b.section);
       return a.name.localeCompare(b.name);
     });
 
   let currentSection = "";
-  entries.forEach(({ definition, section }) => {
+  entries.forEach(({ name, definition, section }) => {
     if (section !== currentSection) {
       currentSection = section;
       const sectionItem = document.createElement("li");
-      sectionItem.className = "command-section";
+      sectionItem.className = "px-3 py-2 text-[0.6rem] font-black uppercase tracking-widest text-slate-400 bg-slate-50/50 dark:bg-slate-800/30 sticky top-0 backdrop-blur-sm z-10";
       sectionItem.textContent = section;
       ui.commands.appendChild(sectionItem);
     }
 
     const item = document.createElement("li");
-    const syntax = document.createElement("span");
-    syntax.className = "syntax";
-    syntax.textContent = definition.syntax;
-    item.appendChild(syntax);
+    item.className = "border-b border-slate-100 dark:border-slate-800/50 last:border-0";
 
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "group flex w-full flex-col rounded-md px-2 py-1.5 text-left transition-colors hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4d97ff]/40 dark:hover:bg-slate-800/50";
+
+    const block = document.createElement("div");
+    block.className = "mb-1 min-h-[2.25rem]";
+    renderScratchblocksInto(block, buildScratchblocksCode(name, definition), { scale: 0.78 });
+    
+    const desc = document.createElement("div");
+    desc.className = "px-1 text-[0.6rem] font-semibold text-slate-500 dark:text-slate-400 leading-tight";
+    desc.textContent = definition.syntax;
+
+    const meta = document.createElement("div");
+    meta.className = "px-1 pt-1 text-[0.55rem] text-slate-400 dark:text-slate-500 leading-tight";
+
+    button.appendChild(block);
+    button.appendChild(desc);
     if (definition.description) {
-      const description = document.createElement("span");
-      description.textContent = ` - ${definition.description}`;
-      item.appendChild(description);
+      meta.textContent = definition.description;
+      button.appendChild(meta);
     }
 
+    button.addEventListener("click", () => {
+      insertEditorValue(`${definition.syntax}\n`);
+    });
+
+    item.appendChild(button);
     ui.commands.appendChild(item);
   });
-}
-
-function getCommandSectionLabel(name, definition) {
-  if (definition.extension) {
-    return `Extension: ${definition.extension}`;
-  }
-
-  if (definition.kind === "meta") {
-    return "Core: Meta";
-  }
-  if (definition.kind === "define" || definition.kind === "call") {
-    return "Core: My Blocks";
-  }
-  if (name === "else" || name === "end") {
-    return "Core: Control";
-  }
-
-  const opcode = definition.opcode || "";
-  const prefix = opcode.split("_")[0];
-  return `Core: ${CORE_PREFIX_LABELS[prefix] || "Meta"}`;
 }
 
 async function initEditor() {
@@ -2896,6 +2902,7 @@ function initMonacoEditor() {
         editorState.usingMonaco = true;
         ui.editorHost.classList.add("ready");
         editorState.instance.onDidChangeModelContent(() => {
+          markPreviewDirty();
           scheduleDiagnosticsUpdate();
         });
 
@@ -3336,6 +3343,7 @@ function setEditorValue(value) {
   const next = value || "";
   if (editorState.usingMonaco && editorState.instance) {
     editorState.instance.setValue(next);
+    markPreviewDirty();
     scheduleDiagnosticsUpdate();
     return;
   }
@@ -3344,6 +3352,7 @@ function setEditorValue(value) {
     ui.input.value = next;
   }
 
+  markPreviewDirty();
   scheduleDiagnosticsUpdate();
 }
 
@@ -3353,6 +3362,7 @@ function attachEditorEnhancements() {
   }
 
   ui.input.addEventListener("input", () => {
+    markPreviewDirty();
     scheduleDiagnosticsUpdate();
   });
 
@@ -3360,6 +3370,7 @@ function attachEditorEnhancements() {
     if (event.key === "Tab") {
       event.preventDefault();
       handleTabIndent(event.shiftKey);
+      markPreviewDirty();
       scheduleDiagnosticsUpdate();
       return;
     }
@@ -3367,6 +3378,7 @@ function attachEditorEnhancements() {
     if (event.key === "Enter") {
       event.preventDefault();
       handleAutoIndentEnter();
+      markPreviewDirty();
       scheduleDiagnosticsUpdate();
     }
   });
@@ -4009,15 +4021,20 @@ async function initSupabaseWorkspace() {
   }
 
   const listenerResult = supabaseState.client.auth.onAuthStateChange(async (_event, session) => {
+    const previousUser = supabaseState.user;
     supabaseState.user = session?.user || null;
+    
     if (!supabaseState.user) {
-      supabaseState.activeProjectId = null;
-      resetShareLink();
+      if (!shareState.active) {
+        supabaseState.activeProjectId = null;
+        resetShareLink();
+      }
     }
 
     if (shareState.active) {
       const isOwner = Boolean(supabaseState.user?.id) && supabaseState.user.id === shareState.ownerId;
       setSharedReadOnly(!isOwner);
+      renderSharedProjectNotice(ui.projectNameInput?.value || "Untitled");
     }
 
     setCloudAuthState();
@@ -4038,6 +4055,7 @@ function bindCloudEventHandlers() {
   ui.signOut.addEventListener("click", onCloudSignOutClick);
   ui.saveCloud.addEventListener("click", onSaveCloudProjectClick);
   ui.shareProject.addEventListener("click", onShareProjectClick);
+  ui.publishCommunity?.addEventListener("click", onPublishCommunityClick);
   ui.copyShareLink.addEventListener("click", onCopyShareLinkClick);
   ui.cloudProjects.addEventListener("change", onCloudProjectSelected);
 }
@@ -4178,6 +4196,86 @@ async function onShareProjectClick() {
   window.text2scratchRum?.trackProjectShared({ project_id: projectId, shared: true });
   setStatus("Share link created. Anyone with the link can load this project.", "success");
 }
+
+async function onPublishCommunityClick() {
+  if (!ensureCloudSignedIn()) return;
+  if (shareState.readOnly) {
+    setStatus("You must fork this project to publish it under your name.", "warning");
+    return;
+  }
+
+  const ok = await showConfirmDialog({
+    title: "Post to Community?",
+    message: "This will make your project public and visible on the Community Forum. Continue?",
+    confirmLabel: "Post Project",
+    cancelLabel: "Not Now"
+  });
+
+  if (!ok) return;
+
+  let projectId = supabaseState.activeProjectId;
+  if (!projectId) {
+    projectId = await saveProjectToCloud({ announce: false });
+    if (!projectId) return;
+  }
+
+  const result = await supabaseState.client
+    .from(CLOUD_TABLE)
+    .update({ is_public: true, updated_at: new Date().toISOString() })
+    .eq("id", projectId)
+    .eq("owner_id", supabaseState.user.id);
+
+  if (result.error) {
+    setStatus(`Publish failed: ${formatSupabaseError(result.error)}`, "error");
+    return;
+  }
+
+  setStatus("Project published! It is now visible on the Community Forum.", "success");
+}
+
+function insertEditorValue(value) {
+  if (editorState.usingMonaco && editorState.instance) {
+    const selection = editorState.instance.getSelection();
+    const id = { major: 1, minor: 1 };
+    const op = { identifier: id, range: selection, text: value, forceMoveMarkers: true };
+    editorState.instance.executeEdits("text2scratch", [op]);
+    editorState.instance.focus();
+    markPreviewDirty();
+    scheduleDiagnosticsUpdate();
+    return;
+  }
+
+  if (ui.input) {
+    const start = ui.input.selectionStart;
+    const end = ui.input.selectionEnd;
+    const text = ui.input.value;
+    ui.input.value = text.slice(0, start) + value + text.slice(end);
+    ui.input.selectionStart = ui.input.selectionEnd = start + value.length;
+    ui.input.focus();
+    markPreviewDirty();
+    scheduleDiagnosticsUpdate();
+  }
+}
+
+window.addEventListener("text2scratch.insert", (e) => {
+  if (e.detail?.syntax) {
+    insertEditorValue(e.detail.syntax + "\n");
+  }
+});
+
+window.addEventListener("text2scratch.scroll_to", (e) => {
+  const sectionName = e.detail?.section;
+  if (!sectionName || !ui.commands) return;
+  
+  const items = ui.commands.getElementsByTagName("li");
+  for (let i = 0; i < items.length; i++) {
+    const text = items[i].textContent || "";
+    if (text.startsWith(sectionName)) {
+      items[i].scrollIntoView({ behavior: "smooth", block: "start" });
+      break;
+    }
+  }
+});
 
 async function assignProjectShareSlug(projectId) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -4346,30 +4444,40 @@ function setSharedReadOnly(readOnly) {
 }
 
 function renderSharedProjectNotice(projectTitle) {
-  if (!ui.sharedProjectNotice) {
-    return;
-  }
-
+  if (!ui.sharedProjectNotice) return;
   const creator = shareState.ownerName || "Unknown creator";
+  const isOwner = Boolean(supabaseState.user?.id) && supabaseState.user.id === shareState.ownerId;
+  
   ui.sharedProjectNotice.hidden = false;
-  ui.sharedProjectNotice.classList.toggle("read-only", shareState.readOnly);
+  ui.sharedProjectNotice.innerHTML = "";
+  
+  const container = document.createElement("div");
+  container.className = "flex flex-col gap-2";
+  
+  const text = document.createElement("div");
+  text.innerHTML = isOwner 
+    ? `<strong>System_Node:</strong> "${escapeHtml(projectTitle)}" (Live Deployment)`
+    : `<strong>Remote_Node:</strong> "${escapeHtml(projectTitle)}" by ${escapeHtml(creator)}`;
+  container.appendChild(text);
 
-  if (shareState.readOnly) {
-    ui.sharedProjectNotice.innerHTML = `
-      <p><strong>Shared Project:</strong> ${escapeHtml(projectTitle)} by ${escapeHtml(creator)}. This view is read-only.</p>
-      <button id="forkSharedProjectBtn" type="button" class="secondary-btn">Fork to Editable Copy</button>
-    `;
-
-    const forkBtn = document.getElementById("forkSharedProjectBtn");
-    forkBtn?.addEventListener("click", () => {
+  if (!isOwner) {
+    const forkBtn = document.createElement("button");
+    forkBtn.className = "mt-1 w-full rounded bg-blue-600 py-1 text-[0.55rem] font-black uppercase text-white hover:bg-blue-700 transition-all";
+    forkBtn.textContent = "Fork to Personal Archive";
+    forkBtn.onclick = () => {
       clearSharedMode();
       setProjectName(`${sanitizeName(projectTitle, "project")}_fork`);
-      setStatus(`Forked "${projectTitle}" to an editable local copy.`, "success");
-    });
-    return;
+      setStatus(`Forked "${projectTitle}" to an editable copy.`, "success");
+    };
+    container.appendChild(forkBtn);
+  } else {
+    const ownerHint = document.createElement("div");
+    ownerHint.className = "text-[0.55rem] font-bold text-emerald-600 uppercase";
+    ownerHint.textContent = "Authoring Permissions: READ_WRITE";
+    container.appendChild(ownerHint);
   }
 
-  ui.sharedProjectNotice.innerHTML = `<p><strong>Shared Project:</strong> ${escapeHtml(projectTitle)} by ${escapeHtml(creator)}. You are the creator, editing is enabled.</p>`;
+  ui.sharedProjectNotice.appendChild(container);
 }
 
 function clearSharedMode() {
@@ -4595,7 +4703,15 @@ function setStatus(message, isWarning = false) {
   ui.status.setAttribute("data-severity", severity);
   ui.status.setAttribute("aria-live", severity === "error" ? "assertive" : "polite");
 
+  window.dispatchEvent(new CustomEvent("text2scratch.status", {
+    detail: { message, severity }
+  }));
+
   if (severity !== "info" || /^Ready\./.test(message) === false) {
     showToast(message, severity);
   }
+}
+
+function dispatchWorkspaceReady(detail = {}) {
+  window.dispatchEvent(new CustomEvent("text2scratch.ready", { detail }));
 }

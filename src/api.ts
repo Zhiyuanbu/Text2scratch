@@ -309,19 +309,62 @@ function buildDocs() {
 
 function renderJson(data: unknown, pretty: boolean) {
   const content = pretty ? JSON.stringify(data, null, 2) : JSON.stringify(data);
+  const isOk = typeof data === "object" && data !== null && "ok" in data ? Boolean((data as { ok?: unknown }).ok) : true;
 
-  document.title = "text2scratch | API";
+  document.title = "text2scratch | API Protocol";
+  document.documentElement.style.background = "#0d1117";
   document.body.replaceChildren();
-  document.body.textContent = content;
+  
+  const container = document.createElement("div");
+  container.style.maxWidth = "1000px";
+  container.style.margin = "0 auto";
+  container.style.padding = "24px";
+  
+  const header = document.createElement("div");
+  header.style.display = "flex";
+  header.style.alignItems = "center";
+  header.style.justifyContent = "space-between";
+  header.style.marginBottom = "16px";
+  header.style.borderBottom = "1px solid #30363d";
+  header.style.paddingBottom = "12px";
+  
+  const title = document.createElement("h1");
+  title.textContent = "REST API TERMINAL";
+  title.style.color = "#4d97ff";
+  title.style.margin = "0";
+  title.style.fontSize = "12px";
+  title.style.fontWeight = "900";
+  title.style.letterSpacing = "0.2em";
+  header.appendChild(title);
+  
+  const status = document.createElement("div");
+  status.textContent = isOk ? "STATUS_OK" : "STATUS_ERROR";
+  status.style.color = isOk ? "#3fb950" : "#f85149";
+  status.style.fontSize = "10px";
+  status.style.fontWeight = "bold";
+  header.appendChild(status);
+
+  const pre = document.createElement("pre");
+  pre.textContent = content;
+  pre.style.margin = "0";
+  pre.style.whiteSpace = "pre-wrap";
+  pre.style.wordBreak = "break-word";
+  pre.style.fontFamily = 'ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
+  pre.style.fontSize = "13px";
+  pre.style.lineHeight = "1.6";
+  pre.style.color = "#e6edf3";
+  pre.style.background = "#161b22";
+  pre.style.padding = "20px";
+  pre.style.borderRadius = "8px";
+  pre.style.border = "1px solid #30363d";
+  pre.style.boxShadow = "0 4px 20px rgba(0,0,0,0.3)";
+
+  container.appendChild(header);
+  container.appendChild(pre);
+  document.body.appendChild(container);
+
   document.body.style.margin = "0";
-  document.body.style.padding = "16px";
-  document.body.style.whiteSpace = "pre-wrap";
-  document.body.style.wordBreak = "break-word";
-  document.body.style.fontFamily = 'ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace';
-  document.body.style.fontSize = "14px";
-  document.body.style.lineHeight = "1.5";
-  document.body.style.background = "#f7f9fc";
-  document.body.style.color = "#13203a";
+  document.body.style.background = "#0d1117";
 }
 
 function readBoolean(value: string | null, fallback: boolean) {

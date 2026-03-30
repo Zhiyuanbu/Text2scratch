@@ -1,28 +1,69 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, LogOut, Menu, MoonStar, SunMedium, X, Loader2 } from "lucide-react";
-import logoUrl from "../../../logo.png";
+import { Bell, ChevronDown, Loader2, Menu, MoonStar, SunMedium, Trash2, X } from "lucide-react";
 import { mobileNavLinks, primaryNavLinks, type AppPageKey } from "../config/pages";
 import { buildAvatarLabel } from "../lib/supabase";
-import { useAuth, useTheme } from "../providers/AppProviders";
+import { useAuth, useTheme, useNotifications } from "../providers/AppProviders";
 
 interface AppShellProps {
   page: AppPageKey;
   children: ReactNode;
 }
 
+const AUTH_BLOCKING_PAGES = new Set<AppPageKey>(["converter", "dashboard"]);
+const logoUrl = "/apple-touch-icon.png";
+
+function readSessionValue(key: string) {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function writeSessionValue(key: string, value: string) {
+  try {
+    sessionStorage.setItem(key, value);
+  } catch {
+    // Ignore storage write failures and continue.
+  }
+}
+
 export function AppShell({ page, children }: AppShellProps) {
   const { user, profile, signOut, isLoading: authLoading } = useAuth();
   const { mode, resolvedMode, setMode } = useTheme();
+  const { notifications, unreadCount, markAllRead, clearAll } = useNotifications();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [notifsOpen, setNotifsOpen] = useState(false);
   const [typewriterText, setTypewriterText] = useState("");
   const [isPageLoading, setIsPageLoading] = useState(true);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
-  
+  const notifsMenuRef = useRef<HTMLDivElement | null>(null);
   const fullBrandName = "text2scratch";
+  
+  useEffect(() => {
+    if (import.meta.env.DEV) return;
+    const interval = setInterval(() => {
+      fetch(window.location.origin + window.location.pathname, { method: "HEAD", cache: "no-store" })
+        .then((resp) => {
+          const etag = resp.headers.get("etag");
+          const lastMod = resp.headers.get("last-modified");
+          const currentEtag = readSessionValue("text2scratch.deploy_etag");
+          const currentLastMod = readSessionValue("text2scratch.deploy_lastmod");
+          
+          if (currentEtag && etag && currentEtag !== etag) window.location.reload();
+          else if (currentLastMod && lastMod && currentLastMod !== lastMod) window.location.reload();
+          
+          if (etag) writeSessionValue("text2scratch.deploy_etag", etag);
+          if (lastMod) writeSessionValue("text2scratch.deploy_lastmod", lastMod);
+        })
+        .catch(() => {});
+    }, 1000 * 60 * 5); // 5 minutes
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
-    if (sessionStorage.getItem("text2scratch.intro_played")) {
+    if (readSessionValue("text2scratch.intro_played")) {
       setTypewriterText(fullBrandName);
       return;
     }
@@ -32,7 +73,7 @@ export function AppShell({ page, children }: AppShellProps) {
       i++;
       if (i > fullBrandName.length) {
         clearInterval(interval);
-        sessionStorage.setItem("text2scratch.intro_played", "true");
+        writeSessionValue("text2scratch.intro_played", "true");
       }
     }, 60);
     return () => clearInterval(interval);
@@ -45,10 +86,13 @@ export function AppShell({ page, children }: AppShellProps) {
 
   useEffect(() => {
     function handlePointerDown(event: PointerEvent) {
-      if (!accountMenuRef.current || accountMenuRef.current.contains(event.target as Node)) {
-        return;
+      const target = event.target as Node;
+      if (accountMenuRef.current && !accountMenuRef.current.contains(target)) {
+        setAccountOpen(false);
       }
-      setAccountOpen(false);
+      if (notifsMenuRef.current && !notifsMenuRef.current.contains(target)) {
+        setNotifsOpen(false);
+      }
     }
     window.addEventListener("pointerdown", handlePointerDown);
     return () => window.removeEventListener("pointerdown", handlePointerDown);
@@ -61,7 +105,7 @@ export function AppShell({ page, children }: AppShellProps) {
     || user?.email?.split("@")[0]
     || "Profile";
 
-  if (isPageLoading || authLoading) {
+  if (isPageLoading || (authLoading && AUTH_BLOCKING_PAGES.has(page))) {
     return (
       <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#f9f9f9] dark:bg-[#0d1117]">
         <div className="mb-6 h-16 w-16 animate-bounce">
@@ -78,7 +122,7 @@ export function AppShell({ page, children }: AppShellProps) {
   return (
     <div className={`site-shell min-h-screen bg-[#f0f0f0] text-slate-900 dark:bg-[#0d1117] dark:text-slate-200 selection:bg-blue-500/30`}>
       {/* Scratch-style functional top bar */}
-      <header className="sticky top-0 z-50 h-10 border-b border-black/10 bg-[#4d97ff] text-white dark:bg-[#161b22] dark:border-slate-800 shadow-sm">
+      <header className="sticky top-0 z-50 h-12 border-b border-black/10 bg-[#4d97ff] text-white dark:bg-[#161b22] dark:border-slate-800 shadow-sm">
         <div className="mx-auto flex h-full items-center gap-4 px-2">
           <a href="index.html" className="flex items-center gap-2 hover:opacity-90 min-w-[130px]">
             <img src={logoUrl} alt="" className="h-6 w-6 rounded bg-white p-0.5" />
@@ -106,6 +150,51 @@ export function AppShell({ page, children }: AppShellProps) {
           </nav>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* Notifications */}
+            <div ref={notifsMenuRef} className="relative">
+              <button
+                onClick={() => {
+                  setNotifsOpen(!notifsOpen);
+                  if (!notifsOpen) markAllRead();
+                }}
+                type="button"
+                aria-expanded={notifsOpen}
+                aria-label="Open notifications"
+                className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors hover:bg-black/10 relative ${notifsOpen ? "bg-black/10" : ""}`}
+              >
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-rose-500 ring-2 ring-[#4d97ff] dark:ring-[#161b22]" />
+                )}
+              </button>
+
+              {notifsOpen && (
+                <div className="dropdown-content absolute right-0 mt-2 w-80 rounded-xl border border-slate-200 bg-white p-2 shadow-2xl dark:border-slate-800 dark:bg-[#161b22]">
+                  <div className="flex items-center justify-between p-2 border-b border-slate-50 dark:border-slate-800 mb-2">
+                    <span className="text-[0.6rem] font-black uppercase tracking-widest text-slate-400">Notifications</span>
+                    <button type="button" onClick={clearAll} className="text-slate-400 hover:text-rose-500 transition-colors">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <div className="max-h-64 overflow-y-auto space-y-1 custom-scrollbar">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 text-center text-xs font-bold text-slate-400 uppercase tracking-widest">No signals</div>
+                    ) : (
+                      notifications.map(n => (
+                        <div key={n.id} className={`p-3 rounded-lg border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${!n.read ? "bg-blue-50/30 dark:bg-blue-900/10" : ""}`}>
+                          <div className="flex justify-between items-start mb-1">
+                            <span className="text-[0.7rem] font-black text-[#4d97ff] dark:text-blue-400 uppercase tracking-tight">{n.title}</span>
+                            <span className="text-[0.55rem] font-bold text-slate-400">{n.time}</span>
+                          </div>
+                          <p className="text-[0.7rem] font-medium text-slate-600 dark:text-slate-400 leading-tight">{n.message}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
             <button
               onClick={() => setMode(isDark ? "light" : "dark")}
               className="flex h-7 w-7 items-center justify-center rounded hover:bg-black/10 transition-colors"
@@ -116,7 +205,10 @@ export function AppShell({ page, children }: AppShellProps) {
             {user ? (
               <div ref={accountMenuRef} className="relative">
                 <button
+                  type="button"
                   onClick={() => setAccountOpen(!accountOpen)}
+                  aria-expanded={accountOpen}
+                  aria-label="Open account menu"
                   className="flex items-center gap-2 rounded bg-black/10 px-2 py-1 hover:bg-black/20 transition-colors"
                 >
                   <span className="flex h-5 w-5 items-center justify-center rounded-sm bg-blue-600 text-[0.6rem] font-black uppercase">
@@ -148,7 +240,10 @@ export function AppShell({ page, children }: AppShellProps) {
             )}
 
             <button
+              type="button"
               onClick={() => setMobileOpen(!mobileOpen)}
+              aria-expanded={mobileOpen}
+              aria-label="Open mobile navigation"
               className="flex h-7 w-7 items-center justify-center rounded hover:bg-black/10 lg:hidden"
             >
               {mobileOpen ? <X size={18} /> : <Menu size={18} />}
@@ -162,11 +257,11 @@ export function AppShell({ page, children }: AppShellProps) {
           <div className="ml-auto h-full w-64 bg-white p-4 dark:bg-[#0d1117] shadow-2xl animate-in slide-in-from-right duration-200" onClick={e => e.stopPropagation()}>
             <div className="mb-6 flex items-center justify-between">
               <span className="text-xs font-black uppercase tracking-widest text-slate-400">Navigation</span>
-              <button onClick={() => setMobileOpen(false)}><X size={20} /></button>
+              <button type="button" onClick={() => setMobileOpen(false)} aria-label="Close mobile navigation"><X size={20} /></button>
             </div>
             <nav className="grid gap-1">
               {mobileNavLinks.map(link => (
-                <a key={link.href} href={link.href} className="rounded px-3 py-2 text-sm font-bold uppercase hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)} className="rounded px-3 py-2 text-sm font-bold uppercase hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
                   {link.label}
                 </a>
               ))}
@@ -175,7 +270,7 @@ export function AppShell({ page, children }: AppShellProps) {
         </div>
       )}
 
-      <main className={isWorkspace ? "h-[calc(100vh-2.5rem)] overflow-hidden" : "pt-4"}>
+      <main className={isWorkspace ? "h-[calc(100vh-3rem)] overflow-hidden" : "pt-4"}>
         {children}
       </main>
 
@@ -193,7 +288,7 @@ export function AppShell({ page, children }: AppShellProps) {
                 <a href="docs.html" className="hover:text-[#4d97ff]">Docs</a>
                 <a href="https://github.com/Zhiyuanbu/Text2scratch" className="hover:text-[#4d97ff]">GitHub</a>
               </div>
-              <p className="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-slate-400">© {new Date().getFullYear()} TEXT2SCRATCH PROTOCOL</p>
+              <p className="text-[0.6rem] font-bold uppercase tracking-[0.2em] text-slate-400">© {new Date().getFullYear()} text2scratch</p>
             </div>
           </div>
         </footer>

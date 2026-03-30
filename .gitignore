@@ -6,6 +6,8 @@ Desktop.ini
 # Editor / IDE
 .vscode/
 .idea/
+.gemini/
+.sixth/
 *.swp
 *.swo
 

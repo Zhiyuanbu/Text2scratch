@@ -24,16 +24,19 @@ Redistributions must keep this license text and existing copyright notices.
 The Software is provided "as is", without warranty of any kind.`;
 
 const termsSections = [
-  { title: "1. Scope", body: "text2scratch is a browser-based conversion tool. These terms apply to the hosted site and cloud features." },
-  { title: "2. License", body: "Software use is governed by the project license. Visible attribution is required for redistributions." },
-  { title: "3. Acceptable Use", body: "Illegal activity, abuse, and deceptive behavior are strictly prohibited." },
-  { title: "4. Responsibility", body: "Account owners are responsible for all activity performed through their credentials." }
+  { title: "1. Agreement to Terms", body: "By accessing text2scratch, you agree to be bound by these Terms of Service and all applicable laws and regulations. If you do not agree, you are prohibited from using this service." },
+  { title: "2. Use License", body: "Permission is granted to use the text2scratch authoring engine for personal and non-commercial projects. This is the grant of a license, not a transfer of title, and under this license you may not use the materials for any commercial purpose without explicit authorization." },
+  { title: "3. User Accounts", body: "You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account. We reserve the right to terminate accounts that violate our safety guidelines." },
+  { title: "4. Disclaimer", body: "The materials on text2scratch are provided 'as is'. text2scratch makes no warranties, expressed or implied, and hereby disclaims all other warranties including, without limitation, implied warranties of merchantability or fitness for a particular purpose." },
+  { title: "5. Limitations", body: "In no event shall text2scratch or its suppliers be liable for any damages arising out of the use or inability to use the materials on the service." }
 ];
 
 const privacySections = [
-  { title: "1. Local Processing", body: "Project conversion happens in the browser. Local use does not require data transmission to our servers." },
-  { title: "2. Cloud Storage", body: "Public projects and metadata are stored in Supabase only when intentionally saved by the user." },
-  { title: "3. Third Parties", body: "We load core libraries from CDNs (JSZip, Monaco, Supabase). They process standard browser metadata." }
+  { title: "1. Information Collection", body: "We collect minimal information necessary to provide cloud services: your email address, username, and encrypted password. When using the authoring engine locally, no data is transmitted to our servers." },
+  { title: "2. Data Usage", body: "Your data is used exclusively for account authentication and project synchronization. We do not sell, trade, or otherwise transfer your personally identifiable information to outside parties." },
+  { title: "3. Project Privacy", body: "Projects saved to our cloud registry are private by default. If you choose to publish a project to the Community Forum, it becomes public and accessible to all users of the authoring protocol." },
+  { title: "4. Cookies & Local Storage", body: "We use local storage to maintain your session, theme preferences, and compiler state. These are required for the functional operation of the application." },
+  { title: "5. Data Security", body: "We implement a variety of security measures to maintain the safety of your personal information, leveraging industry-standard encryption provided by the Supabase infrastructure." }
 ];
 
 export function PrivacyPage() {

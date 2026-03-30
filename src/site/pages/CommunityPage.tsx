@@ -1,4 +1,4 @@
-import { RefreshCw, Search, Share2, Sparkles, Users, Globe, Trash2, ShieldAlert, UserRound } from "lucide-react";
+import { Globe, RefreshCw, Search, Share2, Trash2, UserRound } from "lucide-react";
 import { startTransition, useDeferredValue, useEffect, useState } from "react";
 import { AppShell } from "../components/AppShell";
 import { CLOUD_TABLE, buildShareUrl, formatDateTime, formatSupabaseError, supabaseClient } from "../lib/supabase";
@@ -120,6 +120,21 @@ export function CommunityPage() {
               </button>
             </div>
           </section>
+
+          {errorMessage && (
+            <section className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p>Community projects could not be loaded. {errorMessage}</p>
+                <button
+                  type="button"
+                  onClick={() => void loadProjects()}
+                  className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-black uppercase text-white transition-colors hover:bg-amber-700"
+                >
+                  Retry
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* Project Grid */}
           <div className="space-y-4">

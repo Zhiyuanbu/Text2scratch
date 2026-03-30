@@ -10,7 +10,8 @@ export const appPageKeys = [
   "privacy",
   "terms",
   "license",
-  "notfound"
+  "notfound",
+  "confirm"
 ] as const;
 
 export type AppPageKey = (typeof appPageKeys)[number];

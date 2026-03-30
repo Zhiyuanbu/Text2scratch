@@ -1,39 +1,10 @@
-import type { ReactNode } from "react";
-import { ArrowRight, CircleAlert, Code2, Layers3, WandSparkles, Cpu, Book, Zap, Info } from "lucide-react";
-import { aliases, getReferenceEntries } from "../lib/blocks";
+import { ArrowRight, Book, CircleAlert, Cpu, Info, Layers3, Terminal, WandSparkles } from "lucide-react";
 import { AppShell } from "../components/AppShell";
-
-const entries = getReferenceEntries();
-const quickStartEntries = [
-  entries.find((entry) => entry.name === "make_var"),
-  entries.find((entry) => entry.name === "when_flag_clicked"),
-  entries.find((entry) => entry.name === "broadcast"),
-  entries.find((entry) => entry.name === "repeat")
-].filter((entry): entry is (typeof entries)[number] => Boolean(entry));
-
-const quickStartExample = `make_var score 0
-make_broadcast start_round
-
-stage_code =
-  when_flag_clicked
-  broadcast start_round
-end
-
-sprite = "Cat"
-cat_code =
-  when_broadcast_received start_round
-  repeat 5
-    move 10
-    change_var score 1
-  end
-end`;
 
 export function DocsPage() {
   return (
     <AppShell page="docs">
-      <div className="bg-[#f6f8fa] dark:bg-[#0d1117] animate-in fade-in duration-500">
-        
-        {/* Header Section */}
+      <div className="animate-in fade-in duration-500 bg-[#f6f8fa] dark:bg-[#0d1117]">
         <section className="border-b border-slate-200 bg-white py-12 dark:border-slate-800 dark:bg-[#161b22]">
           <div className="mx-auto max-w-5xl px-4">
             <div className="flex flex-col gap-4">
@@ -43,7 +14,7 @@ export function DocsPage() {
               </div>
               <h1 className="text-3xl font-black tracking-tighter sm:text-4xl">System Specification</h1>
               <p className="max-w-2xl text-[0.95rem] text-slate-500 dark:text-slate-400">
-                Official guide for the text2scratch authoring protocol. Learn how to structure projects, define sprites, and execute commands using plain-text syntax.
+                Learn the project structure, core syntax rules, and the validation flow behind the text2scratch workspace.
               </p>
             </div>
           </div>
@@ -51,110 +22,144 @@ export function DocsPage() {
 
         <div className="mx-auto max-w-5xl px-4 py-12">
           <div className="grid gap-8 lg:grid-cols-[1fr_300px]">
-            
-            {/* Main Docs Content */}
-            <div className="space-y-12">
-              
-              {/* Section: Project Anatomy */}
+            <div className="space-y-16">
               <section className="space-y-6">
-                <h2 className="text-xl font-bold flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
-                  <Layers3 size={18} className="text-blue-600" /> Project Anatomy
+                <h2 className="flex items-center gap-3 border-b border-slate-200 pb-3 text-2xl font-black dark:border-slate-800">
+                  <Terminal size={24} className="text-blue-600" /> Syntax Architecture
+                </h2>
+                <div className="prose prose-slate max-w-none text-sm leading-relaxed text-slate-600 dark:prose-invert dark:text-slate-400">
+                  <p>The text2scratch protocol is a structured, indent-sensitive language that maps plain text to Scratch project logic.</p>
+                  <ul className="space-y-4">
+                    <li>
+                      <strong>Tokens and arguments:</strong> Commands and arguments are space-separated. Wrap values with spaces in double quotes, such as <code>say "Hello world!"</code>.
+                    </li>
+                    <li>
+                      <strong>Indentation:</strong> Use a standard two-space indent for lines nested inside control blocks or sprite definitions.
+                    </li>
+                    <li>
+                      <strong>Comments:</strong> Start a line with <code>#</code> to add notes that the compiler will ignore.
+                    </li>
+                  </ul>
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <h2 className="flex items-center gap-3 border-b border-slate-200 pb-3 text-2xl font-black dark:border-slate-800">
+                  <Layers3 size={24} className="text-purple-600" /> Project Structure
+                </h2>
+                <div className="space-y-4">
+                  <DocExampleCard
+                    title="1. Global Registry"
+                    description="Declare variables, lists, and broadcasts at the top of the file so the compiler can build project-wide state."
+                    code={`make_var score 0\nmake_broadcast game_over`}
+                  />
+                  <DocExampleCard
+                    title="2. Stage Context"
+                    description="Use stage_code to define scripts that belong to the backdrop target."
+                    code={`stage_code =\n  when_flag_clicked\n  switch_backdrop_to backdrop1\nend`}
+                  />
+                  <DocExampleCard
+                    title="3. Sprite Targets"
+                    description="Define each sprite with a sprite assignment and a named code block."
+                    code={`sprite = "Player"\nplayer_code =\n  when_flag_clicked\n  go_to_xy 0 0\nend`}
+                  />
+                </div>
+              </section>
+
+              <section className="space-y-6">
+                <h2 className="flex items-center gap-3 border-b border-slate-200 pb-3 text-2xl font-black dark:border-slate-800">
+                  <Cpu size={24} className="text-orange-500" /> Control Logic
                 </h2>
                 <div className="grid gap-4 sm:grid-cols-2">
-                  <DocCard 
-                    title="Shared Registry" 
-                    description="Variables, lists, and broadcasts must be declared at the top of the file before initialization." 
+                  <DocPanel
+                    title="Conditionals"
+                    accent="text-blue-500"
+                    description="Use if / else / end blocks to branch on boolean expressions."
+                    code={`if var(score) > 10\n  say "You win!"\nelse\n  say "Keep going"\nend`}
                   />
-                  <DocCard 
-                    title="Stage Context" 
-                    description="Logic specific to the backdrop and global stage environment belongs in the `stage_code` block." 
-                  />
-                  <DocCard 
-                    title="Sprite Definitions" 
-                    description="Sprites are initialized via `sprite = 'Name'` and followed by their respective script blocks." 
-                  />
-                  <DocCard 
-                    title="Block Closure" 
-                    description="Every control structure (if, repeat, forever) must be terminated with an `end` command." 
+                  <DocPanel
+                    title="Loops"
+                    accent="text-green-500"
+                    description="Repeat, forever, and repeat-until blocks map directly to Scratch control flow."
+                    code={`repeat 10\n  move 10\nend\n\nforever\n  next_costume\nend`}
                   />
                 </div>
               </section>
 
-              {/* Section: Quick Start */}
               <section className="space-y-6">
-                <h2 className="text-xl font-bold flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
-                  <Zap size={18} className="text-amber-500" /> Quick Start
+                <h2 className="flex items-center gap-3 border-b border-slate-200 pb-3 text-2xl font-black dark:border-slate-800">
+                  <WandSparkles size={24} className="text-amber-500" /> Expressions and Math
                 </h2>
-                <div className="rounded-lg border border-slate-200 bg-[#0d1117] overflow-hidden shadow-sm">
-                  <div className="flex items-center justify-between px-4 py-2 bg-[#161b22] border-b border-slate-800">
-                    <span className="text-[0.65rem] font-bold text-slate-500 uppercase tracking-widest">boilerplate.t2s</span>
-                    <div className="flex gap-1">
-                      <div className="h-2 w-2 rounded-full bg-rose-500/50"></div>
-                      <div className="h-2 w-2 rounded-full bg-amber-500/50"></div>
-                      <div className="h-2 w-2 rounded-full bg-emerald-500/50"></div>
-                    </div>
-                  </div>
-                  <pre className="p-4 text-[0.85rem] font-mono text-slate-300 overflow-x-auto leading-relaxed">
-                    <code>{quickStartExample}</code>
-                  </pre>
+                <div className="prose prose-slate max-w-none text-sm text-slate-600 dark:prose-invert dark:text-slate-400">
+                  <p>Reporter and boolean expressions can be used as inputs to other commands. Variable reads and arithmetic stay inline in plain text.</p>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-200 dark:border-slate-800">
+                        <th className="py-2 text-left">Type</th>
+                        <th className="py-2 text-left">Syntax</th>
+                        <th className="py-2 text-left">Example</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      <tr>
+                        <td className="py-3 font-bold">Variable</td>
+                        <td className="py-3"><code>var(name)</code></td>
+                        <td className="py-3"><code>say var(score)</code></td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 font-bold">Arithmetic</td>
+                        <td className="py-3"><code>add(a, b)</code></td>
+                        <td className="py-3"><code>set_var total add(10, 5)</code></td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 font-bold">Random</td>
+                        <td className="py-3"><code>pick_random(min, max)</code></td>
+                        <td className="py-3"><code>move pick_random(1, 10)</code></td>
+                      </tr>
+                      <tr>
+                        <td className="py-3 font-bold">Comparison</td>
+                        <td className="py-3"><code>a &gt; b</code></td>
+                        <td className="py-3"><code>if var(x) &gt; 100</code></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </div>
               </section>
-
-              {/* Section: Core Primitives */}
-              <section className="space-y-6">
-                <h2 className="text-xl font-bold flex items-center gap-2 border-b border-slate-200 pb-2 dark:border-slate-800">
-                  <Cpu size={18} className="text-emerald-600" /> Core Primitives
-                </h2>
-                <div className="space-y-3">
-                  {quickStartEntries.map(entry => (
-                    <div key={entry.name} className="p-4 rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#161b22] hover:border-blue-400 transition-colors">
-                      <div className="flex items-center gap-3 mb-2">
-                        <code className="text-xs font-bold bg-slate-100 px-2 py-1 rounded dark:bg-slate-800 dark:text-blue-400">{entry.syntax}</code>
-                        <span className="text-[0.65rem] font-bold uppercase text-slate-400">{entry.kind}</span>
-                      </div>
-                      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{entry.description}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
             </div>
 
-            {/* Sidebar / Quick Info */}
             <aside className="space-y-6">
               <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
-                <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                <h3 className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-widest text-slate-400">
                   <Info size={12} /> Pro Tips
                 </h3>
-                <ul className="text-xs space-y-4 text-slate-600 dark:text-slate-400 font-medium">
+                <ul className="space-y-4 text-xs font-medium text-slate-600 dark:text-slate-400">
                   <li className="flex gap-2">
-                    <span className="text-blue-600 font-bold">•</span>
-                    Use aliases like `move` instead of `move_steps` for faster typing.
+                    <span className="text-blue-600 font-bold">&bull;</span>
+                    Legacy aliases such as `turnright` and `goto` still work, but the documented syntax is safer for new projects.
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-blue-600 font-bold">•</span>
-                    The validator in the workspace catch errors before you export.
+                    <span className="text-blue-600 font-bold">&bull;</span>
+                    The workspace validator catches missing `end` blocks and unsupported syntax before export.
                   </li>
                   <li className="flex gap-2">
-                    <span className="text-blue-600 font-bold">•</span>
-                    Nested expressions always start with the `@` symbol.
+                    <span className="text-blue-600 font-bold">&bull;</span>
+                    Keep indentation consistent at two spaces so nested blocks stay readable and easier to debug.
                   </li>
                 </ul>
               </div>
 
               <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
-                <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
+                <h3 className="mb-4 flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-widest text-slate-400">
                   <CircleAlert size={12} className="text-amber-500" /> Validation
                 </h3>
-                <p className="text-xs text-slate-500 leading-relaxed">
-                  Missing `end` tags are the most common cause of compilation failure. Always ensure your blocks are properly closed.
+                <p className="text-xs leading-relaxed text-slate-500">
+                  Missing `end` tags are the most common cause of compilation failure. Close every block scope before exporting.
                 </p>
                 <a href="reference.html" className="mt-4 inline-flex items-center gap-2 text-xs font-bold text-blue-600 hover:underline">
                   Full API Reference <ArrowRight size={12} />
                 </a>
               </div>
             </aside>
-
           </div>
         </div>
       </div>
@@ -162,11 +167,44 @@ export function DocsPage() {
   );
 }
 
-function DocCard({ title, description }: { title: string, description: string }) {
+function DocExampleCard({
+  title,
+  description,
+  code
+}: {
+  title: string;
+  description: string;
+  code: string;
+}) {
   return (
-    <div className="p-4 rounded-md border border-slate-200 bg-white dark:border-slate-800 dark:bg-[#161b22] shadow-sm">
-      <h4 className="text-sm font-bold mb-2">{title}</h4>
-      <p className="text-xs text-slate-500 leading-relaxed dark:text-slate-400">{description}</p>
+    <div className="rounded-xl border border-slate-200 bg-white p-6 dark:border-slate-800 dark:bg-[#161b22]">
+      <h3 className="mb-3 text-sm font-black uppercase tracking-widest text-slate-400">{title}</h3>
+      <p className="mb-3 text-xs font-medium leading-relaxed text-slate-500">{description}</p>
+      <pre className="overflow-x-auto rounded border border-slate-100 bg-slate-50 p-3 font-mono text-[0.75rem] dark:border-slate-800 dark:bg-slate-900">
+        <code>{code}</code>
+      </pre>
+    </div>
+  );
+}
+
+function DocPanel({
+  title,
+  description,
+  code,
+  accent
+}: {
+  title: string;
+  description: string;
+  code: string;
+  accent: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#161b22]">
+      <h4 className={`mb-2 text-xs font-black uppercase tracking-widest ${accent}`}>{title}</h4>
+      <p className="mb-4 text-xs leading-relaxed text-slate-500">{description}</p>
+      <pre className="overflow-x-auto rounded border border-slate-100 bg-slate-50 p-3 font-mono text-[0.7rem] dark:border-slate-800 dark:bg-slate-900">
+        <code>{code}</code>
+      </pre>
     </div>
   );
 }

@@ -133,7 +133,7 @@ function buildPageLoader() {
     <div class="page-loader__panel">
       <div class="page-loader__top">
         <span class="page-loader__brand">
-          <img src="logo.png" alt="">
+          <img src="apple-touch-icon.png" alt="">
           text2scratch
         </span>
         <span class="page-loader__ring"></span>

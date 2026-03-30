@@ -1,7 +1,6 @@
 import type { FormEvent } from "react";
-import { 
+import {
   ArrowLeft, 
-  ChevronRight, 
   Eye, 
   EyeOff, 
   Shield
@@ -10,7 +9,6 @@ import { useEffect, useRef, useState } from "react";
 import { TurnstilePanel } from "../components/TurnstilePanel";
 import { AppShell } from "../components/AppShell";
 import {
-  readPendingParentManagedSignup,
   storeAuthAudience,
   storePendingParentManagedSignup,
   type AuthAudience
@@ -36,9 +34,12 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
   const [step, setStep] = useState<AuthStep>(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("mode") === "recovery") return "recovery";
+    if (mode === "login") return "form";
     return "age";
   });
   
+  const [birthMonth, setBirthMonth] = useState("");
+  const [birthYear, setBirthYear] = useState("");
   const [isReset, setIsReset] = useState(false);
   const [audience, setAudience] = useState<AuthAudience | null>(null);
   const [identifier, setIdentifier] = useState("");
@@ -82,19 +83,20 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
       } else {
         if (audience === "under_13") {
           storePendingParentManagedSignup({ requestedUsername: username, parentEmail: email });
-          pushToast({ title: "Saved", description: "Parent must complete setup.", variant: "success" });
+          pushToast({ title: "Verification required", description: "Parent must complete setup.", variant: "success" });
           setStep("age");
         } else {
           await signUp({
             username, email, password, captchaToken,
-            ageBand: "13_or_over",
-            accountRole: audience === "parent_guardian" ? "parent_guardian" : "standard"
+            ageBand: (audience as string) === "under_13" ? "under_13" : "13_or_over",
+            accountRole: "standard"
           });
           pushToast({ title: "Account created", description: "Verify your email.", variant: "success" });
         }
       }
     } catch (error) {
       pushToast({ title: "Error", description: String(error), variant: "error" });
+      turnstileRef.current?.reset();
     } finally { setIsPending(false); }
   };
 
@@ -123,24 +125,56 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white p-8 shadow-xl dark:border-slate-800 dark:bg-[#161b22]">
             {step === "age" && (
               <div className="space-y-4">
-                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Select Age Group</p>
-                <div className="grid gap-2">
-                  <AgeSelectButton label="Adult (18+)" onClick={() => onAgeSelect("adult")} />
-                  <AgeSelectButton label="Teen (13-17)" onClick={() => onAgeSelect("teen_13_to_17")} />
-                  <AgeSelectButton label="Under 13" onClick={() => onAgeSelect("under_13")} />
-                  <AgeSelectButton label="Parent/Guardian" onClick={() => onAgeSelect("parent_guardian")} />
+                <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-slate-400">Identity Verification</p>
+                <div className="space-y-4">
+                  <div className="flex gap-2">
+                    <select 
+                      value={birthMonth} 
+                      onChange={e => setBirthMonth(e.target.value)}
+                      className="flex-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none dark:border-slate-700 dark:bg-slate-900"
+                    >
+                      <option value="">Month</option>
+                      {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
+                        <option key={m} value={i+1}>{m}</option>
+                      ))}
+                    </select>
+                    <input 
+                      type="number" 
+                      placeholder="Year"
+                      value={birthYear}
+                      onChange={e => setBirthYear(e.target.value)}
+                      className="w-24 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none dark:border-slate-700 dark:bg-slate-900"
+                    />
+                  </div>
+                  <button 
+                    onClick={() => {
+                      const year = parseInt(birthYear);
+                      if (!birthMonth || !birthYear || isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+                        pushToast({ title: "Invalid Date", description: "Enter a valid birthdate node.", variant: "warning" });
+                        return;
+                      }
+                      const age = calculateAgeFromMonthYear(Number(birthMonth), year);
+                      setAudience(age < 13 ? "under_13" : "adult");
+                      setStep("form");
+                    }}
+                    className="w-full rounded-md bg-[#4d97ff] py-2 text-xs font-black uppercase text-white hover:bg-blue-600 transition-all active:scale-95"
+                  >
+                    Authorize Node Access
+                  </button>
                 </div>
               </div>
             )}
 
             {step === "form" && (
               <form onSubmit={onSubmit} className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <button type="button" onClick={() => setStep("age")} className="flex items-center gap-1 text-[0.7rem] font-bold text-blue-600 hover:underline">
-                    <ArrowLeft size={12} /> CHANGE AGE
-                  </button>
-                  <span className="text-[0.7rem] font-bold uppercase text-slate-400">{audience?.replace("_", " ")}</span>
-                </div>
+                {mode === "signup" && (
+                  <div className="flex items-center justify-between">
+                    <button type="button" onClick={() => setStep("age")} className="flex items-center gap-1 text-[0.7rem] font-bold text-blue-600 hover:underline">
+                      <ArrowLeft size={12} /> CHANGE DATE
+                    </button>
+                    <span className="text-[0.7rem] font-bold uppercase text-slate-400">{audience === "under_13" ? "Restricted account" : "Standard account"}</span>
+                  </div>
+                )}
 
                 <button 
                   type="button"
@@ -212,12 +246,14 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
   );
 }
 
-function AgeSelectButton({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button onClick={onClick} className="flex w-full items-center justify-between rounded-md border border-slate-200 bg-white px-4 py-3 text-sm font-bold hover:border-blue-400 hover:bg-blue-50 dark:border-slate-700 dark:bg-transparent dark:hover:bg-slate-800 transition-all">
-      {label} <ChevronRight size={14} className="text-slate-300" />
-    </button>
-  );
+function calculateAgeFromMonthYear(month: number, year: number) {
+  const today = new Date();
+  let age = today.getFullYear() - year;
+  const birthMonthIndex = month - 1;
+  if (today.getMonth() < birthMonthIndex) {
+    age -= 1;
+  }
+  return age;
 }
 
 function AuthInput({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {

@@ -2,13 +2,12 @@ import {
   createContext,
   useContext,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type ReactNode
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react";
 import type { AccountRole, SignupAgeBand } from "../lib/coppa";
 import {
   buildConfirmUrl,
@@ -43,6 +42,22 @@ interface ToastRecord extends ToastMessage {
 
 interface ToastContextValue {
   pushToast: (toast: ToastMessage) => void;
+}
+
+interface Notification {
+  id: number;
+  title: string;
+  message: string;
+  time: string;
+  read: boolean;
+}
+
+interface NotificationContextValue {
+  notifications: Notification[];
+  unreadCount: number;
+  addNotification: (title: string, message: string) => void;
+  markAllRead: () => void;
+  clearAll: () => void;
 }
 
 interface AuthContextValue {
@@ -80,21 +95,109 @@ interface AuthContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 const ToastContext = createContext<ToastContextValue | null>(null);
+const NotificationContext = createContext<NotificationContextValue | null>(null);
 const AuthContext = createContext<AuthContextValue | null>(null);
+
+function readStoredJson<T>(key: string, fallback: T) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T) : fallback;
+  } catch {
+    try {
+      window.localStorage.removeItem(key);
+    } catch {
+      // Ignore cleanup failures.
+    }
+    return fallback;
+  }
+}
+
+function readStoredValue(key: string, fallback: string) {
+  if (typeof window === "undefined") {
+    return fallback;
+  }
+
+  try {
+    return window.localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeStoredJson(key: string, value: unknown) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Ignore storage write failures and keep the in-memory state.
+  }
+}
+
+function writeStoredValue(key: string, value: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Ignore storage write failures and keep the in-memory state.
+  }
+}
 
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
-      <ToastProvider>
-        <AuthProvider>{children}</AuthProvider>
-      </ToastProvider>
+      <NotificationProvider>
+        <ToastProvider>
+          <AuthProvider>{children}</AuthProvider>
+        </ToastProvider>
+      </NotificationProvider>
     </ThemeProvider>
+  );
+}
+
+function NotificationProvider({ children }: { children: ReactNode }) {
+  const [notifications, setNotifications] = useState<Notification[]>(() =>
+    readStoredJson<Notification[]>("text2scratch.notifications", [])
+  );
+
+  useEffect(() => {
+    writeStoredJson("text2scratch.notifications", notifications);
+  }, [notifications]);
+
+  const addNotification = (title: string, message: string) => {
+    const n: Notification = {
+      id: Date.now(),
+      title,
+      message,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false
+    };
+    setNotifications(prev => [n, ...prev].slice(0, 20));
+  };
+
+  const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  const clearAll = () => setNotifications([]);
+  const unreadCount = notifications.filter(n => !n.read).length;
+
+  return (
+    <NotificationContext.Provider value={{ notifications, unreadCount, addNotification, markAllRead, clearAll }}>
+      {children}
+    </NotificationContext.Provider>
   );
 }
 
 function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setMode] = useState<ThemeMode>(() => {
-    const stored = window.localStorage.getItem("text2scratch.theme");
+    const stored = readStoredValue("text2scratch.theme", "system");
     return (stored === "light" || stored === "dark" || stored === "system") ? stored : "system";
   });
   const [resolvedMode, setResolvedMode] = useState<"light" | "dark">("light");
@@ -110,7 +213,7 @@ function ThemeProvider({ children }: { children: ReactNode }) {
     applyMode(mode);
     const onChange = () => applyMode(mode);
     mediaQuery.addEventListener("change", onChange);
-    window.localStorage.setItem("text2scratch.theme", mode);
+    writeStoredValue("text2scratch.theme", mode);
     return () => mediaQuery.removeEventListener("change", onChange);
   }, [mode]);
 
@@ -122,6 +225,7 @@ function ThemeProvider({ children }: { children: ReactNode }) {
 }
 
 function ToastProvider({ children }: { children: ReactNode }) {
+  const { addNotification } = useNotifications();
   const [toasts, setToasts] = useState<ToastRecord[]>([]);
   const idRef = useRef(0);
 
@@ -134,6 +238,10 @@ function ToastProvider({ children }: { children: ReactNode }) {
     };
     idRef.current += 1;
     setToasts((current) => [nextToast, ...current].slice(0, 4));
+    addNotification(
+      nextToast.title,
+      nextToast.description || nextToast.title
+    );
     window.setTimeout(() => {
       setToasts((current) => current.filter((item) => item.id !== nextToast.id));
     }, 4200);
@@ -178,7 +286,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<ProfileRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = user?.email === "zhibu378orangetiger707@Gmail.com";
+  const isAdmin = String(user?.email || "").trim().toLowerCase() === "zhibu378orangetiger707@gmail.com";
 
   useEffect(() => {
     let isMounted = true;
@@ -192,9 +300,16 @@ function AuthProvider({ children }: { children: ReactNode }) {
     };
     void initialize();
     const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
+      if (!isMounted) {
+        return;
+      }
       setSession(nextSession);
       setUser(nextSession?.user || null);
-      await loadProfile(nextSession?.user || null, setProfile);
+      await loadProfile(nextSession?.user || null, (value) => {
+        if (isMounted) {
+          setProfile(value);
+        }
+      });
     });
     return () => { isMounted = false; listener.subscription.unsubscribe(); };
   }, []);
@@ -311,6 +426,12 @@ export function useTheme() {
 export function useToast() {
   const context = useContext(ToastContext);
   if (!context) throw new Error("useToast error.");
+  return context;
+}
+
+export function useNotifications() {
+  const context = useContext(NotificationContext);
+  if (!context) throw new Error("useNotifications error.");
   return context;
 }
 

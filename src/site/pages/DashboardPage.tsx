@@ -1,8 +1,5 @@
 import type { FormEvent, ReactNode } from "react";
 import {
-  ArrowRight,
-  CheckCircle2,
-  CircleAlert,
   HeartHandshake,
   KeyRound,
   LayoutDashboard,
@@ -12,12 +9,9 @@ import {
   ShieldAlert,
   SunMedium,
   UserRound,
-  ShieldCheck,
-  Settings,
   Database,
   Trash2,
   Ban,
-  Fingerprint,
   Info,
   Terminal
 } from "lucide-react";
@@ -29,7 +23,8 @@ import {
   clearPendingParentManagedSignup,
   readCoppaAccountMetadata,
   readPendingParentManagedSignup,
-  type CoppaAccountMetadata
+  type CoppaAccountMetadata,
+  type PendingParentManagedSignup
 } from "../lib/coppa";
 import { type TurnstileController } from "../lib/turnstile";
 import { buildAvatarLabel, formatDate, formatDateTime } from "../lib/supabase";
@@ -65,6 +60,14 @@ export function DashboardPage() {
   }, []);
 
   useEffect(() => { setUsername(profile?.username || ""); }, [profile?.username]);
+  useEffect(() => {
+    if (!pendingChildRequest) {
+      return;
+    }
+
+    setChildUsername(pendingChildRequest.requestedUsername || "");
+    setChildEmail("");
+  }, [pendingChildRequest]);
 
   const coppaMetadata = readCoppaAccountMetadata(user);
   let dashboardTabs = [...baseTabs];
@@ -74,11 +77,22 @@ export function DashboardPage() {
   if (isAdmin) {
     dashboardTabs.push({ id: "admin", label: "Admin Protocol", icon: <Terminal size={16} /> });
   }
+  const activeTab = dashboardTabs.some((entry) => entry.id === tab) ? tab : "overview";
+  const activeTabInfo = dashboardTabs.find((entry) => entry.id === activeTab);
 
   const selectTab = (nextTab: DashboardTab) => {
     setTab(nextTab);
     window.history.replaceState(null, "", `#${nextTab}`);
   };
+
+  useEffect(() => {
+    if (dashboardTabs.some((entry) => entry.id === tab)) {
+      return;
+    }
+
+    setTab("overview");
+    window.history.replaceState(null, "", "#overview");
+  }, [tab, coppaMetadata.parentControlsEnabled, isAdmin]);
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -185,14 +199,14 @@ export function DashboardPage() {
               <div className="rounded-lg border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
                 <div className="border-b border-slate-100 p-6 dark:border-slate-800">
                   <h2 className="text-xl font-black tracking-tight flex items-center gap-2">
-                    {dashboardTabs.find(t => t.id === tab)?.icon}
-                    {dashboardTabs.find(t => t.id === tab)?.label}
+                    {activeTabInfo?.icon}
+                    {activeTabInfo?.label}
                   </h2>
                 </div>
 
                 <div className="p-6">
-                  {tab === "overview" && <OverviewTab user={user} profile={profile} coppa={coppaMetadata} />}
-                  {tab === "profile" && (
+                  {activeTab === "overview" && <OverviewTab user={user} profile={profile} coppa={coppaMetadata} />}
+                  {activeTab === "profile" && (
                     <form onSubmit={saveProfile} className="max-w-md space-y-6">
                       <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Node Identifier</label>
@@ -207,14 +221,14 @@ export function DashboardPage() {
                       </button>
                     </form>
                   )}
-                  {tab === "appearance" && (
+                  {activeTab === "appearance" && (
                     <div className="grid gap-4 sm:grid-cols-3">
                       <ThemeOption label="Light" active={mode === "light"} onClick={() => setMode("light")} icon={<SunMedium size={20} />} />
                       <ThemeOption label="Dark" active={mode === "dark"} onClick={() => setMode("dark")} icon={<MoonStar size={20} />} />
                       <ThemeOption label="System" active={mode === "system"} onClick={() => setMode("system")} icon={<Palette size={20} />} />
                     </div>
                   )}
-                  {tab === "security" && (
+                  {activeTab === "security" && (
                     <div className="space-y-8">
                       <div className="rounded-md border border-slate-100 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d1117]">
                         <h3 className="text-sm font-bold mb-4 flex items-center gap-2"><KeyRound size={16} className="text-blue-600" /> Rotate Security Keys</h3>
@@ -232,7 +246,28 @@ export function DashboardPage() {
                       </div>
                     </div>
                   )}
-                  {tab === "admin" && isAdmin && <AdminProtocolTab />}
+                  {activeTab === "parent" && coppaMetadata.parentControlsEnabled && (
+                    <ParentTab
+                      pendingChildRequest={pendingChildRequest}
+                      childUsername={childUsername}
+                      childEmail={childEmail}
+                      childPassword={childPassword}
+                      childConsentAccepted={childConsentAccepted}
+                      isPending={isPending}
+                      onChildUsernameChange={setChildUsername}
+                      onChildEmailChange={setChildEmail}
+                      onChildPasswordChange={setChildPassword}
+                      onChildConsentChange={setChildConsentAccepted}
+                      onRequestCleared={() => setPendingChildRequest(null)}
+                      onDone={() => {
+                        setChildUsername("");
+                        setChildEmail("");
+                        setChildPassword("");
+                        setChildConsentAccepted(false);
+                      }}
+                    />
+                  )}
+                  {activeTab === "admin" && isAdmin && <AdminProtocolTab />}
                 </div>
               </div>
             </main>
@@ -251,6 +286,211 @@ function OverviewTab({ user, profile, coppa }: { user: any, profile: any, coppa:
       <StatCard label="Protocol Address" value={user?.email || "Encrypted"} />
       <StatCard label="Clearance Level" value={coppa.parentManaged ? "Parent Managed" : "Full Core Access"} />
       <StatCard label="Session Status" value="Active / Authorized" />
+    </div>
+  );
+}
+
+function ParentTab({
+  pendingChildRequest,
+  childUsername,
+  childEmail,
+  childPassword,
+  childConsentAccepted,
+  isPending,
+  onChildUsernameChange,
+  onChildEmailChange,
+  onChildPasswordChange,
+  onChildConsentChange,
+  onRequestCleared,
+  onDone
+}: {
+  pendingChildRequest: PendingParentManagedSignup | null;
+  childUsername: string;
+  childEmail: string;
+  childPassword: string;
+  childConsentAccepted: boolean;
+  isPending: boolean;
+  onChildUsernameChange: (value: string) => void;
+  onChildEmailChange: (value: string) => void;
+  onChildPasswordChange: (value: string) => void;
+  onChildConsentChange: (value: boolean) => void;
+  onRequestCleared: () => void;
+  onDone: () => void;
+}) {
+  const { createManagedChildAccount } = useAuth();
+  const { pushToast } = useToast();
+  const turnstileRef = useRef<TurnstileController | null>(null);
+
+  const handleCreateChildAccount = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const nextUsername = childUsername.trim() || pendingChildRequest?.requestedUsername?.trim() || "";
+    const nextEmail = childEmail.trim();
+
+    if (!nextUsername) {
+      pushToast({ title: "Missing username", description: "Enter the child's account name.", variant: "warning" });
+      return;
+    }
+
+    if (!nextEmail) {
+      pushToast({ title: "Missing email", description: "Enter the child's email address.", variant: "warning" });
+      return;
+    }
+
+    if (!childPassword || childPassword.length < 6) {
+      pushToast({ title: "Weak password", description: "Use at least 6 characters for the child account.", variant: "warning" });
+      return;
+    }
+
+    if (!childConsentAccepted) {
+      pushToast({ title: "Consent required", description: "Confirm that the parent or guardian approved this account.", variant: "warning" });
+      return;
+    }
+
+    const captchaToken = turnstileRef.current?.getToken();
+    try {
+      await createManagedChildAccount({
+        username: nextUsername,
+        email: nextEmail,
+        password: childPassword,
+        captchaToken,
+        parentConsentAccepted: true
+      });
+      clearPendingParentManagedSignup();
+      onRequestCleared();
+      onDone();
+      turnstileRef.current?.reset({ clearCache: true });
+      pushToast({ title: "Child account created", description: "The managed account is ready.", variant: "success" });
+    } catch (error) {
+      pushToast({ title: "Creation failed", description: String(error), variant: "error" });
+      turnstileRef.current?.reset();
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
+        <section className="rounded-md border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-[#0d1117]">
+          <div className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+            <HeartHandshake size={16} />
+            <h3 className="text-sm font-black uppercase tracking-widest">Parent Controls</h3>
+          </div>
+          <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400">
+            Complete the child handoff, create a managed account, and keep the request attached to this dashboard until you clear it.
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <StatCard label="Pending Request" value={pendingChildRequest ? "Queued" : "None"} />
+            <StatCard label="Managed Mode" value="Enabled" />
+          </div>
+        </section>
+
+        <section className="rounded-md border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#161b22]">
+          <h4 className="text-[0.7rem] font-black uppercase tracking-widest text-slate-400">Request Summary</h4>
+          {pendingChildRequest ? (
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-900">
+                <p className="text-[0.65rem] font-black uppercase tracking-widest text-slate-400">Requested Username</p>
+                <p className="mt-1 font-bold">{pendingChildRequest.requestedUsername}</p>
+              </div>
+              <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-900">
+                <p className="text-[0.65rem] font-black uppercase tracking-widest text-slate-400">Parent Email</p>
+                <p className="mt-1 font-bold break-all">{pendingChildRequest.parentEmail}</p>
+              </div>
+              <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-900">
+                <p className="text-[0.65rem] font-black uppercase tracking-widest text-slate-400">Captured At</p>
+                <p className="mt-1 font-bold">{formatDateTime(pendingChildRequest.createdAt)}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
+              No pending child request is stored locally. You can still create a managed account manually below.
+            </p>
+          )}
+        </section>
+      </div>
+
+      <form onSubmit={handleCreateChildAccount} className="space-y-5 rounded-lg border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#161b22]">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h3 className="text-base font-black tracking-tight">Create Managed Child Account</h3>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Use the stored request as a handoff, then provide the child's email and password to finish setup.
+            </p>
+          </div>
+          <div className="hidden rounded-full border border-slate-200 px-3 py-1 text-[0.65rem] font-black uppercase tracking-widest text-slate-400 sm:block dark:border-slate-800">
+            Managed Flow
+          </div>
+        </div>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Child Username</label>
+            <input
+              value={childUsername}
+              onChange={(e) => onChildUsernameChange(e.target.value)}
+              placeholder={pendingChildRequest?.requestedUsername || "child_user"}
+              className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Child Email</label>
+            <input
+              type="email"
+              value={childEmail}
+              onChange={(e) => onChildEmailChange(e.target.value)}
+              placeholder="child@example.com"
+              className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Child Password</label>
+          <input
+            type="password"
+            value={childPassword}
+            onChange={(e) => onChildPasswordChange(e.target.value)}
+            placeholder="At least 6 characters"
+            className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
+          />
+        </div>
+
+        <label className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-400">
+          <input
+            type="checkbox"
+            checked={childConsentAccepted}
+            onChange={(e) => onChildConsentChange(e.target.checked)}
+            className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+          />
+          <span>
+            I confirm a parent or guardian approved this managed account and I am authorized to create it.
+          </span>
+        </label>
+
+        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+          <TurnstilePanel controllerRef={turnstileRef} actionLabel="create the child account" />
+          <div className="flex flex-col gap-2 lg:pt-1">
+            <button
+              type="submit"
+              disabled={isPending}
+              className="rounded-md bg-[#2da44e] px-4 py-2 text-sm font-bold text-white hover:bg-[#2c974b] shadow-sm transition-colors disabled:opacity-50"
+            >
+              {isPending ? "Creating..." : "Create Managed Account"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                clearPendingParentManagedSignup();
+                onRequestCleared();
+                pushToast({ title: "Pending request cleared", variant: "success" });
+              }}
+              className="rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-bold hover:bg-slate-50 dark:border-slate-700 dark:bg-[#0d1117] dark:hover:bg-slate-900"
+            >
+              Clear Stored Request
+            </button>
+          </div>
+        </div>
+      </form>
     </div>
   );
 }

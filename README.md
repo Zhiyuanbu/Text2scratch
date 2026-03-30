@@ -31,7 +31,6 @@ src/
   legacy/           Browser runtime preserved for the converter and old helpers
   site/             React UI surface (pages, components, providers, assets, lib)
   api.ts            Static JSON validator entry
-  confirm.ts        Confirm/reset flow entry
 styles/
   legacy/           Archived global CSS files
 public/             Static assets copied directly into the build
@@ -123,6 +122,8 @@ Do not use service-role keys in frontend code.
 
 ## Notes on the workspace
 
-The converter is still the existing production workspace and retains its legacy
-JavaScript runtime so import/export behavior is preserved while the website,
-docs, auth flow, and dashboard run on the new TypeScript/Tailwind stack.
+The converter still uses the proven legacy JavaScript runtime for import/export,
+preview, and cloud project behavior, while the surrounding app shell, auth
+flows, docs, and reference UI run on the React/TypeScript stack. The command
+palette and reference surface now render Scratch-style previews with
+`scratchblocks` so the text syntax stays easier to scan.

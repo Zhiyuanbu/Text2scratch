@@ -29,9 +29,68 @@
     background-color: rgba(37, 99, 235, 0.2);
     color: inherit;
   }
+
+  /* Global Cursor and Transitions */
+  button, a, select, input[type="button"], input[type="submit"] {
+    cursor: pointer !important;
+  }
+
+  button:active, a:active {
+    transform: scale(0.96);
+  }
+
+  button, a {
+    transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+  }
 }
 
 @layer components {
+  .scratchblocks-preview {
+    min-height: 2.25rem;
+  }
+
+  .scratchblocks-preview svg,
+  .scratchblocks-host-inline svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .scratchblocks-fallback {
+    border-radius: 0.75rem;
+    background: rgb(248 250 252);
+    color: rgb(51 65 85);
+    font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.6rem 0.8rem;
+  }
+
+  [data-theme="dark"] .scratchblocks-fallback {
+    background: rgb(15 23 42);
+    color: rgb(226 232 240);
+  }
+
+  @keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-5px); }
+    100% { transform: translateY(0px); }
+  }
+
+  .animate-float { animation: float 3s ease-in-out infinite; }
+  .animate-slide-up { animation: slideUpFade 0.5s cubic-bezier(0.23, 1, 0.32, 1) forwards; }
+
+  /* Dropdown UI */
+  .dropdown-content {
+    animation: slideUpFade 0.2s ease-out forwards;
+    transform-origin: top;
+  }
+
   .code-editor {
     min-height: 500px;
     font-family: ui-monospace, SFMono-Regular, SF Mono, Menlo, Consolas, Liberation Mono, monospace;

@@ -49,6 +49,8 @@ async function loadPage(pageKey: AppPageKey): Promise<ComponentType> {
       return (await import("./pages/LegalPages")).TermsPage;
     case "license":
       return (await import("./pages/LegalPages")).LicensePage;
+    case "confirm":
+      return (await import("./pages/ConfirmPage")).ConfirmPage;
     case "notfound":
       return (await import("./pages/NotFoundPage")).NotFoundPage;
     case "home":
