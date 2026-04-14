@@ -23,9 +23,15 @@ export const SUPABASE_CONFIG_ERROR_MESSAGE =
   "Supabase environment variables are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.";
 
 export const CLOUD_TABLE = "projects";
+export const PROFILES_TABLE = "profiles";
+export const FORUM_THREADS_TABLE = "forum_threads";
+export const FORUM_REPLIES_TABLE = "forum_replies";
+export const COPPA_PARENT_CONSENTS_TABLE = "coppa_parent_consents";
+export const MODERATION_FALLBACK_QUEUE_TABLE = "moderation_fallback_queue";
 export const SHARE_QUERY_PARAM = "share";
 export const AUTH_STATE_EVENT_NAME = "text2scratch.auth.changed";
 const AUTH_REQUEST_TIMEOUT_MS = 8_000;
+const ADMIN_ROLE_NAMES = new Set(["admin", "owner"]);
 
 export const supabaseClient: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -67,13 +73,18 @@ export function formatSupabaseError(error: unknown) {
   if (/captcha/i.test(message)) {
     return "Captcha verification failed. Complete captcha again, then retry.";
   }
-  if (/resolve_login_email|is_username_available|delete_current_account|admin_list_projects|admin_restrict_account|admin_network_ban|is_network_banned/i.test(message)) {
+  if (/resolve_login_email|is_username_available|delete_current_account|admin_list_projects|admin_restrict_account|admin_network_ban|is_network_banned|public_project_registry/i.test(message)) {
     return "Supabase RPC functions are missing. Apply supabase/schema.sql in Supabase SQL Editor.";
   }
   if (/Username not found/i.test(message)) {
     return "Username not found.";
   }
   return message;
+}
+
+export function isUserAdmin(user: Pick<User, "app_metadata"> | null | undefined) {
+  const role = String(user?.app_metadata?.role || "").trim().toLowerCase();
+  return ADMIN_ROLE_NAMES.has(role) || user?.app_metadata?.is_admin === true;
 }
 
 export function dispatchAuthStateEvent(state: "signed_in" | "signed_out") {
@@ -129,6 +140,28 @@ export function normalizeUsername(value: string) {
 
 export function isValidUsername(value: string) {
   return /^[a-z0-9_]{3,32}$/.test(value);
+}
+
+export function buildUserHandle(
+  user: Pick<User, "id" | "user_metadata"> | null | undefined,
+  profileUsername?: string | null,
+  fallback = "user"
+) {
+  const fromProfile = String(profileUsername || "").trim();
+  if (fromProfile) {
+    return fromProfile;
+  }
+
+  const metadataUsername = normalizeUsername(String(user?.user_metadata?.username || ""));
+  if (isValidUsername(metadataUsername)) {
+    return metadataUsername;
+  }
+
+  if (user?.id) {
+    return `user_${user.id.replace(/-/g, "").slice(0, 8)}`;
+  }
+
+  return fallback;
 }
 
 export function buildAvatarLabel(value: string) {

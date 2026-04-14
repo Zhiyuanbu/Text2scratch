@@ -1,3 +1,10 @@
+import {
+  MODERATION_FALLBACK_QUEUE_TABLE,
+  ensureSupabaseConfigured,
+  formatSupabaseError,
+  supabaseClient
+} from "./supabase";
+
 export type ModerationActionType = "restrict_account" | "network_ban";
 
 export interface ModerationAction {
@@ -5,43 +12,72 @@ export interface ModerationAction {
   type: ModerationActionType;
   target: string;
   createdAt: string;
+  errorSummary?: string;
 }
 
-const MODERATION_QUEUE_KEY = "text2scratch.admin.moderation-queue.v1";
+interface ModerationActionRow {
+  id: string;
+  action_type: ModerationActionType;
+  target: string;
+  error_summary: string | null;
+  created_at: string;
+}
 
-export function readModerationQueue(storage = resolveStorage()) {
-  if (!storage) {
-    return [] as ModerationAction[];
+export async function listModerationActions(limitRows = 50) {
+  ensureSupabaseConfigured();
+
+  const { data, error } = await supabaseClient
+    .from(MODERATION_FALLBACK_QUEUE_TABLE)
+    .select("id,action_type,target,error_summary,created_at")
+    .order("created_at", { ascending: false })
+    .limit(limitRows);
+
+  if (error) {
+    throw new Error(formatSupabaseError(error));
   }
 
-  try {
-    const rawValue = storage.getItem(MODERATION_QUEUE_KEY);
-    if (!rawValue) {
-      return [];
-    }
+  return (Array.isArray(data) ? data as ModerationActionRow[] : [])
+    .map((value) => normalizeAction({
+      id: value.id,
+      type: value.action_type,
+      target: value.target,
+      errorSummary: value.error_summary || "",
+      createdAt: value.created_at
+    }))
+    .filter((value): value is ModerationAction => Boolean(value));
+}
 
-    const parsed = JSON.parse(rawValue);
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
+export async function enqueueModerationAction(action: ModerationAction) {
+  ensureSupabaseConfigured();
+  const { data: userData } = await supabaseClient.auth.getUser();
 
-    return parsed
-      .map((value) => normalizeAction(value))
-      .filter((value): value is ModerationAction => Boolean(value));
-  } catch {
-    return [];
+  const { error } = await supabaseClient
+    .from(MODERATION_FALLBACK_QUEUE_TABLE)
+    .upsert({
+      id: action.id,
+      action_type: action.type,
+      target: action.target,
+      sql_snippet: buildModerationSql(action),
+      error_summary: action.errorSummary || null,
+      created_by: userData.user?.id || null,
+      created_at: action.createdAt
+    });
+
+  if (error) {
+    throw new Error(formatSupabaseError(error));
   }
 }
 
-export function writeModerationQueue(actions: ModerationAction[], storage = resolveStorage()) {
-  if (!storage) {
-    return;
-  }
+export async function deleteModerationAction(actionId: string) {
+  ensureSupabaseConfigured();
 
-  try {
-    storage.setItem(MODERATION_QUEUE_KEY, JSON.stringify(actions));
-  } catch {
-    // Ignore storage failures and keep the in-memory state.
+  const { error } = await supabaseClient
+    .from(MODERATION_FALLBACK_QUEUE_TABLE)
+    .delete()
+    .eq("id", actionId);
+
+  if (error) {
+    throw new Error(formatSupabaseError(error));
   }
 }
 
@@ -52,7 +88,7 @@ export function queueModerationAction(actions: ModerationAction[], type: Moderat
   }
 
   const nextAction: ModerationAction = {
-    id: `${type}-${now.getTime()}-${Math.random().toString(36).slice(2, 8)}`,
+    id: createRecordId(type),
     type,
     target: normalizedTarget,
     createdAt: now.toISOString()
@@ -94,14 +130,20 @@ function normalizeAction(value: unknown): ModerationAction | null {
     id: String(rawAction.id || `${type}-${createdAt.getTime()}`),
     type,
     target,
+    errorSummary: String(rawAction.errorSummary || "").trim(),
     createdAt: createdAt.toISOString()
   };
 }
 
-function resolveStorage() {
-  if (typeof window === "undefined") {
-    return null;
+function createRecordId(type: ModerationActionType) {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `${type}-${crypto.randomUUID()}`;
   }
 
-  return window.localStorage;
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    const bytes = crypto.getRandomValues(new Uint32Array(2));
+    return `${type}-${Date.now().toString(36)}-${bytes[0].toString(36)}${bytes[1].toString(36)}`;
+  }
+
+  return `${type}-${Date.now().toString(36)}-fallback`;
 }

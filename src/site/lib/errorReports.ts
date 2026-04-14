@@ -70,7 +70,7 @@ function buildSuggestions(summary: string, area: string) {
     suggestions.push("Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY in the client environment before loading this page.");
   }
 
-  if (/tables are missing|table \"projects\" is missing|relation .* does not exist|rpc functions are missing|does not exist/.test(lowered)) {
+  if (/tables are missing|table "projects" is missing|relation .* does not exist|rpc functions are missing|does not exist/.test(lowered)) {
     suggestions.push("The Supabase schema is incomplete. Re-run the project SQL schema and install any required RPC functions.");
   }
 

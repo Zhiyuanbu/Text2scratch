@@ -37,7 +37,7 @@ const root = createRoot(rootElement);
 registerServiceWorker();
 
 root.render(
-  <ErrorBoundary>
+  <ErrorBoundary pageName={requestedPage}>
     <AppProviders>
       <Suspense fallback={<PageBootSplash />}>
         <Page />

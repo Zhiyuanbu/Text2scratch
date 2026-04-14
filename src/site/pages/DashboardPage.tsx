@@ -31,10 +31,11 @@ import { createErrorReport } from "../lib/errorReports";
 import { sanitizeEmailInput, sanitizeSingleLineInput } from "../lib/inputSafety";
 import {
   buildModerationSql,
+  deleteModerationAction,
+  enqueueModerationAction,
+  listModerationActions,
   queueModerationAction,
-  readModerationQueue,
   removeModerationAction,
-  writeModerationQueue,
   type ModerationAction
 } from "../lib/moderation";
 import { type TurnstileController } from "../lib/turnstile";
@@ -48,6 +49,7 @@ import {
   supabaseClient,
   CLOUD_TABLE
 } from "../lib/supabase";
+import { isValidPasswordInput } from "../lib/security";
 import { useAuth, useTheme, useToast } from "../providers/AppProviders";
 
 type DashboardTab = "overview" | "profile" | "appearance" | "security" | "parent" | "admin";
@@ -128,7 +130,7 @@ export function DashboardPage() {
       await updateUsername(sanitizeSingleLineInput(username, 32));
       pushToast({ title: "Profile updated", variant: "success" });
     } catch (error) {
-      pushToast({ title: "Update failed", description: String(error), variant: "error" });
+      pushToast({ title: "Update failed", description: formatSupabaseError(error), variant: "error" });
     } finally { setIsPending(false); }
   };
 
@@ -139,7 +141,7 @@ export function DashboardPage() {
       await sendPasswordResetForCurrentUser(token);
       pushToast({ title: "Reset email sent", variant: "success" });
     } catch (error) {
-      pushToast({ title: "Reset failed", description: String(error), variant: "error" });
+      pushToast({ title: "Reset failed", description: formatSupabaseError(error), variant: "error" });
     } finally { setIsPending(false); }
   };
 
@@ -156,7 +158,7 @@ export function DashboardPage() {
       await deleteCurrentAccount();
       window.location.assign("index.html");
     } catch (error) {
-      pushToast({ title: "Error", description: String(error), variant: "error" });
+      pushToast({ title: "Error", description: formatSupabaseError(error), variant: "error" });
       setIsPending(false);
     }
   };
@@ -390,8 +392,8 @@ function ParentTab({
       return;
     }
 
-    if (!childPassword || childPassword.length < 6) {
-      pushToast({ title: "Weak password", description: "Use at least 6 characters for the child account.", variant: "warning" });
+    if (!isValidPasswordInput(childPassword)) {
+      pushToast({ title: "Weak password", description: "Use at least 8 characters for the child account.", variant: "warning" });
       return;
     }
 
@@ -415,7 +417,7 @@ function ParentTab({
       turnstileRef.current?.reset({ clearCache: true });
       pushToast({ title: "Child account created", description: "The managed account is ready.", variant: "success" });
     } catch (error) {
-      pushToast({ title: "Creation failed", description: String(error), variant: "error" });
+      pushToast({ title: "Creation failed", description: formatSupabaseError(error), variant: "error" });
       turnstileRef.current?.reset();
     }
   };
@@ -446,17 +448,13 @@ function ParentTab({
                 <p className="mt-1 font-bold">{pendingChildRequest.requestedUsername}</p>
               </div>
               <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-900">
-                <p className="text-[0.65rem] font-black uppercase tracking-widest text-slate-400">Parent Email</p>
-                <p className="mt-1 font-bold break-all">{pendingChildRequest.parentEmail}</p>
-              </div>
-              <div className="rounded-md bg-slate-50 p-3 dark:bg-slate-900">
                 <p className="text-[0.65rem] font-black uppercase tracking-widest text-slate-400">Captured At</p>
                 <p className="mt-1 font-bold">{formatDateTime(pendingChildRequest.createdAt)}</p>
               </div>
             </div>
           ) : (
             <p className="mt-4 text-sm leading-relaxed text-slate-500 dark:text-slate-400">
-              No pending child request is stored locally. You can still create a managed account manually below.
+              No pending child request is stored in this session. You can still create a managed account manually below.
             </p>
           )}
         </section>
@@ -503,7 +501,7 @@ function ParentTab({
             type="password"
             value={childPassword}
             onChange={(e) => onChildPasswordChange(e.target.value)}
-            placeholder="At least 6 characters"
+            placeholder="At least 8 characters"
             className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
           />
         </div>
@@ -554,25 +552,54 @@ function AdminProtocolTab() {
   const [adminQuery, setAdminQuery] = useState("");
   const [adminProjects, setAdminProjects] = useState<RegistryProject[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMoreProjects, setHasMoreProjects] = useState(false);
   const [registryMode, setRegistryMode] = useState<"global" | "limited" | "unavailable">("global");
   const [registryNotice, setRegistryNotice] = useState("Live registry access is available.");
   const [lastRegistrySync, setLastRegistrySync] = useState("");
-  const [moderationQueue, setModerationQueue] = useState<ModerationAction[]>(() => readModerationQueue());
+  const [moderationQueue, setModerationQueue] = useState<ModerationAction[]>([]);
 
-  const loadAllProjects = useCallback(async () => {
-    setIsLoading(true);
+  const loadModerationQueue = useCallback(async () => {
+    try {
+      const actions = await listModerationActions();
+      setModerationQueue(actions);
+    } catch (error) {
+      setModerationQueue([]);
+      pushToast({
+        title: "Queue unavailable",
+        description: formatSupabaseError(error),
+        variant: "warning"
+      });
+    }
+  }, [pushToast]);
+
+  const loadAllProjects = useCallback(async (options?: { reset?: boolean; startRow?: number }) => {
+    const pageSize = 100;
+    const reset = options?.reset !== false;
+    const startRow = options?.startRow ?? 0;
+
+    if (reset) {
+      setIsLoading(true);
+    } else {
+      setIsLoadingMore(true);
+    }
 
     try {
+      const applyProjects = (projects: RegistryProject[], mode: "global" | "limited", notice: string) => {
+        setAdminProjects((current) => reset ? projects : mergeRegistryProjects(current, projects));
+        setHasMoreProjects(projects.length === pageSize);
+        setRegistryMode(mode);
+        setRegistryNotice(notice);
+        setLastRegistrySync(new Date().toISOString());
+      };
+
       const rpcResult = await runRegistryRequest<RegistryProject[]>((signal) =>
         supabaseClient
-          .rpc("admin_list_projects", { max_rows: 100 })
+          .rpc("admin_list_projects", { max_rows: pageSize, start_row: startRow })
           .abortSignal(signal)
       );
       if (!rpcResult.error) {
-        setAdminProjects(Array.isArray(rpcResult.data) ? rpcResult.data : []);
-        setRegistryMode("global");
-        setRegistryNotice("Full registry loaded from the admin RPC.");
-        setLastRegistrySync(new Date().toISOString());
+        applyProjects(Array.isArray(rpcResult.data) ? rpcResult.data : [], "global", "Full registry loaded from the admin RPC in paged batches.");
         return;
       }
 
@@ -581,14 +608,11 @@ function AdminProtocolTab() {
           .from(CLOUD_TABLE)
           .select("id,title,owner_username,is_public,updated_at")
           .order("updated_at", { ascending: false })
-          .limit(100)
+          .range(startRow, startRow + pageSize - 1)
           .abortSignal(signal)
       );
       if (!directResult.error) {
-        setAdminProjects(Array.isArray(directResult.data) ? directResult.data : []);
-        setRegistryMode("global");
-        setRegistryNotice("Full registry loaded from the projects table.");
-        setLastRegistrySync(new Date().toISOString());
+        applyProjects(Array.isArray(directResult.data) ? directResult.data : [], "global", "Full registry loaded from the projects table in paged batches.");
         return;
       }
 
@@ -603,15 +627,12 @@ function AdminProtocolTab() {
             .select("id,title,owner_username,is_public,updated_at")
             .eq("is_public", true)
             .order("updated_at", { ascending: false })
-            .limit(100)
+            .range(startRow, startRow + pageSize - 1)
             .abortSignal(signal)
         );
 
         if (!publicResult.error) {
-          setAdminProjects(Array.isArray(publicResult.data) ? publicResult.data : []);
-          setRegistryMode("limited");
-          setRegistryNotice("Browser access cannot read the full registry. Showing public projects only until the admin RPC from supabase/schema.sql is installed.");
-          setLastRegistrySync(new Date().toISOString());
+          applyProjects(Array.isArray(publicResult.data) ? publicResult.data : [], "limited", "Browser access cannot read the full registry. Showing the public fallback in paged batches until the admin RPC from supabase/schema.sql is installed.");
           pushToast({
             title: "Registry limited",
             description: "Loaded the public registry fallback because full admin access is blocked in the browser.",
@@ -621,7 +642,10 @@ function AdminProtocolTab() {
         }
       }
 
-      setAdminProjects([]);
+      if (reset) {
+        setAdminProjects([]);
+      }
+      setHasMoreProjects(false);
       setRegistryMode("unavailable");
       setRegistryNotice(directMessage || primaryMessage || "Registry sync failed.");
       pushToast({
@@ -631,6 +655,7 @@ function AdminProtocolTab() {
       });
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
   }, [pushToast]);
 
@@ -648,15 +673,10 @@ function AdminProtocolTab() {
       const { error } = await supabaseClient.from(CLOUD_TABLE).delete().eq("id", projectId);
       if (error) throw error;
       pushToast({ title: "Node Purged", variant: "success" });
-      void loadAllProjects();
+      void loadAllProjects({ reset: true, startRow: 0 });
     } catch (error) {
       pushToast({ title: "Purge Failed", description: formatSupabaseError(error), variant: "error" });
     }
-  };
-
-  const persistModerationQueue = (nextQueue: ModerationAction[]) => {
-    setModerationQueue(nextQueue);
-    writeModerationQueue(nextQueue);
   };
 
   const queueFallbackModerationAction = async (
@@ -665,10 +685,19 @@ function AdminProtocolTab() {
     reason: unknown
   ) => {
     const nextQueue = queueModerationAction(moderationQueue, type, target);
-    persistModerationQueue(nextQueue);
     const queuedAction = nextQueue[0];
     const sqlSnippet = queuedAction ? buildModerationSql(queuedAction) : "";
     const report = createErrorReport(reason, { area: type === "network_ban" ? "network ban" : "account restriction" });
+
+    if (queuedAction) {
+      queuedAction.errorSummary = report.summary;
+      try {
+        await enqueueModerationAction(queuedAction);
+        await loadModerationQueue();
+      } catch {
+        setModerationQueue(nextQueue);
+      }
+    }
 
     if (sqlSnippet) {
       try {
@@ -679,7 +708,7 @@ function AdminProtocolTab() {
     }
 
     pushToast({
-      title: "Action queued locally",
+      title: "Action queued",
       description: `${report.summary} The SQL fallback${sqlSnippet ? " was copied to your clipboard" : " is listed below"} for manual execution.`,
       variant: "warning"
     });
@@ -719,7 +748,7 @@ function AdminProtocolTab() {
             description: `Public projects for ${normalizedIdentifier} were hidden even though the full ban RPC is unavailable.`,
             variant: "warning"
           });
-          void loadAllProjects();
+          void loadAllProjects({ reset: true, startRow: 0 });
           return;
         }
       }
@@ -765,12 +794,20 @@ function AdminProtocolTab() {
   };
 
   const handleRemoveQueuedAction = (actionId: string) => {
-    persistModerationQueue(removeModerationAction(moderationQueue, actionId));
+    void (async () => {
+      try {
+        await deleteModerationAction(actionId);
+      } catch {
+        // Keep the local removal even if the remote delete fails.
+      }
+      setModerationQueue((current) => removeModerationAction(current, actionId));
+    })();
   };
 
   useEffect(() => {
-    void loadAllProjects();
-  }, [loadAllProjects]);
+    void loadAllProjects({ reset: true, startRow: 0 });
+    void loadModerationQueue();
+  }, [loadAllProjects, loadModerationQueue]);
 
   const filtered = adminProjects.filter(p => 
     String(p.title || "").toLowerCase().includes(adminQuery.toLowerCase()) ||
@@ -792,7 +829,7 @@ function AdminProtocolTab() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => void loadAllProjects()}
+              onClick={() => void loadAllProjects({ reset: true, startRow: 0 })}
               disabled={isLoading}
               className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-widest hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
             >
@@ -820,6 +857,7 @@ function AdminProtocolTab() {
           <p className="font-semibold">{registryNotice}</p>
           <p className="mt-1 text-xs font-medium opacity-80">
             {lastRegistrySync ? `Last sync: ${formatDateTime(lastRegistrySync)}` : "No successful registry sync yet."}
+            {` Loaded rows: ${adminProjects.length}.`}
             {user?.id ? " Browser sessions can only see data allowed by Supabase policies." : ""}
           </p>
         </div>
@@ -842,7 +880,7 @@ function AdminProtocolTab() {
                 <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No nodes found matching filter.</td></tr>
               ) : (
                 filtered.map(p => (
-                  <tr key={p.id || Math.random().toString()} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
                     <td className="px-4 py-2 font-mono text-[0.65rem]">{String(p.id || "").slice(0, 8)}...</td>
                     <td className="px-4 py-2 font-bold">{p.title || "Untitled"}</td>
                     <td className="px-4 py-2">{p.owner_username || "anonymous"}</td>
@@ -860,6 +898,18 @@ function AdminProtocolTab() {
             </tbody>
           </table>
         </div>
+        {hasMoreProjects && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => void loadAllProjects({ reset: false, startRow: adminProjects.length })}
+              disabled={isLoadingMore}
+              className="rounded-md bg-[#4d97ff] px-3 py-1.5 text-[0.7rem] font-black uppercase text-white hover:bg-blue-600 disabled:opacity-50"
+            >
+              {isLoadingMore ? "Loading..." : "Load More"}
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-md border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#161b22]">
@@ -878,7 +928,7 @@ function AdminProtocolTab() {
         <div className="mt-4 space-y-3">
           {moderationQueue.length === 0 ? (
             <div className="rounded-md border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
-              No queued moderation actions. Browser-only fallback will place missing ban and restriction actions here.
+              No queued moderation actions. When a moderation RPC is unavailable, the fallback is stored here for later review.
             </div>
           ) : (
             moderationQueue.map((action) => (
@@ -919,14 +969,13 @@ function AdminProtocolTab() {
 
       <div className="rounded-md border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d1117]">
         <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
-          <Database size={12} /> System Logs
+          <Database size={12} /> Live Status
         </h3>
         <div className="font-mono text-[0.7rem] text-slate-500 space-y-1">
-          <p>[2026-03-28 14:22] - Node initialization successful.</p>
-          <p>[2026-03-28 14:25] - Admin Clearance Verified.</p>
-          <p>[2026-03-28 14:30] - Registry mode: {registryMode.toUpperCase()}.</p>
-          <p>[2026-03-30 09:15] - Moderation fallback queue enabled.</p>
-          <p>[{new Date().toISOString().replace('T', ' ').slice(0, 19)}] - Admin Protocol session initialized.</p>
+          <p>registry_mode={registryMode}</p>
+          <p>registry_rows_loaded={adminProjects.length}</p>
+          <p>moderation_queue_rows={moderationQueue.length}</p>
+          <p>last_registry_sync={lastRegistrySync || "never"}</p>
         </div>
       </div>
     </div>
@@ -943,6 +992,11 @@ function formatRegistryError(error: unknown) {
   }
 
   return formatSupabaseError(error);
+}
+
+function mergeRegistryProjects(existing: RegistryProject[], incoming: RegistryProject[]) {
+  const seen = new Set(existing.map((project) => project.id));
+  return [...existing, ...incoming.filter((project) => !seen.has(project.id))];
 }
 
 async function runRegistryRequest<T>(buildRequest: (signal: AbortSignal) => PromiseLike<{ data: T | null; error: unknown }>) {

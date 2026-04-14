@@ -14,21 +14,27 @@ import {
   UserRound,
   Users
 } from "lucide-react";
-import { startTransition, useDeferredValue, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { startTransition, useCallback, useDeferredValue, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { AppShell } from "../components/AppShell";
 import { createErrorReport } from "../lib/errorReports";
 import {
-  addForumReply,
   countForumPosts,
-  createForumThread,
   filterForumThreads,
-  readForumThreads,
-  writeForumThreads,
+  listForumThreads,
+  submitForumReply,
+  submitForumThread,
   type ForumBoard,
   type ForumThread
 } from "../lib/forum";
 import { sanitizeSingleLineInput } from "../lib/inputSafety";
-import { CLOUD_TABLE, buildShareUrl, formatDateTime, formatSupabaseError, supabaseClient } from "../lib/supabase";
+import {
+  CLOUD_TABLE,
+  buildShareUrl,
+  buildUserHandle,
+  formatDateTime,
+  formatSupabaseError,
+  supabaseClient
+} from "../lib/supabase";
 import { useAuth, useToast } from "../providers/AppProviders";
 
 interface CommunityProject {
@@ -41,6 +47,8 @@ interface CommunityProject {
 
 type SortMode = "recent" | "title" | "creator";
 type CommunityTab = "projects" | ForumBoard;
+
+const PUBLIC_PROJECT_PAGE_SIZE = 60;
 
 const boardConfig: Record<ForumBoard, {
   title: string;
@@ -79,9 +87,13 @@ export function CommunityPage() {
   const [projects, setProjects] = useState<CommunityProject[]>([]);
   const [query, setQuery] = useState("");
   const [sortMode, setSortMode] = useState<SortMode>("recent");
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [forumThreads, setForumThreads] = useState<ForumThread[]>(() => readForumThreads());
+  const [isProjectsLoading, setIsProjectsLoading] = useState(true);
+  const [isLoadingMoreProjects, setIsLoadingMoreProjects] = useState(false);
+  const [projectErrorMessage, setProjectErrorMessage] = useState("");
+  const [hasMoreProjects, setHasMoreProjects] = useState(false);
+  const [forumThreads, setForumThreads] = useState<ForumThread[]>([]);
+  const [isForumLoading, setIsForumLoading] = useState(true);
+  const [forumErrorMessage, setForumErrorMessage] = useState("");
   const [expandedThreadId, setExpandedThreadId] = useState("");
   const [isComposerOpen, setIsComposerOpen] = useState(false);
   const [threadTitle, setThreadTitle] = useState("");
@@ -92,66 +104,75 @@ export function CommunityPage() {
   const forumPostCount = countForumPosts(forumThreads);
   const activeBoard = activeTab === "projects" ? null : activeTab;
   const activeBoardConfig = activeBoard ? boardConfig[activeBoard] : null;
-  const currentAuthor = profile?.username?.trim()
-    || String(user?.user_metadata?.username || "").trim()
-    || user?.email?.split("@")[0]
-    || "anonymous";
+  const currentAuthor = buildUserHandle(user, profile?.username, "anonymous");
 
-  useEffect(() => {
-    writeForumThreads(forumThreads);
-  }, [forumThreads]);
-
-  useEffect(() => {
-    if (activeTab === "projects") {
-      void loadProjects();
-    } else {
-      setIsLoading(false);
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (!activeBoard) {
-      return;
-    }
-
-    const boardThreads = filterForumThreads(forumThreads, activeBoard, deferredQuery);
-    if (boardThreads.some((thread) => thread.id === expandedThreadId)) {
-      return;
-    }
-
-    setExpandedThreadId(boardThreads[0]?.id || "");
-  }, [activeBoard, deferredQuery, expandedThreadId, forumThreads]);
-
-  const filteredProjects = projects
-    .filter((project) => {
-      const normalizedQuery = deferredQuery.trim().toLowerCase();
-      if (!normalizedQuery) return true;
-      return String(project.title || "").toLowerCase().includes(normalizedQuery)
-        || String(project.owner_username || "").toLowerCase().includes(normalizedQuery);
-    })
-    .sort((left, right) => compareProjects(left, right, sortMode));
+  const filteredProjects = useMemo(() => (
+    projects
+      .filter((project) => {
+        const normalizedQuery = deferredQuery.trim().toLowerCase();
+        if (!normalizedQuery) return true;
+        return String(project.title || "").toLowerCase().includes(normalizedQuery)
+          || String(project.owner_username || "").toLowerCase().includes(normalizedQuery);
+      })
+      .sort((left, right) => compareProjects(left, right, sortMode))
+  ), [deferredQuery, projects, sortMode]);
 
   const filteredThreads = activeBoard ? filterForumThreads(forumThreads, activeBoard, deferredQuery) : [];
 
-  async function loadProjects() {
-    setIsLoading(true);
-    setErrorMessage("");
+  async function loadForumState() {
+    setIsForumLoading(true);
+    setForumErrorMessage("");
+    try {
+      const threads = await listForumThreads();
+      startTransition(() => setForumThreads(threads));
+    } catch (error) {
+      const report = createErrorReport(error, { area: "community forum" });
+      setForumErrorMessage([report.summary, report.suggestions[0]].filter(Boolean).join(" "));
+      startTransition(() => setForumThreads([]));
+    } finally {
+      setIsForumLoading(false);
+    }
+  }
+
+  const loadProjects = useCallback(async (options: { reset: boolean; startRow: number }) => {
+    const offset = options.startRow;
+    if (options.reset) {
+      setIsProjectsLoading(true);
+      setProjectErrorMessage("");
+    } else {
+      setIsLoadingMoreProjects(true);
+    }
+
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 10000);
+    const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
 
     try {
-      const { data, error } = await supabaseClient
-        .from(CLOUD_TABLE)
-        .select("id,title,share_slug,owner_username,updated_at")
-        .eq("is_public", true)
-        .not("share_slug", "is", null)
-        .order("updated_at", { ascending: false })
-        .limit(200)
+      const rpcResult = await supabaseClient
+        .rpc("public_project_registry", { limit_rows: PUBLIC_PROJECT_PAGE_SIZE, start_row: offset })
         .abortSignal(controller.signal);
 
+      let nextProjects: CommunityProject[] = [];
+      if (!rpcResult.error) {
+        nextProjects = Array.isArray(rpcResult.data) ? rpcResult.data as CommunityProject[] : [];
+      } else {
+        const directResult = await supabaseClient
+          .from(CLOUD_TABLE)
+          .select("id,title,share_slug,owner_username,updated_at")
+          .eq("is_public", true)
+          .not("share_slug", "is", null)
+          .order("updated_at", { ascending: false })
+          .range(offset, offset + PUBLIC_PROJECT_PAGE_SIZE - 1)
+          .abortSignal(controller.signal);
+
+        if (directResult.error) throw directResult.error;
+        nextProjects = Array.isArray(directResult.data) ? directResult.data : [];
+      }
+
       clearTimeout(timeoutId);
-      if (error) throw error;
-      startTransition(() => { setProjects(Array.isArray(data) ? data : []); });
+      setHasMoreProjects(nextProjects.length === PUBLIC_PROJECT_PAGE_SIZE);
+      startTransition(() => {
+        setProjects((current) => options.reset ? nextProjects : mergeProjects(current, nextProjects));
+      });
     } catch (error) {
       clearTimeout(timeoutId);
       const report = createErrorReport(
@@ -160,10 +181,32 @@ export function CommunityPage() {
           : formatSupabaseError(error),
         { area: "community projects" }
       );
-      setErrorMessage([report.summary, report.suggestions[0]].filter(Boolean).join(" "));
-      startTransition(() => { setProjects([]); });
-    } finally { setIsLoading(false); }
-  }
+      setProjectErrorMessage([report.summary, report.suggestions[0]].filter(Boolean).join(" "));
+      if (options.reset) {
+        startTransition(() => setProjects([]));
+      }
+    } finally {
+      setIsProjectsLoading(false);
+      setIsLoadingMoreProjects(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadForumState();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "projects") {
+      void loadProjects({ reset: true, startRow: 0 });
+    }
+  }, [activeTab, loadProjects]);
+
+  useEffect(() => {
+    if (!activeBoard) return;
+    const boardThreads = filterForumThreads(forumThreads, activeBoard, deferredQuery);
+    if (boardThreads.some((thread) => thread.id === expandedThreadId)) return;
+    setExpandedThreadId(boardThreads[0]?.id || "");
+  }, [activeBoard, deferredQuery, expandedThreadId, forumThreads]);
 
   const handlePurge = async (id: string) => {
     if (!isAdmin) return;
@@ -171,29 +214,24 @@ export function CommunityPage() {
       const { error } = await supabaseClient.from(CLOUD_TABLE).delete().eq("id", id);
       if (error) throw error;
       pushToast({ title: "Node Purged", variant: "success" });
-      void loadProjects();
+      void loadProjects({ reset: true, startRow: 0 });
     } catch (error) {
       const report = createErrorReport(formatSupabaseError(error), { area: "community purge" });
       pushToast({ title: "Purge Failed", description: report.summary, variant: "error" });
     }
   };
 
-  const handleCreateThread = (event: FormEvent<HTMLFormElement>) => {
+  const handleCreateThread = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!activeBoard) {
-      return;
-    }
-    if (!user) {
+    if (!activeBoard) return;
+    if (!user?.id) {
       pushToast({ title: "Sign in required", description: "Log in before creating a forum thread.", variant: "warning" });
       return;
     }
 
     const nextTitle = sanitizeSingleLineInput(threadTitle, 120);
-    const nextBody = threadBody.replace(/\s+/g, " ").trim().slice(0, 1500);
-    const nextTags = threadTags
-      .split(",")
-      .map((entry) => sanitizeSingleLineInput(entry, 24))
-      .filter(Boolean);
+    const nextBody = threadBody.replace(/\s+/g, " ").trim().slice(0, 1_500);
+    const nextTags = threadTags.split(",").map((entry) => sanitizeSingleLineInput(entry, 24)).filter(Boolean);
 
     if (!nextTitle) {
       pushToast({ title: "Missing title", description: "Add a short thread title before posting.", variant: "warning" });
@@ -204,43 +242,47 @@ export function CommunityPage() {
       return;
     }
 
-    const nextThreads = createForumThread(forumThreads, {
-      board: activeBoard,
-      title: nextTitle,
-      body: nextBody,
-      author: currentAuthor,
-      tags: nextTags,
-      pinned: activeBoard === "higher" && isAdmin
-    });
-    setForumThreads(nextThreads);
-    setExpandedThreadId(nextThreads[0]?.id || "");
-    setThreadTitle("");
-    setThreadBody("");
-    setThreadTags("");
-    setIsComposerOpen(false);
-    pushToast({ title: "Thread posted", description: `Your post is now live in the ${activeBoardConfig?.title}.`, variant: "success" });
+    try {
+      await submitForumThread({
+        board: activeBoard,
+        title: nextTitle,
+        body: nextBody,
+        author: currentAuthor,
+        tags: nextTags,
+        pinned: activeBoard === "higher" && isAdmin
+      }, user.id);
+      await loadForumState();
+      setThreadTitle("");
+      setThreadBody("");
+      setThreadTags("");
+      setIsComposerOpen(false);
+      pushToast({ title: "Thread posted", description: `Your post is now live in the ${activeBoardConfig?.title}.`, variant: "success" });
+    } catch (error) {
+      pushToast({ title: "Post failed", description: formatSupabaseError(error), variant: "error" });
+    }
   };
 
-  const handleReplySubmit = (threadId: string) => {
-    if (!user) {
+  const handleReplySubmit = async (threadId: string) => {
+    if (!user?.id) {
       pushToast({ title: "Sign in required", description: "Log in before replying to forum threads.", variant: "warning" });
       return;
     }
 
-    const nextBody = String(replyDrafts[threadId] || "").replace(/\s+/g, " ").trim().slice(0, 1200);
+    const nextBody = String(replyDrafts[threadId] || "").replace(/\s+/g, " ").trim().slice(0, 1_200);
     if (!nextBody) {
       pushToast({ title: "Reply is empty", description: "Write a short reply before sending it.", variant: "warning" });
       return;
     }
 
-    setForumThreads((current) => addForumReply(current, {
-      threadId,
-      author: currentAuthor,
-      body: nextBody
-    }));
-    setReplyDrafts((current) => ({ ...current, [threadId]: "" }));
-    setExpandedThreadId(threadId);
-    pushToast({ title: "Reply posted", variant: "success" });
+    try {
+      await submitForumReply({ threadId, author: currentAuthor, body: nextBody }, user.id);
+      await loadForumState();
+      setReplyDrafts((current) => ({ ...current, [threadId]: "" }));
+      setExpandedThreadId(threadId);
+      pushToast({ title: "Reply posted", variant: "success" });
+    } catch (error) {
+      pushToast({ title: "Reply failed", description: formatSupabaseError(error), variant: "error" });
+    }
   };
 
   const toggleThread = (threadId: string) => {
@@ -249,7 +291,7 @@ export function CommunityPage() {
 
   return (
     <AppShell page="community">
-      <div className="bg-[#f6f8fa] dark:bg-[#0d1117] animate-in fade-in duration-500 min-h-full">
+      <div className="min-h-full bg-[#f6f8fa] dark:bg-[#0d1117]">
         <section className="border-b border-slate-200 bg-white py-8 dark:border-slate-800 dark:bg-[#161b22]">
           <div className="mx-auto max-w-5xl px-4">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -263,14 +305,12 @@ export function CommunityPage() {
                   Browse public projects, post to the collaboration and developer forums, and use the Higher Forum for advanced production discussions.
                 </p>
               </div>
-
               <div className="grid gap-3 sm:grid-cols-3">
                 <HubStat label="Public nodes" value={String(projects.length)} />
                 <HubStat label="Forum posts" value={String(forumPostCount)} />
                 <HubStat label="Boards live" value="3" />
               </div>
             </div>
-
             <div className="mt-8 flex flex-wrap gap-1 border-b border-slate-100 dark:border-slate-800">
               <TabButton active={activeTab === "projects"} onClick={() => setActiveTab("projects")} icon={<Globe size={14} />}>Public Nodes</TabButton>
               <TabButton active={activeTab === "collab"} onClick={() => setActiveTab("collab")} icon={<Users size={14} />}>Collaboration Forum</TabButton>
@@ -279,28 +319,26 @@ export function CommunityPage() {
             </div>
           </div>
         </section>
-
         <div className="mx-auto max-w-5xl px-4 py-8">
           <section className="mb-8 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
             <div className={`grid gap-3 ${activeTab === "projects" ? "md:grid-cols-[1fr_180px_120px]" : "md:grid-cols-[1fr_220px_auto]"}`}>
-              <div className="relative group">
+              <div className="relative">
                 <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                 <input
                   aria-label={activeTab === "projects" ? "Filter community projects" : "Filter community forum threads"}
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder={activeTab === "projects" ? "Filter by title or identifier..." : "Search titles, replies, authors, or tags..."}
-                  className="w-full rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-4 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900 transition-all"
+                  className="w-full rounded-md border border-slate-200 bg-slate-50 py-1.5 pl-9 pr-4 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
                 />
               </div>
-
               {activeTab === "projects" ? (
                 <>
                   <select
                     value={sortMode}
                     onChange={(event) => setSortMode(event.target.value as SortMode)}
                     aria-label="Sort community projects"
-                    className="rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-bold outline-none dark:border-slate-700 dark:bg-slate-900 cursor-pointer"
+                    className="rounded-md border border-slate-200 bg-slate-50 px-3 text-xs font-bold outline-none dark:border-slate-700 dark:bg-slate-900"
                   >
                     <option value="recent">Sort: Recent</option>
                     <option value="title">Sort: Title</option>
@@ -308,11 +346,11 @@ export function CommunityPage() {
                   </select>
                   <button
                     type="button"
-                    onClick={() => void loadProjects()}
-                    disabled={isLoading}
-                    className="flex items-center justify-center gap-2 rounded-md bg-[#2da44e] text-white px-3 py-1.5 text-xs font-bold hover:bg-[#2c974b] transition-all disabled:opacity-50"
+                    onClick={() => void loadProjects({ reset: true, startRow: 0 })}
+                    disabled={isProjectsLoading}
+                    className="flex items-center justify-center gap-2 rounded-md bg-[#2da44e] px-3 py-1.5 text-xs font-bold text-white hover:bg-[#2c974b] disabled:opacity-50"
                   >
-                    <RefreshCw size={12} className={isLoading ? "animate-spin" : ""} />
+                    <RefreshCw size={12} className={isProjectsLoading ? "animate-spin" : ""} />
                     Sync
                   </button>
                 </>
@@ -325,7 +363,7 @@ export function CommunityPage() {
                   <button
                     type="button"
                     onClick={() => setIsComposerOpen((current) => !current)}
-                    className="flex items-center justify-center gap-2 rounded-md bg-[#4d97ff] px-3 py-1.5 text-xs font-black uppercase text-white hover:bg-blue-600 transition-all"
+                    className="flex items-center justify-center gap-2 rounded-md bg-[#4d97ff] px-3 py-1.5 text-xs font-black uppercase text-white hover:bg-blue-600"
                   >
                     <Plus size={14} />
                     {isComposerOpen ? "Close" : "New Thread"}
@@ -334,31 +372,28 @@ export function CommunityPage() {
               )}
             </div>
           </section>
-
           {activeTab === "projects" && (
             <>
-              {errorMessage && (
+              {projectErrorMessage && (
                 <section role="status" aria-live="polite" className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100">
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <p>Community projects could not be loaded. {errorMessage}</p>
+                    <p>Community projects could not be loaded. {projectErrorMessage}</p>
                     <button
                       type="button"
-                      onClick={() => void loadProjects()}
-                      className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-black uppercase text-white transition-colors hover:bg-amber-700"
+                      onClick={() => void loadProjects({ reset: true, startRow: 0 })}
+                      className="rounded-md bg-amber-600 px-3 py-1.5 text-xs font-black uppercase text-white hover:bg-amber-700"
                     >
                       Retry
                     </button>
                   </div>
                 </section>
               )}
-
               <div className="space-y-4">
-                <div className="flex items-center justify-between text-[0.65rem] font-bold uppercase tracking-widest text-slate-400 px-1">
+                <div className="flex items-center justify-between px-1 text-[0.65rem] font-bold uppercase tracking-widest text-slate-400">
                   <span>Verified Public Nodes</span>
-                  <span>{filteredProjects.length} nodes online</span>
+                  <span>{filteredProjects.length} loaded</span>
                 </div>
-
-                {isLoading ? (
+                {isProjectsLoading ? (
                   <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                     <SkeletonCard /><SkeletonCard /><SkeletonCard />
                   </div>
@@ -367,21 +402,35 @@ export function CommunityPage() {
                     No nodes matching filter found in registry.
                   </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredProjects.map((project) => (
-                      <ProjectCard
-                        key={project.id}
-                        project={project}
-                        isAdmin={isAdmin}
-                        onPurge={() => handlePurge(project.id)}
-                      />
-                    ))}
-                  </div>
+                  <>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+                      {filteredProjects.map((project) => (
+                        <ProjectCard
+                          key={project.id}
+                          project={project}
+                          isAdmin={isAdmin}
+                          onPurge={() => handlePurge(project.id)}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-4 py-3 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-[#161b22] dark:text-slate-400">
+                      <p>Projects load in pages of {PUBLIC_PROJECT_PAGE_SIZE}. Use Load More to continue browsing the registry.</p>
+                      {hasMoreProjects && (
+                        <button
+                          type="button"
+                          onClick={() => void loadProjects({ reset: false, startRow: projects.length })}
+                          disabled={isLoadingMoreProjects}
+                          className="rounded-md bg-[#4d97ff] px-3 py-1.5 text-[0.7rem] font-black uppercase text-white hover:bg-blue-600 disabled:opacity-50"
+                        >
+                          {isLoadingMoreProjects ? "Loading..." : "Load More"}
+                        </button>
+                      )}
+                    </div>
+                  </>
                 )}
               </div>
             </>
           )}
-
           {activeBoard && activeBoardConfig && (
             <div className="space-y-6">
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-[#161b22]">
@@ -401,7 +450,6 @@ export function CommunityPage() {
                     </a>
                   )}
                 </div>
-
                 {isComposerOpen && (
                   <form onSubmit={handleCreateThread} className="mt-5 grid gap-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d1117]">
                     <div className="grid gap-4 md:grid-cols-[1fr_220px]">
@@ -420,37 +468,46 @@ export function CommunityPage() {
                     </div>
                     <textarea
                       value={threadBody}
-                      onChange={(event) => setThreadBody(event.target.value.slice(0, 1500))}
+                      onChange={(event) => setThreadBody(event.target.value.slice(0, 1_500))}
                       placeholder="What are you building, asking, or proposing?"
                       rows={4}
                       className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
                     />
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center justify-between gap-3">
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         Posting as <span className="font-bold">{currentAuthor}</span>
                       </p>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setIsComposerOpen(false)}
-                          className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black uppercase hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="rounded-md bg-[#4d97ff] px-3 py-2 text-xs font-black uppercase text-white hover:bg-blue-600"
-                        >
-                          Post thread
-                        </button>
-                      </div>
+                      <p className="text-[0.7rem] font-semibold text-slate-400">{threadBody.length}/1500</p>
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsComposerOpen(false)}
+                        className="rounded-md border border-slate-200 bg-white px-3 py-2 text-xs font-black uppercase hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="rounded-md bg-[#4d97ff] px-3 py-2 text-xs font-black uppercase text-white hover:bg-blue-600"
+                      >
+                        Post thread
+                      </button>
                     </div>
                   </form>
                 )}
               </section>
-
+              {forumErrorMessage && (
+                <section className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100">
+                  Forum data could not be loaded. {forumErrorMessage}
+                </section>
+              )}
               <div className="space-y-3">
-                {filteredThreads.length === 0 ? (
+                {isForumLoading ? (
+                  <div className="rounded-lg border border-dashed border-slate-200 py-12 text-center text-sm text-slate-500 dark:border-slate-800">
+                    Loading forum threads...
+                  </div>
+                ) : filteredThreads.length === 0 ? (
                   <div className="rounded-lg border border-dashed border-slate-200 py-12 text-center text-sm text-slate-500 dark:border-slate-800">
                     {activeBoardConfig.emptyMessage}
                   </div>
@@ -462,8 +519,8 @@ export function CommunityPage() {
                       expanded={expandedThreadId === thread.id}
                       replyDraft={replyDrafts[thread.id] || ""}
                       onToggle={() => toggleThread(thread.id)}
-                      onReplyDraftChange={(value) => setReplyDrafts((current) => ({ ...current, [thread.id]: value.slice(0, 1200) }))}
-                      onReplySubmit={() => handleReplySubmit(thread.id)}
+                      onReplyDraftChange={(value) => setReplyDrafts((current) => ({ ...current, [thread.id]: value.slice(0, 1_200) }))}
+                      onReplySubmit={() => void handleReplySubmit(thread.id)}
                       canReply={Boolean(user)}
                     />
                   ))
@@ -481,10 +538,10 @@ function TabButton({ children, active, onClick, icon }: { children: ReactNode, a
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-3 text-xs font-black uppercase tracking-widest transition-all border-b-2 ${
+      className={`flex items-center gap-2 border-b-2 px-4 py-3 text-xs font-black uppercase tracking-widest ${
         active
-          ? "border-blue-600 text-blue-600 bg-blue-50/50 dark:bg-blue-900/10 dark:border-blue-400 dark:text-blue-400"
-          : "border-transparent text-slate-400 hover:text-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
+          ? "border-blue-600 bg-blue-50/50 text-blue-600 dark:border-blue-400 dark:bg-blue-900/10 dark:text-blue-400"
+          : "border-transparent text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:hover:bg-slate-800/50 dark:hover:text-slate-300"
       }`}
     >
       {icon}
@@ -593,7 +650,8 @@ function ForumThreadCard({
               disabled={!canReply}
               className="mt-3 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-700 dark:bg-slate-900"
             />
-            <div className="mt-3 flex justify-end">
+            <div className="mt-3 flex items-center justify-between gap-3">
+              <p className="text-[0.7rem] font-semibold text-slate-400">{replyDraft.length}/1200</p>
               <button
                 type="button"
                 onClick={onReplySubmit}
@@ -617,8 +675,8 @@ function ProjectCard({ project, isAdmin, onPurge }: { project: CommunityProject,
   const bgColor = colors[colorIndex];
 
   return (
-    <article className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm hover:border-blue-400 hover:shadow-md transition-all dark:border-slate-800 dark:bg-[#161b22]">
-      <div className={`h-24 w-full ${bgColor} relative overflow-hidden flex items-center justify-center`}>
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all hover:border-blue-400 hover:shadow-md dark:border-slate-800 dark:bg-[#161b22]">
+      <div className={`relative flex h-24 w-full items-center justify-center overflow-hidden ${bgColor}`}>
         <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "10px 10px" }}></div>
         <Globe size={40} className="text-white/40" />
         <div className="absolute bottom-2 left-2 flex items-center gap-1 rounded bg-black/20 px-1.5 py-0.5 text-[0.65rem] font-black text-white backdrop-blur-md">
@@ -628,8 +686,8 @@ function ProjectCard({ project, isAdmin, onPurge }: { project: CommunityProject,
 
       <div className="flex flex-1 flex-col p-4">
         <div className="mb-4">
-          <h3 className="text-sm font-black tracking-tight mb-1 truncate" title={project.title || ""}>{project.title || "Untitled_Node"}</h3>
-          <div className="flex items-center gap-2 text-[0.65rem] font-bold text-slate-400 uppercase tracking-tighter">
+          <h3 className="mb-1 truncate text-sm font-black tracking-tight" title={project.title || ""}>{project.title || "Untitled_Node"}</h3>
+          <div className="flex items-center gap-2 text-[0.65rem] font-bold uppercase tracking-tighter text-slate-400">
             <UserRound size={10} className="text-blue-500" />
             <span>{project.owner_username || "anonymous"}</span>
           </div>
@@ -638,7 +696,7 @@ function ProjectCard({ project, isAdmin, onPurge }: { project: CommunityProject,
         <div className="mt-auto space-y-2">
           {isAdmin && (
             <div className="flex justify-end">
-              <button type="button" onClick={onPurge} aria-label={`Delete ${project.title || "project"}`} className="text-rose-600 hover:text-rose-700 p-1 rounded-md hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+              <button type="button" onClick={onPurge} aria-label={`Delete ${project.title || "project"}`} className="rounded-md p-1 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-900/20">
                 <Trash2 size={12} />
               </button>
             </div>
@@ -646,13 +704,13 @@ function ProjectCard({ project, isAdmin, onPurge }: { project: CommunityProject,
           <div className="flex gap-2">
             <a
               href={shareUrl}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-[0.65rem] font-black uppercase hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800 transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-slate-50 py-2 text-[0.65rem] font-black uppercase hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-800"
             >
               <Share2 size={12} /> Open
             </a>
             <a
               href={shareUrl}
-              className="flex-1 flex items-center justify-center gap-2 rounded-lg bg-[#4d97ff] text-white py-2 text-[0.65rem] font-black uppercase hover:bg-blue-500 shadow-sm transition-colors"
+              className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-[#4d97ff] py-2 text-[0.65rem] font-black uppercase text-white hover:bg-blue-500"
             >
               Workspace
             </a>
@@ -664,7 +722,12 @@ function ProjectCard({ project, isAdmin, onPurge }: { project: CommunityProject,
 }
 
 function SkeletonCard() {
-  return <div className="h-32 rounded-lg border border-slate-100 bg-white dark:border-slate-800 dark:bg-[#161b22] animate-pulse" />;
+  return <div className="h-32 animate-pulse rounded-lg border border-slate-100 bg-white dark:border-slate-800 dark:bg-[#161b22]" />;
+}
+
+function mergeProjects(existing: CommunityProject[], incoming: CommunityProject[]) {
+  const seen = new Set(existing.map((project) => project.id));
+  return [...existing, ...incoming.filter((project) => !seen.has(project.id))];
 }
 
 function compareProjects(left: CommunityProject, right: CommunityProject, sortMode: SortMode) {

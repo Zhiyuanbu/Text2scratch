@@ -46,6 +46,51 @@ create table if not exists public.network_bans (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.forum_threads (
+  id uuid primary key default gen_random_uuid(),
+  board text not null,
+  title text not null,
+  body text not null,
+  author_user_id uuid not null references auth.users(id) on delete cascade,
+  author_username text not null,
+  tags text[] not null default '{}',
+  pinned boolean not null default false,
+  locked boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.forum_replies (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references public.forum_threads(id) on delete cascade,
+  author_user_id uuid not null references auth.users(id) on delete cascade,
+  author_username text not null,
+  body text not null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.coppa_parent_consents (
+  id uuid primary key default gen_random_uuid(),
+  child_user_id uuid references auth.users(id) on delete set null,
+  child_username text not null default '',
+  child_email text not null default '',
+  parent_user_id uuid not null references auth.users(id) on delete cascade,
+  parent_email text not null default '',
+  request_ip text,
+  consent_acknowledged_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.moderation_fallback_queue (
+  id text primary key,
+  action_type text not null,
+  target text not null,
+  sql_snippet text not null,
+  error_summary text,
+  created_by uuid not null references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
 alter table public.profiles add column if not exists is_banned boolean not null default false;
 alter table public.profiles add column if not exists banned_reason text;
 alter table public.profiles add column if not exists banned_at timestamptz;
@@ -65,13 +110,114 @@ create unique index if not exists projects_share_slug_idx on public.projects (sh
 create unique index if not exists network_bans_ip_address_idx on public.network_bans (ip_address);
 create index if not exists projects_owner_id_idx on public.projects (owner_id);
 create index if not exists projects_public_updated_idx on public.projects (is_public, updated_at desc);
+create index if not exists forum_threads_board_updated_idx on public.forum_threads (board, pinned desc, updated_at desc);
+create index if not exists forum_replies_thread_created_idx on public.forum_replies (thread_id, created_at asc);
+create index if not exists coppa_parent_consents_parent_idx on public.coppa_parent_consents (parent_user_id, created_at desc);
+create index if not exists moderation_fallback_queue_created_idx on public.moderation_fallback_queue (created_at desc);
 
-create or replace function public.get_client_ip()
+create or replace function public.normalize_username(value text)
+returns text
+language sql
+immutable
+as $$
+  select left(regexp_replace(lower(trim(coalesce(value, ''))), '[^a-z0-9_]+', '', 'g'), 32);
+$$;
+
+create or replace function public.resolve_profile_username(check_user_id uuid default auth.uid())
 returns text
 language sql
 stable
+security definer
+set search_path = public, auth
 as $$
-  select current_setting('request.headers', true)::json->>'x-forwarded-for';
+  select coalesce(
+    nullif(p.username, ''),
+    nullif(public.normalize_username(u.raw_user_meta_data ->> 'username'), ''),
+    'user_' || left(replace(u.id::text, '-', ''), 8)
+  )
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where u.id = coalesce(check_user_id, auth.uid())
+  limit 1;
+$$;
+
+create or replace function public.resolve_user_email(check_user_id uuid default auth.uid())
+returns text
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select lower(coalesce(p.email, u.email, ''))
+  from auth.users u
+  left join public.profiles p on p.id = u.id
+  where u.id = coalesce(check_user_id, auth.uid())
+  limit 1;
+$$;
+
+create or replace function public.get_client_ip()
+returns text
+language plpgsql
+stable
+as $$
+declare
+  headers json;
+  candidate text;
+begin
+  begin
+    headers := current_setting('request.headers', true)::json;
+  exception when others then
+    headers := '{}'::json;
+  end;
+
+  candidate := trim(coalesce(
+    headers ->> 'cf-connecting-ip',
+    headers ->> 'x-real-ip',
+    split_part(coalesce(headers ->> 'x-forwarded-for', ''), ',', 1)
+  ));
+
+  return nullif(candidate, '');
+end;
+$$;
+
+create or replace function public.ip_matches_network_ban(client_ip text, banned_ip text)
+returns boolean
+language plpgsql
+immutable
+as $$
+begin
+  if trim(coalesce(client_ip, '')) = '' or trim(coalesce(banned_ip, '')) = '' then
+    return false;
+  end if;
+
+  if trim(client_ip) = trim(banned_ip) then
+    return true;
+  end if;
+
+  begin
+    return trim(client_ip)::inet <<= trim(banned_ip)::cidr;
+  exception when others then
+    return false;
+  end;
+end;
+$$;
+
+create or replace function public.is_admin_user(check_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select exists (
+    select 1
+    from auth.users
+    where id = coalesce(check_user_id, auth.uid())
+      and (
+        lower(coalesce(raw_app_meta_data ->> 'role', '')) in ('admin', 'owner')
+        or lower(coalesce(raw_app_meta_data ->> 'is_admin', 'false')) = 'true'
+      )
+  );
 $$;
 
 create or replace function public.is_network_banned()
@@ -84,7 +230,7 @@ as $$
   select exists (
     select 1
     from public.network_bans
-    where ip_address = public.get_client_ip()
+    where public.ip_matches_network_ban(public.get_client_ip(), ip_address)
   ) and not public.is_admin_user();
 $$;
 
@@ -108,46 +254,58 @@ begin
 end;
 $$;
 
-drop trigger if exists touch_profiles_updated_at on public.profiles;
-create trigger touch_profiles_updated_at
-before update on public.profiles
-for each row
-execute function public.touch_updated_at();
-
-drop trigger if exists touch_projects_updated_at on public.projects;
-create trigger touch_projects_updated_at
-before update on public.projects
-for each row
-execute function public.touch_updated_at();
-
-drop trigger if exists on_project_ip_track on public.projects;
-create trigger on_project_ip_track
-before insert or update on public.projects
-for each row
-execute function public.track_project_ip();
-
-create or replace function public.normalize_username(value text)
-returns text
-language sql
-immutable
+create or replace function public.track_parent_consent_ip()
+returns trigger
+language plpgsql
 as $$
-  select left(regexp_replace(lower(trim(coalesce(value, ''))), '[^a-z0-9_]+', '', 'g'), 32);
+begin
+  new.request_ip = public.get_client_ip();
+  return new;
+end;
 $$;
 
-create or replace function public.is_admin_user(check_user_id uuid default auth.uid())
-returns boolean
-language sql
-stable
+create or replace function public.guard_profile_system_fields()
+returns trigger
+language plpgsql
 security definer
 set search_path = public, auth
 as $$
-  select exists (
-    select 1
-    from auth.users
-    where id = coalesce(check_user_id, auth.uid())
-      and lower(email) = 'zhibu378orangetiger707@gmail.com'
-  );
+begin
+  if not public.is_admin_user() then
+    if tg_op = 'UPDATE' then
+      new.is_banned := old.is_banned;
+      new.banned_reason := old.banned_reason;
+      new.banned_at := old.banned_at;
+      new.last_sign_in_ip := old.last_sign_in_ip;
+    else
+      new.is_banned := false;
+      new.banned_reason := null;
+      new.banned_at := null;
+      new.last_sign_in_ip := public.get_client_ip();
+    end if;
+  end if;
+
+  return new;
+end;
 $$;
+
+drop trigger if exists touch_profiles_updated_at on public.profiles;
+create trigger touch_profiles_updated_at before update on public.profiles for each row execute function public.touch_updated_at();
+
+drop trigger if exists guard_profile_system_fields on public.profiles;
+create trigger guard_profile_system_fields before insert or update on public.profiles for each row execute function public.guard_profile_system_fields();
+
+drop trigger if exists touch_projects_updated_at on public.projects;
+create trigger touch_projects_updated_at before update on public.projects for each row execute function public.touch_updated_at();
+
+drop trigger if exists on_project_ip_track on public.projects;
+create trigger on_project_ip_track before insert or update on public.projects for each row execute function public.track_project_ip();
+
+drop trigger if exists touch_forum_threads_updated_at on public.forum_threads;
+create trigger touch_forum_threads_updated_at before update on public.forum_threads for each row execute function public.touch_updated_at();
+
+drop trigger if exists track_parent_consent_ip on public.coppa_parent_consents;
+create trigger track_parent_consent_ip before insert on public.coppa_parent_consents for each row execute function public.track_parent_consent_ip();
 
 create or replace function public.handle_auth_user_profile()
 returns trigger
@@ -207,75 +365,111 @@ alter table public.profiles enable row level security;
 alter table public.projects enable row level security;
 alter table public.account_bans enable row level security;
 alter table public.network_bans enable row level security;
+alter table public.forum_threads enable row level security;
+alter table public.forum_replies enable row level security;
+alter table public.coppa_parent_consents enable row level security;
+alter table public.moderation_fallback_queue enable row level security;
 
 drop policy if exists bans_admin_all on public.account_bans;
-create policy bans_admin_all
-on public.account_bans
-for all
-to authenticated
-using (public.is_admin_user());
+create policy bans_admin_all on public.account_bans for all to authenticated using (public.is_admin_user()) with check (public.is_admin_user());
 
 drop policy if exists network_bans_admin_all on public.network_bans;
-create policy network_bans_admin_all
-on public.network_bans
-for all
-to authenticated
-using (public.is_admin_user());
+create policy network_bans_admin_all on public.network_bans for all to authenticated using (public.is_admin_user()) with check (public.is_admin_user());
 
-drop policy if exists profiles_select_self on public.profiles;
-create policy profiles_select_self
-on public.profiles
-for select
-to authenticated
-using (auth.uid() = id and not public.is_network_banned());
+drop policy if exists profiles_select_self_or_admin on public.profiles;
+create policy profiles_select_self_or_admin on public.profiles
+for select to authenticated
+using ((auth.uid() = id or public.is_admin_user()) and not public.is_network_banned());
 
 drop policy if exists profiles_insert_self on public.profiles;
-create policy profiles_insert_self
-on public.profiles
-for insert
-to authenticated
+create policy profiles_insert_self on public.profiles
+for insert to authenticated
 with check (auth.uid() = id and not public.is_network_banned());
 
 drop policy if exists profiles_update_self on public.profiles;
-create policy profiles_update_self
-on public.profiles
-for update
-to authenticated
+create policy profiles_update_self on public.profiles
+for update to authenticated
 using (auth.uid() = id and not public.is_network_banned())
 with check (auth.uid() = id and not public.is_network_banned());
 
 drop policy if exists projects_select_public_or_owner on public.projects;
-create policy projects_select_public_or_owner
-on public.projects
-for select
-to anon, authenticated
-using ((is_public or owner_id = auth.uid()) and not public.is_network_banned());
+create policy projects_select_public_or_owner on public.projects
+for select to anon, authenticated
+using ((is_public or owner_id = auth.uid() or public.is_admin_user()) and not public.is_network_banned());
 
 drop policy if exists projects_insert_owner on public.projects;
-create policy projects_insert_owner
-on public.projects
-for insert
-to authenticated
+create policy projects_insert_owner on public.projects
+for insert to authenticated
 with check (owner_id = auth.uid() and not public.is_network_banned());
 
 drop policy if exists projects_update_owner on public.projects;
-create policy projects_update_owner
-on public.projects
-for update
-to authenticated
-using (owner_id = auth.uid() and not public.is_network_banned())
-with check (owner_id = auth.uid() and not public.is_network_banned());
+create policy projects_update_owner on public.projects
+for update to authenticated
+using ((owner_id = auth.uid() or public.is_admin_user()) and not public.is_network_banned())
+with check ((owner_id = auth.uid() or public.is_admin_user()) and not public.is_network_banned());
 
 drop policy if exists projects_delete_owner on public.projects;
-create policy projects_delete_owner
-on public.projects
-for delete
-to authenticated
-using (owner_id = auth.uid() and not public.is_network_banned());
+create policy projects_delete_owner on public.projects
+for delete to authenticated
+using ((owner_id = auth.uid() or public.is_admin_user()) and not public.is_network_banned());
+
+drop policy if exists forum_threads_select_all on public.forum_threads;
+create policy forum_threads_select_all on public.forum_threads
+for select to anon, authenticated
+using (not public.is_network_banned());
+
+drop policy if exists forum_threads_insert_user on public.forum_threads;
+create policy forum_threads_insert_user on public.forum_threads
+for insert to authenticated
+with check (
+  auth.uid() = author_user_id
+  and author_username = public.resolve_profile_username(auth.uid())
+  and board in ('collab', 'dev', 'higher')
+  and (not pinned or public.is_admin_user())
+  and not public.is_network_banned()
+);
+
+drop policy if exists forum_replies_select_all on public.forum_replies;
+create policy forum_replies_select_all on public.forum_replies
+for select to anon, authenticated
+using (not public.is_network_banned());
+
+drop policy if exists forum_replies_insert_user on public.forum_replies;
+create policy forum_replies_insert_user on public.forum_replies
+for insert to authenticated
+with check (
+  auth.uid() = author_user_id
+  and author_username = public.resolve_profile_username(auth.uid())
+  and not public.is_network_banned()
+);
+
+drop policy if exists coppa_parent_consents_select_parent_or_admin on public.coppa_parent_consents;
+create policy coppa_parent_consents_select_parent_or_admin on public.coppa_parent_consents
+for select to authenticated
+using (parent_user_id = auth.uid() or public.is_admin_user());
+
+drop policy if exists coppa_parent_consents_insert_parent on public.coppa_parent_consents;
+create policy coppa_parent_consents_insert_parent on public.coppa_parent_consents
+for insert to authenticated
+with check (
+  parent_user_id = auth.uid()
+  and lower(parent_email) = public.resolve_user_email(auth.uid())
+  and not public.is_network_banned()
+);
+
+drop policy if exists moderation_fallback_queue_admin_all on public.moderation_fallback_queue;
+create policy moderation_fallback_queue_admin_all on public.moderation_fallback_queue
+for all to authenticated
+using (public.is_admin_user())
+with check (public.is_admin_user() and created_by = auth.uid());
 
 grant select, insert, update on public.profiles to authenticated;
 grant select on public.projects to anon, authenticated;
 grant insert, update, delete on public.projects to authenticated;
+grant select on public.forum_threads, public.forum_replies to anon, authenticated;
+grant insert on public.forum_threads, public.forum_replies to authenticated;
+grant select, insert on public.coppa_parent_consents to authenticated;
+grant select, insert, delete on public.moderation_fallback_queue to authenticated;
 
 create or replace function public.resolve_login_email(login_identifier text)
 returns text
@@ -306,6 +500,22 @@ begin
 end;
 $$;
 
+create or replace function public.is_username_available(candidate_username text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select
+    length(public.normalize_username(candidate_username)) between 3 and 32
+    and not exists (
+      select 1
+      from public.profiles
+      where lower(username) = lower(public.normalize_username(candidate_username))
+    );
+$$;
+
 create or replace function public.delete_current_account()
 returns void
 language plpgsql
@@ -321,7 +531,9 @@ begin
 end;
 $$;
 
-create or replace function public.public_project_registry(limit_rows integer default 200)
+drop function if exists public.public_project_registry(integer);
+drop function if exists public.public_project_registry(integer, integer);
+create function public.public_project_registry(limit_rows integer default 60, start_row integer default 0)
 returns table (
   id uuid,
   title text,
@@ -339,10 +551,13 @@ as $$
   where p.is_public = true
     and p.share_slug is not null
   order by p.updated_at desc
-  limit greatest(1, least(coalesce(limit_rows, 200), 500));
+  offset greatest(0, coalesce(start_row, 0))
+  limit greatest(1, least(coalesce(limit_rows, 60), 500));
 $$;
 
-create or replace function public.admin_list_projects(max_rows integer default 100)
+drop function if exists public.admin_list_projects(integer);
+drop function if exists public.admin_list_projects(integer, integer);
+create function public.admin_list_projects(max_rows integer default 100, start_row integer default 0)
 returns table (
   id uuid,
   title text,
@@ -363,6 +578,7 @@ begin
   select p.id, p.title, p.owner_username, p.is_public, p.updated_at
   from public.projects p
   order by p.updated_at desc
+  offset greatest(0, coalesce(start_row, 0))
   limit greatest(1, least(coalesce(max_rows, 100), 500));
 end;
 $$;
@@ -458,10 +674,13 @@ end;
 $$;
 
 grant execute on function public.resolve_login_email(text) to anon, authenticated;
+grant execute on function public.is_username_available(text) to anon, authenticated;
+grant execute on function public.resolve_profile_username(uuid) to authenticated;
+grant execute on function public.resolve_user_email(uuid) to authenticated;
 grant execute on function public.get_client_ip() to anon, authenticated;
 grant execute on function public.is_network_banned() to anon, authenticated;
 grant execute on function public.delete_current_account() to authenticated;
-grant execute on function public.public_project_registry(integer) to anon, authenticated;
-grant execute on function public.admin_list_projects(integer) to authenticated;
+grant execute on function public.public_project_registry(integer, integer) to anon, authenticated;
+grant execute on function public.admin_list_projects(integer, integer) to authenticated;
 grant execute on function public.admin_restrict_account(text) to authenticated;
 grant execute on function public.admin_network_ban(text) to authenticated;

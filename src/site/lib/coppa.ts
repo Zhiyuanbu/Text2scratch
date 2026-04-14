@@ -1,10 +1,9 @@
 export type AuthAudience = "adult" | "teen_13_to_17" | "under_13" | "parent_guardian";
-export type SignupAgeBand = "13_or_over" | "under_13_with_parent" | "under_13";
+export type SignupAgeBand = "13_or_over" | "under_13_with_parent";
 export type AccountRole = "standard" | "parent_guardian";
 
 export interface PendingParentManagedSignup {
   requestedUsername: string;
-  parentEmail: string;
   createdAt: string;
 }
 
@@ -20,28 +19,31 @@ const AUTH_AUDIENCE_KEY = "text2scratch.auth.audience";
 const PENDING_PARENT_SIGNUP_KEY = "text2scratch.coppa.pending_parent_signup";
 
 export function readStoredAuthAudience() {
-  if (typeof window === "undefined") {
+  const storage = resolveCoppaStorage();
+  if (!storage) {
     return null;
   }
 
-  const stored = window.localStorage.getItem(AUTH_AUDIENCE_KEY);
+  const stored = storage.getItem(AUTH_AUDIENCE_KEY);
   return normalizeAuthAudience(stored);
 }
 
 export function storeAuthAudience(audience: AuthAudience) {
-  if (typeof window === "undefined") {
+  const storage = resolveCoppaStorage();
+  if (!storage) {
     return;
   }
 
-  window.localStorage.setItem(AUTH_AUDIENCE_KEY, audience);
+  storage.setItem(AUTH_AUDIENCE_KEY, audience);
 }
 
 export function readPendingParentManagedSignup() {
-  if (typeof window === "undefined") {
+  const storage = resolveCoppaStorage();
+  if (!storage) {
     return null;
   }
 
-  const stored = window.localStorage.getItem(PENDING_PARENT_SIGNUP_KEY);
+  const stored = storage.getItem(PENDING_PARENT_SIGNUP_KEY);
   if (!stored) {
     return null;
   }
@@ -51,12 +53,10 @@ export function readPendingParentManagedSignup() {
     if (
       parsed
       && typeof parsed.requestedUsername === "string"
-      && typeof parsed.parentEmail === "string"
       && typeof parsed.createdAt === "string"
     ) {
       return {
         requestedUsername: parsed.requestedUsername,
-        parentEmail: parsed.parentEmail,
         createdAt: parsed.createdAt
       };
     }
@@ -64,34 +64,34 @@ export function readPendingParentManagedSignup() {
     // Ignore invalid local state and let the flow recover with a clean form.
   }
 
-  window.localStorage.removeItem(PENDING_PARENT_SIGNUP_KEY);
+  storage.removeItem(PENDING_PARENT_SIGNUP_KEY);
   return null;
 }
 
 export function storePendingParentManagedSignup(input: {
   requestedUsername: string;
-  parentEmail: string;
 }) {
-  if (typeof window === "undefined") {
+  const storage = resolveCoppaStorage();
+  if (!storage) {
     return null;
   }
 
   const nextRecord: PendingParentManagedSignup = {
     requestedUsername: input.requestedUsername,
-    parentEmail: input.parentEmail,
     createdAt: new Date().toISOString()
   };
 
-  window.localStorage.setItem(PENDING_PARENT_SIGNUP_KEY, JSON.stringify(nextRecord));
+  storage.setItem(PENDING_PARENT_SIGNUP_KEY, JSON.stringify(nextRecord));
   return nextRecord;
 }
 
 export function clearPendingParentManagedSignup() {
-  if (typeof window === "undefined") {
+  const storage = resolveCoppaStorage();
+  if (!storage) {
     return;
   }
 
-  window.localStorage.removeItem(PENDING_PARENT_SIGNUP_KEY);
+  storage.removeItem(PENDING_PARENT_SIGNUP_KEY);
 }
 
 export function readCoppaAccountMetadata(user: {
@@ -119,6 +119,30 @@ export function readCoppaAccountMetadata(user: {
   };
 }
 
+export function calculateAgeFromBirthdate(year: number, month: number, day: number, today = new Date()) {
+  const birthDate = new Date(year, month - 1, day);
+  if (
+    Number.isNaN(birthDate.getTime())
+    || birthDate.getFullYear() !== year
+    || birthDate.getMonth() !== month - 1
+    || birthDate.getDate() !== day
+  ) {
+    throw new Error("Enter a valid birthdate.");
+  }
+
+  let age = today.getFullYear() - year;
+  const hasHadBirthdayThisYear = (
+    today.getMonth() > month - 1
+    || (today.getMonth() === month - 1 && today.getDate() >= day)
+  );
+
+  if (!hasHadBirthdayThisYear) {
+    age -= 1;
+  }
+
+  return age;
+}
+
 function isAuthAudience(value: unknown): value is AuthAudience {
   return value === "adult" || value === "teen_13_to_17" || value === "under_13" || value === "parent_guardian";
 }
@@ -129,4 +153,16 @@ function normalizeAuthAudience(value: unknown): AuthAudience | null {
   }
 
   return isAuthAudience(value) ? value : null;
+}
+
+function resolveCoppaStorage() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
 }

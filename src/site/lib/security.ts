@@ -1,5 +1,17 @@
-export const MAX_PROJECT_NAME_LENGTH = 80;
-export const MAX_WORKSPACE_SOURCE_LENGTH = 150_000;
+import {
+  MAX_PROJECT_NAME_LENGTH,
+  MAX_WORKSPACE_SOURCE_LENGTH,
+  sanitizeEmailInput as canonicalSanitizeEmailInput,
+  sanitizeIdentifierInput as canonicalSanitizeIdentifierInput,
+  sanitizeProjectNameInput as canonicalSanitizeProjectNameInput,
+  sanitizeScratchSourceInput,
+  sanitizeUsernameInput as canonicalSanitizeUsernameInput,
+  isValidEmailInput as canonicalIsValidEmailInput,
+  isValidPasswordInput as canonicalIsValidPasswordInput
+} from "./inputSafety";
+
+export { MAX_PROJECT_NAME_LENGTH, MAX_WORKSPACE_SOURCE_LENGTH };
+
 export const MAX_WORKSPACE_LINE_COUNT = 5_000;
 
 export interface SanitizedInputResult {
@@ -8,16 +20,11 @@ export interface SanitizedInputResult {
 }
 
 export function sanitizeProjectNameInput(value: string, fallback = "project"): SanitizedInputResult {
-  const normalized = String(value || "")
-    .replace(/[\u0000-\u001F\u007F]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_PROJECT_NAME_LENGTH);
-
+  const normalized = canonicalSanitizeProjectNameInput(value);
   const nextValue = normalized || fallback;
   const issues: string[] = [];
 
-  if (nextValue !== value) {
+  if (nextValue !== String(value || "")) {
     issues.push("Project name was sanitized to remove unsupported characters.");
   }
 
@@ -31,7 +38,7 @@ export function sanitizeWorkspaceSource(value: string): SanitizedInputResult {
   const rawValue = String(value || "");
   const issues: string[] = [];
 
-  let nextValue = rawValue.replace(/\r\n?/g, "\n").replace(/[\u0000\u0008\u000B\u000C\u000E-\u001F\u007F]/g, "");
+  let nextValue = sanitizeScratchSourceInput(rawValue, MAX_WORKSPACE_SOURCE_LENGTH);
   if (nextValue !== rawValue) {
     issues.push("Removed unsupported control characters from the workspace source.");
   }
@@ -54,25 +61,21 @@ export function sanitizeWorkspaceSource(value: string): SanitizedInputResult {
 }
 
 export function sanitizeIdentifierInput(value: string) {
-  return String(value || "").trim().slice(0, 120);
+  return canonicalSanitizeIdentifierInput(value);
 }
 
 export function sanitizeEmailInput(value: string) {
-  return sanitizeIdentifierInput(value).toLowerCase();
+  return canonicalSanitizeEmailInput(value);
 }
 
 export function sanitizeUsernameInput(value: string) {
-  return String(value || "")
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "")
-    .slice(0, 32);
+  return canonicalSanitizeUsernameInput(value);
 }
 
 export function isValidEmailInput(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(sanitizeEmailInput(value));
+  return canonicalIsValidEmailInput(value);
 }
 
 export function isValidPasswordInput(value: string) {
-  return String(value || "").trim().length >= 8;
+  return canonicalIsValidPasswordInput(value);
 }

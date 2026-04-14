@@ -7,19 +7,23 @@ import {
   type ReactNode
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { AlertCircle, CheckCircle2, Info, ShieldAlert, TriangleAlert } from "lucide-react";
+import { AlertCircle, CheckCircle2, Info, ShieldAlert, TriangleAlert, X } from "lucide-react";
 import type { AccountRole, SignupAgeBand } from "../lib/coppa";
 import { clientEnv } from "../lib/env";
 import { sanitizeEmailInput, sanitizeSingleLineInput } from "../lib/inputSafety";
 import { runRateLimited } from "../lib/rateLimit";
 import { isValidEmailInput, isValidPasswordInput, sanitizeUsernameInput } from "../lib/security";
 import {
+  COPPA_PARENT_CONSENTS_TABLE,
+  PROFILES_TABLE,
   buildConfirmUrl,
+  buildUserHandle,
   createEphemeralSupabaseClient,
   dispatchAuthStateEvent,
   ensureSupabaseConfigured,
   formatSupabaseError,
   isSupabaseConfigured,
+  isUserAdmin,
   isValidUsername,
   normalizeUsername,
   signOutSupabaseSession,
@@ -57,6 +61,7 @@ interface Notification {
   title: string;
   message: string;
   time: string;
+  createdAt: string;
   read: boolean;
 }
 
@@ -105,6 +110,9 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
 const ToastContext = createContext<ToastContextValue | null>(null);
 const NotificationContext = createContext<NotificationContextValue | null>(null);
 const AuthContext = createContext<AuthContextValue | null>(null);
+const NOTIFICATION_STORAGE_KEY = "text2scratch.notifications";
+const NOTIFICATION_LIMIT = 20;
+const NOTIFICATION_RETENTION_MS = 30 * 24 * 60 * 60 * 1_000;
 
 const authUnavailableError = "Authentication is not available on this page.";
 const unauthenticatedAuthContext: AuthContextValue = {
@@ -202,6 +210,41 @@ function writeStoredValue(key: string, value: string) {
   }
 }
 
+function normalizeNotification(value: unknown): Notification | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const raw = value as Partial<Notification>;
+  const title = String(raw.title || "").trim();
+  const message = String(raw.message || "").trim();
+  const createdAt = new Date(String(raw.createdAt || ""));
+  const id = Number(raw.id);
+
+  if (!title || !message || Number.isNaN(createdAt.getTime()) || !Number.isFinite(id)) {
+    return null;
+  }
+
+  return {
+    id,
+    title,
+    message,
+    time: String(raw.time || createdAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })),
+    createdAt: createdAt.toISOString(),
+    read: raw.read === true
+  };
+}
+
+function pruneNotifications(notifications: Notification[]) {
+  const cutoff = Date.now() - NOTIFICATION_RETENTION_MS;
+
+  return notifications
+    .map((notification) => normalizeNotification(notification))
+    .filter((notification): notification is Notification => Boolean(notification))
+    .filter((notification) => Number(new Date(notification.createdAt)) >= cutoff)
+    .slice(0, NOTIFICATION_LIMIT);
+}
+
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <PublicAppProviders>
@@ -224,11 +267,11 @@ export function PublicAppProviders({ children }: { children: ReactNode }) {
 
 function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>(() =>
-    readStoredJson<Notification[]>("text2scratch.notifications", [])
+    pruneNotifications(readStoredJson<Notification[]>(NOTIFICATION_STORAGE_KEY, []))
   );
 
   useEffect(() => {
-    writeStoredJson("text2scratch.notifications", notifications);
+    writeStoredJson(NOTIFICATION_STORAGE_KEY, notifications);
   }, [notifications]);
 
   const addNotification = (title: string, message: string) => {
@@ -237,9 +280,10 @@ function NotificationProvider({ children }: { children: ReactNode }) {
       title,
       message,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      createdAt: new Date().toISOString(),
       read: false
     };
-    setNotifications(prev => [n, ...prev].slice(0, 20));
+    setNotifications(prev => pruneNotifications([n, ...prev]));
   };
 
   const markAllRead = () => setNotifications(prev => prev.map(n => ({ ...n, read: true })));
@@ -288,6 +332,10 @@ function ToastProvider({ children }: { children: ReactNode }) {
   const [announcement, setAnnouncement] = useState("");
   const idRef = useRef(0);
 
+  const dismissToast = (id: number) => {
+    setToasts((current) => current.filter((item) => item.id !== id));
+  };
+
   const pushToast = (toast: ToastMessage) => {
     const nextToast: ToastRecord = {
       id: idRef.current + 1,
@@ -302,9 +350,18 @@ function ToastProvider({ children }: { children: ReactNode }) {
       nextToast.description || nextToast.title
     );
     setAnnouncement([nextToast.title, nextToast.description].filter(Boolean).join(". "));
-    window.setTimeout(() => {
-      setToasts((current) => current.filter((item) => item.id !== nextToast.id));
-    }, 4200);
+
+    const durationMs = nextToast.variant === "error"
+      ? 0
+      : nextToast.variant === "warning"
+        ? 8_000
+        : 4_200;
+
+    if (durationMs > 0) {
+      window.setTimeout(() => {
+        dismissToast(nextToast.id);
+      }, durationMs);
+    }
   };
 
   return (
@@ -338,6 +395,14 @@ function ToastProvider({ children }: { children: ReactNode }) {
               <p className="text-sm font-bold">{toast.title}</p>
               {toast.description && <p className="mt-0.5 text-xs opacity-80">{toast.description}</p>}
             </div>
+            <button
+              type="button"
+              onClick={() => dismissToast(toast.id)}
+              className="shrink-0 rounded p-1 opacity-60 transition hover:opacity-100"
+              aria-label={`Dismiss ${toast.title}`}
+            >
+              <X size={14} />
+            </button>
           </div>
         ))}
       </div>
@@ -357,7 +422,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
   const apiRateLimitWindowMs = clientEnv.apiRateLimitWindowMs;
   const apiRateLimitMaxRequests = clientEnv.apiRateLimitMaxRequests;
 
-  const isAdmin = String(user?.email || "").trim().toLowerCase() === "zhibu378orangetiger707@gmail.com";
+  const isAdmin = isUserAdmin(user);
 
   useEffect(() => {
     pushToastRef.current = pushToast;
@@ -414,8 +479,13 @@ function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const { data: banCheck } = await supabaseClient.rpc("is_network_banned");
-        if (isMounted && banCheck === true) {
+        const { data: banCheck, error: banError } = await supabaseClient.rpc("is_network_banned");
+        if (banError) {
+          window.text2scratchRum?.trackRuntimeError?.({
+            message: `Network ban check error: ${banError.message}`,
+            componentStack: ""
+          });
+        } else if (isMounted && banCheck === true) {
           setIsNetworkBanned(true);
         }
 
@@ -424,11 +494,14 @@ function AuthProvider({ children }: { children: ReactNode }) {
           throw error;
         }
         if (!isMounted) return;
-        setSession(data.session);
-        setUser(data.session?.user || null);
-        dispatchAuthStateEvent(data.session ? "signed_in" : "signed_out");
+
+        const currentSession = data.session;
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
+        dispatchAuthStateEvent(currentSession ? "signed_in" : "signed_out");
+        
         try {
-          await loadProfile(data.session?.user || null, setProfile);
+          await loadProfile(currentSession?.user || null, setProfile);
         } finally {
           if (isMounted) {
             setIsLoading(false);
@@ -453,16 +526,23 @@ function AuthProvider({ children }: { children: ReactNode }) {
     if (!isSupabaseConfigured) {
       return () => { isMounted = false; };
     }
-    const { data: listener } = supabaseClient.auth.onAuthStateChange(async (_event, nextSession) => {
+    const { data: listener } = supabaseClient.auth.onAuthStateChange(async (event, nextSession) => {
       if (!isMounted) {
         return;
       }
+
+      if (event === "INITIAL_SESSION") {
+        // initialize already handled this
+        return;
+      }
+
       setSession(nextSession);
       setUser(nextSession?.user || null);
       dispatchAuthStateEvent(nextSession ? "signed_in" : "signed_out");
       await loadProfile(nextSession?.user || null, (value) => {
         if (isMounted) {
           setProfile(value);
+          setIsLoading(false);
         }
       });
     });
@@ -532,7 +612,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
         return { needsEmailVerification: !data.session };
       });
     },
-    createManagedChildAccount: async ({ username, email, password, captchaToken }) => {
+    createManagedChildAccount: async ({ username, email, password, captchaToken, parentConsentAccepted }) => {
       ensureSupabaseConfigured();
       return runRateLimited({
         key: "auth.childSignUp",
@@ -551,18 +631,51 @@ function AuthProvider({ children }: { children: ReactNode }) {
         if (!isValidPasswordInput(password)) {
           throw new Error("Child password must be at least 8 characters long.");
         }
+        if (!parentConsentAccepted) {
+          throw new Error("Parental consent confirmation is required.");
+        }
+
+        const consentAcknowledgedAt = new Date().toISOString();
         const childClient = createEphemeralSupabaseClient();
-        const { data, error } = await childClient.auth.signUp({
-          email: nextEmail, password,
-          options: {
-            emailRedirectTo: buildConfirmUrl("verify"),
-            captchaToken,
-            data: { username: normalized, parent_managed: true }
+        try {
+          const { data, error } = await childClient.auth.signUp({
+            email: nextEmail, password,
+            options: {
+              emailRedirectTo: buildConfirmUrl("verify"),
+              captchaToken,
+              data: {
+                username: normalized,
+                parent_managed: true,
+                parent_controls_enabled: true,
+                account_age_band: "under_13_with_parent",
+                account_role: "standard",
+                coppa_parent_consent_acknowledged_at: consentAcknowledgedAt
+              }
+            }
+          });
+          if (error) throw new Error(formatSupabaseError(error));
+
+          if (user?.id) {
+            const { error: consentError } = await supabaseClient
+              .from(COPPA_PARENT_CONSENTS_TABLE)
+              .insert({
+                child_user_id: data.user?.id || null,
+                child_username: normalized,
+                child_email: nextEmail,
+                parent_user_id: user.id,
+                parent_email: user.email || "",
+                consent_acknowledged_at: consentAcknowledgedAt
+              });
+
+            if (consentError) {
+              throw new Error(formatSupabaseError(consentError));
+            }
           }
-        });
-        if (error) throw new Error(formatSupabaseError(error));
-        await childClient.auth.signOut().catch(() => undefined);
-        return { needsEmailVerification: !data.session };
+
+          return { needsEmailVerification: !data.session };
+        } finally {
+          await childClient.auth.signOut().catch(() => undefined);
+        }
       });
     },
     signOut: async () => {
@@ -636,7 +749,7 @@ function AuthProvider({ children }: { children: ReactNode }) {
       if (error) throw new Error(formatSupabaseError(error));
       if (user?.id) {
         await supabaseClient
-          .from("profiles")
+          .from(PROFILES_TABLE)
           .upsert({
             id: user.id,
             username: normalized,
@@ -694,18 +807,18 @@ function AuthProvider({ children }: { children: ReactNode }) {
 async function loadProfile(user: User | null, setProfile: (v: ProfileRecord | null) => void) {
   ensureSupabaseConfigured();
   if (!user) { setProfile(null); return; }
-  const { data, error } = await supabaseClient.from("profiles").select("*").eq("id", user.id).maybeSingle();
+  const { data, error } = await supabaseClient.from(PROFILES_TABLE).select("*").eq("id", user.id).maybeSingle();
   if (error || !data) {
     const fallbackProfile = {
       id: user.id,
-      username: String(user.user_metadata.username || user.email?.split("@")[0] || "user"),
+      username: buildUserHandle(user),
       email: user.email || "",
       is_banned: false
     };
     setProfile(fallbackProfile);
     try {
       await supabaseClient
-        .from("profiles")
+        .from(PROFILES_TABLE)
         .upsert(fallbackProfile, { onConflict: "id" });
     } catch {
       // Ignore profile bootstrap failures and keep the fallback profile in memory.

@@ -3,6 +3,7 @@ import { createErrorReport } from "../lib/errorReports";
 
 interface ErrorBoundaryProps {
   children: ReactNode;
+  pageName?: string;
 }
 
 interface ErrorBoundaryState {
@@ -36,14 +37,15 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.hasError) {
       const report = createErrorReport(this.state.message, {
-        area: window.location.pathname,
+        area: this.props.pageName || window.location.pathname,
         fallback: "Unexpected application error."
       });
+      const pageLabel = this.props.pageName ? `${this.props.pageName} page error` : "Application error";
 
       return (
         <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center dark:bg-slate-950">
           <div className="max-w-md space-y-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
-            <h1 className="text-2xl font-black tracking-tight text-slate-950 dark:text-white">Application error</h1>
+            <h1 className="text-2xl font-black tracking-tight text-slate-950 capitalize dark:text-white">{pageLabel}</h1>
             <p className="text-sm font-medium leading-relaxed text-slate-600 dark:text-slate-300">
               A runtime error interrupted the page. Reload to retry, then use the report below if it happens again.
             </p>

@@ -5,15 +5,17 @@ import {
   EyeOff, 
   Shield
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { TurnstilePanel } from "../components/TurnstilePanel";
 import { AppShell } from "../components/AppShell";
 import {
+  calculateAgeFromBirthdate,
   storePendingParentManagedSignup,
   type AuthAudience
 } from "../lib/coppa";
 import { sanitizeEmailInput, sanitizeSingleLineInput } from "../lib/inputSafety";
 import { isValidEmailInput, isValidPasswordInput, sanitizeUsernameInput } from "../lib/security";
+import { formatSupabaseError } from "../lib/supabase";
 import { type TurnstileController } from "../lib/turnstile";
 import { useAuth, useToast } from "../providers/AppProviders";
 
@@ -40,6 +42,7 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
   });
   
   const [birthMonth, setBirthMonth] = useState("");
+  const [birthDay, setBirthDay] = useState("");
   const [birthYear, setBirthYear] = useState("");
   const [isReset, setIsReset] = useState(false);
   const [audience, setAudience] = useState<AuthAudience | null>(null);
@@ -87,8 +90,8 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
           throw new Error("Password must be at least 8 characters long.");
         }
         if (audience === "under_13") {
-          storePendingParentManagedSignup({ requestedUsername: nextUsername, parentEmail: email });
-          pushToast({ title: "Verification required", description: "Parent must complete setup.", variant: "success" });
+          storePendingParentManagedSignup({ requestedUsername: nextUsername });
+          pushToast({ title: "Verification required", description: "A signed-in parent or guardian must finish setup from the dashboard.", variant: "success" });
           setStep("age");
         } else {
           await signUp({
@@ -96,14 +99,14 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
             email: sanitizeEmailInput(email),
             password,
             captchaToken,
-            ageBand: (audience as string) === "under_13" ? "under_13" : "13_or_over",
+            ageBand: "13_or_over",
             accountRole: "standard"
           });
           pushToast({ title: "Account created", description: "Verify your email.", variant: "success" });
         }
       }
     } catch (error) {
-      pushToast({ title: "Error", description: String(error), variant: "error" });
+      pushToast({ title: "Error", description: formatSupabaseError(error), variant: "error" });
       turnstileRef.current?.reset();
     } finally { setIsPending(false); }
   };
@@ -149,6 +152,17 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
                         <option key={m} value={i+1}>{m}</option>
                       ))}
                     </select>
+                    <label htmlFor="signup-birth-day" className="sr-only">Birth day</label>
+                    <input
+                      id="signup-birth-day"
+                      type="number"
+                      placeholder="Day"
+                      value={birthDay}
+                      onChange={e => setBirthDay(sanitizeSingleLineInput(e.target.value, 2))}
+                      aria-describedby="signup-birthdate-help"
+                      inputMode="numeric"
+                      className="w-20 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none dark:border-slate-700 dark:bg-slate-900"
+                    />
                     <label htmlFor="signup-birth-year" className="sr-only">Birth year</label>
                     <input 
                       id="signup-birth-year"
@@ -162,18 +176,29 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
                     />
                   </div>
                   <p id="signup-birthdate-help" className="text-[0.75rem] font-medium text-slate-500 dark:text-slate-400">
-                    Enter the month and year of birth to choose the correct account flow.
+                    Enter your full birthdate so the sign-up flow can apply the correct age rules.
                   </p>
                   <button 
                     onClick={() => {
-                      const year = parseInt(birthYear);
-                      if (!birthMonth || !birthYear || isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
+                      const month = parseInt(birthMonth, 10);
+                      const day = parseInt(birthDay, 10);
+                      const year = parseInt(birthYear, 10);
+                      if (!birthMonth || !birthDay || !birthYear || isNaN(month) || isNaN(day) || isNaN(year) || year < 1900 || year > new Date().getFullYear()) {
                         pushToast({ title: "Invalid Date", description: "Enter a valid birthdate node.", variant: "warning" });
                         return;
                       }
-                      const age = calculateAgeFromMonthYear(Number(birthMonth), year);
-                      setAudience(age < 13 ? "under_13" : "adult");
-                      setStep("form");
+                      try {
+                        const age = calculateAgeFromBirthdate(year, month, day);
+                        const nextAudience: AuthAudience = age < 13
+                          ? "under_13"
+                          : age < 18
+                            ? "teen_13_to_17"
+                            : "adult";
+                        setAudience(nextAudience);
+                        setStep("form");
+                      } catch {
+                        pushToast({ title: "Invalid Date", description: "Enter a valid full birthdate.", variant: "warning" });
+                      }
                     }}
                     className="w-full rounded-md bg-[#4d97ff] py-2 text-xs font-black uppercase text-white hover:bg-blue-600 transition-all active:scale-95"
                   >
@@ -264,20 +289,10 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
   );
 }
 
-function calculateAgeFromMonthYear(month: number, year: number) {
-  const today = new Date();
-  let age = today.getFullYear() - year;
-  const birthMonthIndex = month - 1;
-  if (today.getMonth() < birthMonthIndex) {
-    age -= 1;
-  }
-  return age;
-}
-
 function AuthInput({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
   const [visible, setVisible] = useState(false);
   const isPass = type === "password";
-  const inputId = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  const inputId = useId();
   return (
     <div className="space-y-1">
       <label htmlFor={inputId} className="text-xs font-bold text-slate-700 dark:text-slate-300">{label}</label>
