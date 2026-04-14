@@ -14,9 +14,16 @@ export function loadExternalScript(src: string) {
       return;
     }
 
-    const script = present || document.createElement("script");
+    if (present && present.dataset.loaded !== "true") {
+      present.remove();
+    }
+
+    const script = document.createElement("script");
     script.src = absoluteSrc;
     script.async = true;
+    script.crossOrigin = "anonymous";
+    script.referrerPolicy = "strict-origin-when-cross-origin";
+    script.dataset.loading = "true";
 
     const cleanup = () => {
       script.removeEventListener("load", onLoad);
@@ -25,12 +32,17 @@ export function loadExternalScript(src: string) {
 
     const onLoad = () => {
       script.dataset.loaded = "true";
+      delete script.dataset.loading;
+      delete script.dataset.failed;
       cleanup();
       resolve();
     };
 
     const onError = () => {
       cleanup();
+      delete script.dataset.loading;
+      script.dataset.failed = "true";
+      script.remove();
       scriptLoads.delete(absoluteSrc);
       reject(new Error(`Could not load external script: ${absoluteSrc}`));
     };
@@ -38,9 +50,7 @@ export function loadExternalScript(src: string) {
     script.addEventListener("load", onLoad);
     script.addEventListener("error", onError);
 
-    if (!present) {
-      document.head.appendChild(script);
-    }
+    document.head.appendChild(script);
   });
 
   scriptLoads.set(absoluteSrc, loader);

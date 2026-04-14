@@ -1,8 +1,28 @@
-import type { ComponentType } from "react";
+import { Suspense, lazy, type ComponentType, type LazyExoticComponent } from "react";
 import { createRoot } from "react-dom/client";
-import { AppProviders } from "./providers/AppProviders";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import type { AppPageKey } from "./config/pages";
+import { registerServiceWorker } from "./lib/serviceWorker";
+import { AppProviders } from "./providers/AppProviders";
 import "./styles.css";
+
+type PageComponent = LazyExoticComponent<ComponentType>;
+
+const pageComponents: Record<AppPageKey, PageComponent> = {
+  home: lazy(() => import("./pages/HomePage").then((module) => ({ default: module.HomePage }))),
+  docs: lazy(() => import("./pages/DocsPage").then((module) => ({ default: module.DocsPage }))),
+  reference: lazy(() => import("./pages/ReferencePage").then((module) => ({ default: module.ReferencePage }))),
+  converter: lazy(() => import("./pages/ConverterPage").then((module) => ({ default: module.ConverterPage }))),
+  community: lazy(() => import("./pages/CommunityPage").then((module) => ({ default: module.CommunityPage }))),
+  login: lazy(() => import("./pages/AuthPages").then((module) => ({ default: module.LoginPage }))),
+  signup: lazy(() => import("./pages/AuthPages").then((module) => ({ default: module.SignupPage }))),
+  dashboard: lazy(() => import("./pages/DashboardPage").then((module) => ({ default: module.DashboardPage }))),
+  privacy: lazy(() => import("./pages/LegalPages").then((module) => ({ default: module.PrivacyPage }))),
+  terms: lazy(() => import("./pages/LegalPages").then((module) => ({ default: module.TermsPage }))),
+  license: lazy(() => import("./pages/LegalPages").then((module) => ({ default: module.LicensePage }))),
+  confirm: lazy(() => import("./pages/ConfirmPage").then((module) => ({ default: module.ConfirmPage }))),
+  notfound: lazy(() => import("./pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })))
+};
 
 const rootElement = document.getElementById("app");
 
@@ -10,51 +30,30 @@ if (!rootElement) {
   throw new Error("App root `#app` was not found.");
 }
 
-const page = (rootElement.dataset.page || "home") as AppPageKey;
+const requestedPage = String(rootElement.dataset.page || "home") as AppPageKey;
+const Page = pageComponents[requestedPage] || pageComponents.home;
 const root = createRoot(rootElement);
 
+registerServiceWorker();
+
 root.render(
-  <div className="flex min-h-screen items-center justify-center bg-slate-50 text-sm font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400">
-    Loading page...
-  </div>
+  <ErrorBoundary>
+    <AppProviders>
+      <Suspense fallback={<PageBootSplash />}>
+        <Page />
+      </Suspense>
+    </AppProviders>
+  </ErrorBoundary>
 );
 
-void loadPage(page).then((Page) => {
-  root.render(
-    <AppProviders>
-      <Page />
-    </AppProviders>
+function PageBootSplash() {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-screen items-center justify-center bg-slate-50 px-6 text-center text-sm font-medium text-slate-500 dark:bg-slate-950 dark:text-slate-400"
+    >
+      Loading page...
+    </div>
   );
-});
-
-async function loadPage(pageKey: AppPageKey): Promise<ComponentType> {
-  switch (pageKey) {
-    case "docs":
-      return (await import("./pages/DocsPage")).DocsPage;
-    case "reference":
-      return (await import("./pages/ReferencePage")).ReferencePage;
-    case "converter":
-      return (await import("./pages/ConverterPage")).ConverterPage;
-    case "community":
-      return (await import("./pages/CommunityPage")).CommunityPage;
-    case "login":
-      return (await import("./pages/AuthPages")).LoginPage;
-    case "signup":
-      return (await import("./pages/AuthPages")).SignupPage;
-    case "dashboard":
-      return (await import("./pages/DashboardPage")).DashboardPage;
-    case "privacy":
-      return (await import("./pages/LegalPages")).PrivacyPage;
-    case "terms":
-      return (await import("./pages/LegalPages")).TermsPage;
-    case "license":
-      return (await import("./pages/LegalPages")).LicensePage;
-    case "confirm":
-      return (await import("./pages/ConfirmPage")).ConfirmPage;
-    case "notfound":
-      return (await import("./pages/NotFoundPage")).NotFoundPage;
-    case "home":
-    default:
-      return (await import("./pages/HomePage")).HomePage;
-  }
 }

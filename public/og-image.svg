@@ -1,0 +1,31 @@
+<svg width="1200" height="630" viewBox="0 0 1200 630" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="88" y1="64" x2="1118" y2="590" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="0.55" stop-color="#102A60"/>
+      <stop offset="1" stop-color="#1769FF"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#F8FAFC" stop-opacity="0.94"/>
+      <stop offset="1" stop-color="#DBEAFE" stop-opacity="0.88"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <circle cx="150" cy="118" r="88" fill="#38BDF8" fill-opacity="0.18"/>
+  <circle cx="1084" cy="522" r="128" fill="#A855F7" fill-opacity="0.16"/>
+  <rect x="96" y="96" width="1008" height="438" rx="36" fill="#020617" fill-opacity="0.2" stroke="white" stroke-opacity="0.14"/>
+  <rect x="140" y="140" width="920" height="350" rx="28" fill="url(#panel)"/>
+  <rect x="188" y="186" width="340" height="208" rx="22" fill="#0F172A"/>
+  <rect x="220" y="222" width="190" height="18" rx="9" fill="#38BDF8"/>
+  <rect x="220" y="260" width="248" height="14" rx="7" fill="#334155"/>
+  <rect x="220" y="292" width="212" height="14" rx="7" fill="#475569"/>
+  <rect x="220" y="324" width="164" height="14" rx="7" fill="#475569"/>
+  <rect x="220" y="356" width="134" height="14" rx="7" fill="#475569"/>
+  <rect x="574" y="186" width="438" height="56" rx="18" fill="#1769FF"/>
+  <text x="602" y="223" fill="white" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="800">text2scratch</text>
+  <text x="574" y="298" fill="#0F172A" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="900">Write Scratch</text>
+  <text x="574" y="370" fill="#1769FF" font-family="Inter, Arial, sans-serif" font-size="64" font-weight="900">like source code</text>
+  <text x="574" y="426" fill="#334155" font-family="Inter, Arial, sans-serif" font-size="28" font-weight="600">
+    Author, validate, preview, and export Scratch projects from plain text.
+  </text>
+</svg>

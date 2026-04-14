@@ -50,6 +50,12 @@
       },
       trackProjectShared(context = {}) {
         addAction("project_shared", context);
+      },
+      trackRuntimeError(context = {}) {
+        addAction("runtime_error", context);
+      },
+      trackPerformanceMetric(context = {}) {
+        addAction("performance_metric", context);
       }
     };
   }

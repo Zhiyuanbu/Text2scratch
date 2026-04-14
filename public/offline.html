@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>text2scratch | Offline</title>
+  <meta name="robots" content="noindex,nofollow">
+  <style>
+    :root {
+      color-scheme: light dark;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: #f8fafc;
+      color: #0f172a;
+      font: 600 16px/1.6 Inter, system-ui, sans-serif;
+    }
+
+    main {
+      max-width: 42rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 24px;
+      background: rgba(255, 255, 255, 0.96);
+      padding: 24px;
+      box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+    }
+
+    h1 {
+      margin-top: 0;
+      font-size: 1.5rem;
+    }
+
+    code {
+      border-radius: 6px;
+      background: #e2e8f0;
+      padding: 0.1rem 0.35rem;
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #020617;
+        color: #e2e8f0;
+      }
+
+      main {
+        border-color: #334155;
+        background: rgba(15, 23, 42, 0.96);
+        box-shadow: 0 20px 48px rgba(2, 6, 23, 0.4);
+      }
+
+      code {
+        background: #1e293b;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>You’re offline.</h1>
+    <p>The cached text2scratch app can still load if you’ve visited it before, but cloud sync and shared project fetches need a connection.</p>
+    <p>Retry the page you were on, or go back to <a href="./index.html">the home page</a> once your connection returns.</p>
+    <p>If the workspace was cached already, <code>converter.html</code> can still be used for local editing and export.</p>
+  </main>
+</body>
+</html>

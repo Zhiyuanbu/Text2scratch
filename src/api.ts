@@ -404,7 +404,7 @@ function tryParseJsonString(value: string) {
   try {
     const parsed = JSON.parse(value);
     return typeof parsed === "string" ? parsed : null;
-  } catch (_error) {
+  } catch {
     return null;
   }
 }
@@ -415,7 +415,7 @@ function decodeBase64Utf8(value: string) {
     const binary = window.atob(normalized);
     const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
     return new TextDecoder().decode(bytes);
-  } catch (_error) {
+  } catch {
     return null;
   }
 }

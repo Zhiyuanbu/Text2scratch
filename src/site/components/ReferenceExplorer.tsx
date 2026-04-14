@@ -41,12 +41,14 @@ export function ReferenceExplorer() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
+              aria-label="Search reference commands"
               placeholder="Search by command, syntax, or opcode..."
               className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-10 pr-4 text-sm outline-none focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900 transition-all"
             />
           </div>
 
           <SelectField
+            label="Filter by command kind"
             icon={<Tag size={12} />}
             value={kind}
             onChange={setKind}
@@ -62,6 +64,7 @@ export function ReferenceExplorer() {
           />
 
           <SelectField
+            label="Filter by category"
             icon={<Filter size={12} />}
             value={category}
             onChange={setCategory}
@@ -72,6 +75,7 @@ export function ReferenceExplorer() {
           />
 
           <SelectField
+            label="Filter by target type"
             icon={<MousePointer2 size={12} />}
             value={target}
             onChange={setTarget}
@@ -122,7 +126,7 @@ export function ReferenceExplorer() {
                             scale={0.82}
                           />
                         </button>
-                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[0.55rem] font-black uppercase tracking-widest text-slate-500 dark:bg-slate-800">
+                        <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[0.65rem] font-black uppercase tracking-widest text-slate-500 dark:bg-slate-800">
                           {formatKind(entry.kind)}
                         </span>
                       </div>
@@ -149,7 +153,7 @@ export function ReferenceExplorer() {
                           <Copy size={12} /> Example
                         </button>
                       </div>
-                      <div className="flex gap-2 text-[0.55rem] font-black uppercase text-slate-300">
+                      <div className="flex gap-2 text-[0.65rem] font-black uppercase text-slate-300">
                         <span>{formatExtension(entry.extension)}</span>
                         <span>&bull;</span>
                         <span>{formatTarget(entry.target)}</span>
@@ -167,11 +171,13 @@ export function ReferenceExplorer() {
 }
 
 function SelectField({
+  label,
   icon,
   value,
   onChange,
   options
 }: {
+  label: string;
   icon: ReactNode;
   value: string;
   onChange: (value: string) => void;
@@ -185,6 +191,7 @@ function SelectField({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
+        aria-label={label}
         className="w-full appearance-none rounded-md border border-slate-200 bg-slate-50 py-2 pl-8 pr-8 text-xs font-bold outline-none transition-all cursor-pointer focus:border-blue-500 focus:bg-white dark:border-slate-700 dark:bg-slate-900"
       >
         {options.map(([optionValue, label]) => (

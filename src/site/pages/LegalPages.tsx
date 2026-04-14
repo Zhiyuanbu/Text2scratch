@@ -1,6 +1,7 @@
-import { FileCheck2, Scale, ScrollText, ShieldCheck, Info } from "lucide-react";
+import { ShieldCheck, Info } from "lucide-react";
 import type { ReactNode } from "react";
 import { AppShell } from "../components/AppShell";
+import type { AppPageKey } from "../config/pages";
 
 const licenseText = `Text2Scratch Non-Commercial Attribution License 1.1
 
@@ -76,7 +77,7 @@ export function LicensePage() {
   );
 }
 
-function LegalLayout({ page, badge, title, description, children }: { page: any, badge: string, title: string, description: string, children: ReactNode }) {
+function LegalLayout({ page, badge, title, description, children }: { page: AppPageKey, badge: string, title: string, description: string, children: ReactNode }) {
   return (
     <AppShell page={page}>
       <div className="bg-[#f6f8fa] dark:bg-[#0d1117] animate-in fade-in duration-500">

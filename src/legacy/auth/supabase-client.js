@@ -1,16 +1,20 @@
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = "https://ytsrvbrdxhyrazhnqohb.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
+const SUPABASE_URL = String(import.meta.env.VITE_SUPABASE_URL || "").trim();
+const SUPABASE_PUBLISHABLE_KEY = String(import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "").trim();
 
 // Optional: set this if Supabase Bot Detection (hCaptcha) is enabled.
 // Leave empty to disable captcha widget in signup UI.
-const HCAPTCHA_SITE_KEY = "a52804d0-570c-4f04-83d0-65b60e3a93c2";
+const HCAPTCHA_SITE_KEY = String(import.meta.env.VITE_HCAPTCHA_SITE_KEY || "").trim();
 
 export const CLOUD_TABLE = "projects";
 export const SHARE_QUERY_PARAM = "share";
+const AUTH_REQUEST_TIMEOUT_MS = 8_000;
 
 export function createSupabaseClient() {
+  if (!SUPABASE_URL) {
+    throw new Error("Supabase URL is missing.");
+  }
   if (!SUPABASE_PUBLISHABLE_KEY) {
     throw new Error("Supabase publishable key is missing.");
   }
@@ -81,10 +85,36 @@ export function formatSupabaseError(error) {
   if (/No API key found in request/i.test(message)) {
     return "Supabase API key missing on request. Verify publishable key and SDK loading.";
   }
-  if (/resolve_login_email|is_username_available|delete_current_account/i.test(message)) {
-    return "Supabase RPC functions are missing. Re-run supabase-schema.sql in SQL Editor.";
+  if (/resolve_login_email|is_username_available|delete_current_account|admin_list_projects|admin_restrict_account|admin_network_ban/i.test(message)) {
+    return "Supabase RPC functions are missing. Apply supabase/schema.sql in Supabase SQL Editor.";
   }
   return message;
+}
+
+export async function signOutSupabaseSession(client) {
+  const globalResult = await withTimeout(
+    client.auth.signOut({ scope: "global" }),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Global sign-out timed out."
+  );
+  if (!globalResult.error) {
+    return { mode: "global", warning: "" };
+  }
+
+  const primaryMessage = formatSupabaseError(globalResult.error);
+  const localResult = await withTimeout(
+    client.auth.signOut({ scope: "local" }),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Local sign-out timed out."
+  );
+  if (localResult.error) {
+    throw new Error(primaryMessage);
+  }
+
+  return {
+    mode: "local",
+    warning: `Global sign-out failed, but the local session was cleared. ${primaryMessage}`
+  };
 }
 
 export function isMissingRowError(error) {
@@ -93,4 +123,20 @@ export function isMissingRowError(error) {
 
 export function isDuplicateError(error) {
   return String(error?.code || "") === "23505" || /duplicate key/i.test(String(error?.message || ""));
+}
+
+function withTimeout(promise, timeoutMs, message) {
+  return new Promise((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 }

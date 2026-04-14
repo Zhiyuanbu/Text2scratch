@@ -13,10 +13,11 @@ import {
   Trash2,
   Ban,
   Info,
-  Terminal
+  Terminal,
+  Search
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { showConfirmDialog } from "../../legacy/shared/dialog-client.js";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { showConfirmDialog, showPromptDialog } from "../../legacy/shared/dialog-client.js";
 import { AppShell } from "../components/AppShell";
 import { TurnstilePanel } from "../components/TurnstilePanel";
 import {
@@ -26,11 +27,38 @@ import {
   type CoppaAccountMetadata,
   type PendingParentManagedSignup
 } from "../lib/coppa";
+import { createErrorReport } from "../lib/errorReports";
+import { sanitizeEmailInput, sanitizeSingleLineInput } from "../lib/inputSafety";
+import {
+  buildModerationSql,
+  queueModerationAction,
+  readModerationQueue,
+  removeModerationAction,
+  writeModerationQueue,
+  type ModerationAction
+} from "../lib/moderation";
 import { type TurnstileController } from "../lib/turnstile";
-import { buildAvatarLabel, formatDate, formatDateTime } from "../lib/supabase";
+import {
+  buildAvatarLabel,
+  formatDate,
+  formatDateTime,
+  formatSupabaseError,
+  type ProfileRecord,
+  type User,
+  supabaseClient,
+  CLOUD_TABLE
+} from "../lib/supabase";
 import { useAuth, useTheme, useToast } from "../providers/AppProviders";
 
 type DashboardTab = "overview" | "profile" | "appearance" | "security" | "parent" | "admin";
+
+interface RegistryProject {
+  id: string;
+  title: string | null;
+  owner_username: string | null;
+  is_public: boolean;
+  updated_at: string | null;
+}
 
 const baseTabs: Array<{ id: DashboardTab; label: string; icon: ReactNode }> = [
   { id: "overview", label: "Overview", icon: <LayoutDashboard size={16} /> },
@@ -40,8 +68,8 @@ const baseTabs: Array<{ id: DashboardTab; label: string; icon: ReactNode }> = [
 ];
 
 export function DashboardPage() {
-  const { user, profile, isLoading, isAdmin, updateUsername, sendPasswordResetForCurrentUser, createManagedChildAccount, signOut, deleteCurrentAccount } = useAuth();
-  const { mode, setMode, resolvedMode } = useTheme();
+  const { user, profile, isLoading, isAdmin, updateUsername, sendPasswordResetForCurrentUser, signOut, deleteCurrentAccount } = useAuth();
+  const { mode, setMode } = useTheme();
   const { pushToast } = useToast();
   const turnstileRef = useRef<TurnstileController | null>(null);
   const [tab, setTab] = useState<DashboardTab>(() => readTabFromHash());
@@ -70,14 +98,13 @@ export function DashboardPage() {
   }, [pendingChildRequest]);
 
   const coppaMetadata = readCoppaAccountMetadata(user);
-  let dashboardTabs = [...baseTabs];
-  if (coppaMetadata.parentControlsEnabled) {
-    dashboardTabs.push({ id: "parent", label: "Parent", icon: <HeartHandshake size={16} /> });
-  }
-  if (isAdmin) {
-    dashboardTabs.push({ id: "admin", label: "Admin Protocol", icon: <Terminal size={16} /> });
-  }
-  const activeTab = dashboardTabs.some((entry) => entry.id === tab) ? tab : "overview";
+  const dashboardTabs = [
+    ...baseTabs,
+    ...(coppaMetadata.parentControlsEnabled ? [{ id: "parent" as const, label: "Parent", icon: <HeartHandshake size={16} /> }] : []),
+    ...(isAdmin ? [{ id: "admin" as const, label: "Admin Protocol", icon: <Terminal size={16} /> }] : [])
+  ];
+  const hasRequestedTab = dashboardTabs.some((entry) => entry.id === tab);
+  const activeTab = hasRequestedTab ? tab : "overview";
   const activeTabInfo = dashboardTabs.find((entry) => entry.id === activeTab);
 
   const selectTab = (nextTab: DashboardTab) => {
@@ -86,19 +113,19 @@ export function DashboardPage() {
   };
 
   useEffect(() => {
-    if (dashboardTabs.some((entry) => entry.id === tab)) {
+    if (hasRequestedTab) {
       return;
     }
 
     setTab("overview");
     window.history.replaceState(null, "", "#overview");
-  }, [tab, coppaMetadata.parentControlsEnabled, isAdmin]);
+  }, [hasRequestedTab, tab, coppaMetadata.parentControlsEnabled, isAdmin]);
 
   const saveProfile = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsPending(true);
     try {
-      await updateUsername(username);
+      await updateUsername(sanitizeSingleLineInput(username, 32));
       pushToast({ title: "Profile updated", variant: "success" });
     } catch (error) {
       pushToast({ title: "Update failed", description: String(error), variant: "error" });
@@ -131,6 +158,16 @@ export function DashboardPage() {
     } catch (error) {
       pushToast({ title: "Error", description: String(error), variant: "error" });
       setIsPending(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+      window.location.assign("index.html?signed_out=1");
+    } catch (error) {
+      const report = createErrorReport(error, { area: "dashboard sign out" });
+      pushToast({ title: "Sign-out failed", description: report.summary, variant: "error" });
     }
   };
 
@@ -169,13 +206,20 @@ export function DashboardPage() {
                 </div>
               </div>
 
-              <nav className="space-y-1">
+              <nav className="space-y-1" aria-label="Dashboard sections">
+                <div role="tablist" aria-orientation="vertical" className="space-y-1">
                 {dashboardTabs.map((t) => (
                   <button
                     key={t.id}
+                    id={`dashboard-tab-${t.id}`}
                     onClick={() => selectTab(t.id)}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === t.id}
+                    aria-controls={`dashboard-panel-${t.id}`}
+                    tabIndex={activeTab === t.id ? 0 : -1}
                     className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
-                      tab === t.id 
+                      activeTab === t.id 
                         ? "bg-blue-600 text-white shadow-sm" 
                         : "text-slate-600 hover:bg-white dark:text-slate-400 dark:hover:bg-[#161b22]"
                     }`}
@@ -184,9 +228,11 @@ export function DashboardPage() {
                     {t.label}
                   </button>
                 ))}
+                </div>
                 <div className="my-2 border-t border-slate-200 dark:border-slate-800"></div>
                 <button
-                  onClick={() => void signOut()}
+                  type="button"
+                  onClick={() => void handleSignOut()}
                   className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-semibold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/10"
                 >
                   <LogOut size={16} /> Sign Out
@@ -204,15 +250,22 @@ export function DashboardPage() {
                   </h2>
                 </div>
 
-                <div className="p-6">
+                <section
+                  id={`dashboard-panel-${activeTab}`}
+                  role="tabpanel"
+                  aria-labelledby={`dashboard-tab-${activeTab}`}
+                  tabIndex={0}
+                  className="p-6 outline-none"
+                >
                   {activeTab === "overview" && <OverviewTab user={user} profile={profile} coppa={coppaMetadata} />}
                   {activeTab === "profile" && (
                     <form onSubmit={saveProfile} className="max-w-md space-y-6">
                       <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Node Identifier</label>
+                        <label htmlFor="dashboard-username" className="text-xs font-bold uppercase tracking-widest text-slate-400">Node Identifier</label>
                         <input
+                          id="dashboard-username"
                           value={username}
-                          onChange={e => setUsername(e.target.value)}
+                          onChange={e => setUsername(sanitizeSingleLineInput(e.target.value, 32))}
                           className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
                         />
                       </div>
@@ -268,7 +321,7 @@ export function DashboardPage() {
                     />
                   )}
                   {activeTab === "admin" && isAdmin && <AdminProtocolTab />}
-                </div>
+                </section>
               </div>
             </main>
 
@@ -279,7 +332,7 @@ export function DashboardPage() {
   );
 }
 
-function OverviewTab({ user, profile, coppa }: { user: any, profile: any, coppa: CoppaAccountMetadata }) {
+function OverviewTab({ user, profile, coppa }: { user: User | null; profile: ProfileRecord | null; coppa: CoppaAccountMetadata }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <StatCard label="Account Registered" value={formatDate(profile?.created_at)} />
@@ -324,8 +377,8 @@ function ParentTab({
   const handleCreateChildAccount = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const nextUsername = childUsername.trim() || pendingChildRequest?.requestedUsername?.trim() || "";
-    const nextEmail = childEmail.trim();
+    const nextUsername = sanitizeSingleLineInput(childUsername, 32) || sanitizeSingleLineInput(pendingChildRequest?.requestedUsername || "", 32);
+    const nextEmail = sanitizeEmailInput(childEmail);
 
     if (!nextUsername) {
       pushToast({ title: "Missing username", description: "Enter the child's account name.", variant: "warning" });
@@ -427,7 +480,7 @@ function ParentTab({
             <label className="text-xs font-bold uppercase tracking-widest text-slate-400">Child Username</label>
             <input
               value={childUsername}
-              onChange={(e) => onChildUsernameChange(e.target.value)}
+              onChange={(e) => onChildUsernameChange(sanitizeSingleLineInput(e.target.value, 32))}
               placeholder={pendingChildRequest?.requestedUsername || "child_user"}
               className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             />
@@ -437,7 +490,7 @@ function ParentTab({
             <input
               type="email"
               value={childEmail}
-              onChange={(e) => onChildEmailChange(e.target.value)}
+              onChange={(e) => onChildEmailChange(sanitizeEmailInput(e.target.value))}
               placeholder="child@example.com"
               className="w-full rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
             />
@@ -496,14 +549,374 @@ function ParentTab({
 }
 
 function AdminProtocolTab() {
+  const { user } = useAuth();
   const { pushToast } = useToast();
+  const [adminQuery, setAdminQuery] = useState("");
+  const [adminProjects, setAdminProjects] = useState<RegistryProject[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [registryMode, setRegistryMode] = useState<"global" | "limited" | "unavailable">("global");
+  const [registryNotice, setRegistryNotice] = useState("Live registry access is available.");
+  const [lastRegistrySync, setLastRegistrySync] = useState("");
+  const [moderationQueue, setModerationQueue] = useState<ModerationAction[]>(() => readModerationQueue());
+
+  const loadAllProjects = useCallback(async () => {
+    setIsLoading(true);
+
+    try {
+      const rpcResult = await runRegistryRequest<RegistryProject[]>((signal) =>
+        supabaseClient
+          .rpc("admin_list_projects", { max_rows: 100 })
+          .abortSignal(signal)
+      );
+      if (!rpcResult.error) {
+        setAdminProjects(Array.isArray(rpcResult.data) ? rpcResult.data : []);
+        setRegistryMode("global");
+        setRegistryNotice("Full registry loaded from the admin RPC.");
+        setLastRegistrySync(new Date().toISOString());
+        return;
+      }
+
+      const directResult = await runRegistryRequest<RegistryProject[]>((signal) =>
+        supabaseClient
+          .from(CLOUD_TABLE)
+          .select("id,title,owner_username,is_public,updated_at")
+          .order("updated_at", { ascending: false })
+          .limit(100)
+          .abortSignal(signal)
+      );
+      if (!directResult.error) {
+        setAdminProjects(Array.isArray(directResult.data) ? directResult.data : []);
+        setRegistryMode("global");
+        setRegistryNotice("Full registry loaded from the projects table.");
+        setLastRegistrySync(new Date().toISOString());
+        return;
+      }
+
+      const primaryMessage = formatRegistryError(rpcResult.error);
+      const directMessage = formatRegistryError(directResult.error);
+      const combinedMessage = [primaryMessage, directMessage].filter(Boolean).join(" ");
+
+      if (canFallbackToPublicRegistry(combinedMessage)) {
+        const publicResult = await runRegistryRequest<RegistryProject[]>((signal) =>
+          supabaseClient
+            .from(CLOUD_TABLE)
+            .select("id,title,owner_username,is_public,updated_at")
+            .eq("is_public", true)
+            .order("updated_at", { ascending: false })
+            .limit(100)
+            .abortSignal(signal)
+        );
+
+        if (!publicResult.error) {
+          setAdminProjects(Array.isArray(publicResult.data) ? publicResult.data : []);
+          setRegistryMode("limited");
+          setRegistryNotice("Browser access cannot read the full registry. Showing public projects only until the admin RPC from supabase/schema.sql is installed.");
+          setLastRegistrySync(new Date().toISOString());
+          pushToast({
+            title: "Registry limited",
+            description: "Loaded the public registry fallback because full admin access is blocked in the browser.",
+            variant: "warning"
+          });
+          return;
+        }
+      }
+
+      setAdminProjects([]);
+      setRegistryMode("unavailable");
+      setRegistryNotice(directMessage || primaryMessage || "Registry sync failed.");
+      pushToast({
+        title: "Registry Sync Failed",
+        description: directMessage || primaryMessage || "Registry sync failed.",
+        variant: "error"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pushToast]);
+
+  const handlePurge = async (projectId: string) => {
+    const ok = await showConfirmDialog({
+      title: "Purge Node?",
+      message: "This will permanently delete this project from the global registry.",
+      confirmLabel: "Purge project",
+      cancelLabel: "Cancel",
+      tone: "danger"
+    });
+    if (!ok) return;
+
+    try {
+      const { error } = await supabaseClient.from(CLOUD_TABLE).delete().eq("id", projectId);
+      if (error) throw error;
+      pushToast({ title: "Node Purged", variant: "success" });
+      void loadAllProjects();
+    } catch (error) {
+      pushToast({ title: "Purge Failed", description: formatSupabaseError(error), variant: "error" });
+    }
+  };
+
+  const persistModerationQueue = (nextQueue: ModerationAction[]) => {
+    setModerationQueue(nextQueue);
+    writeModerationQueue(nextQueue);
+  };
+
+  const queueFallbackModerationAction = async (
+    type: "restrict_account" | "network_ban",
+    target: string,
+    reason: unknown
+  ) => {
+    const nextQueue = queueModerationAction(moderationQueue, type, target);
+    persistModerationQueue(nextQueue);
+    const queuedAction = nextQueue[0];
+    const sqlSnippet = queuedAction ? buildModerationSql(queuedAction) : "";
+    const report = createErrorReport(reason, { area: type === "network_ban" ? "network ban" : "account restriction" });
+
+    if (sqlSnippet) {
+      try {
+        await navigator.clipboard.writeText(sqlSnippet);
+      } catch {
+        // Clipboard can fail in some browsers; the queue panel still exposes the SQL.
+      }
+    }
+
+    pushToast({
+      title: "Action queued locally",
+      description: `${report.summary} The SQL fallback${sqlSnippet ? " was copied to your clipboard" : " is listed below"} for manual execution.`,
+      variant: "warning"
+    });
+  };
+
+  const handleRestrictAccount = async () => {
+    const identifier = await showPromptDialog({
+      title: "Restrict Account",
+      message: "Enter username or email to revoke access permissions.",
+      inputLabel: "Username or email",
+      placeholder: "user_identifier"
+    });
+    if (!identifier) return;
+    const normalizedIdentifier = identifier.trim();
+    if (!normalizedIdentifier) return;
+
+    try {
+      const { error } = await supabaseClient.rpc("admin_restrict_account", { identifier: normalizedIdentifier });
+      if (error) {
+        if (error.message?.includes("function") && error.message?.includes("does not exist")) {
+          throw new Error("Admin RPC 'admin_restrict_account' is not installed in Supabase.");
+        }
+        throw error;
+      }
+      pushToast({ title: "Account Restricted", description: `Permissions revoked for ${normalizedIdentifier}`, variant: "success" });
+    } catch (error) {
+      if (normalizedIdentifier && !normalizedIdentifier.includes("@")) {
+        const { error: visibilityError } = await supabaseClient
+          .from(CLOUD_TABLE)
+          .update({ is_public: false, share_slug: null, updated_at: new Date().toISOString() })
+          .eq("owner_username", normalizedIdentifier)
+          .eq("is_public", true);
+
+        if (!visibilityError) {
+          pushToast({
+            title: "Projects hidden",
+            description: `Public projects for ${normalizedIdentifier} were hidden even though the full ban RPC is unavailable.`,
+            variant: "warning"
+          });
+          void loadAllProjects();
+          return;
+        }
+      }
+
+      await queueFallbackModerationAction("restrict_account", normalizedIdentifier, error);
+    }
+  };
+
+  const handleNetworkBan = async () => {
+    const ip = await showPromptDialog({
+      title: "Network Ban",
+      message: "Enter IP address or CIDR range to restrict access.",
+      inputLabel: "IP or CIDR",
+      placeholder: "127.0.0.1"
+    });
+    if (!ip) return;
+    const normalizedIp = ip.trim();
+    if (!normalizedIp) return;
+
+    try {
+      const { error } = await supabaseClient.rpc("admin_network_ban", { ip_address: normalizedIp });
+      if (error) {
+        if (error.message?.includes("function") && error.message?.includes("does not exist")) {
+          throw new Error("Admin RPC 'admin_network_ban' is not installed in Supabase.");
+        }
+        throw error;
+      }
+      pushToast({ title: "Network Ban Applied", description: `IP ${normalizedIp} has been restricted.`, variant: "success" });
+    } catch (error) {
+      await queueFallbackModerationAction("network_ban", normalizedIp, error);
+    }
+  };
+
+  const handleCopyModerationSql = async (action: ModerationAction) => {
+    const sqlSnippet = buildModerationSql(action);
+
+    try {
+      await navigator.clipboard.writeText(sqlSnippet);
+      pushToast({ title: "SQL copied", description: "The fallback moderation statement is on your clipboard.", variant: "success" });
+    } catch {
+      pushToast({ title: "Copy failed", description: "Clipboard access was blocked. Copy the SQL directly from the queue panel.", variant: "warning" });
+    }
+  };
+
+  const handleRemoveQueuedAction = (actionId: string) => {
+    persistModerationQueue(removeModerationAction(moderationQueue, actionId));
+  };
+
+  useEffect(() => {
+    void loadAllProjects();
+  }, [loadAllProjects]);
+
+  const filtered = adminProjects.filter(p => 
+    String(p.title || "").toLowerCase().includes(adminQuery.toLowerCase()) ||
+    String(p.owner_username || "").toLowerCase().includes(adminQuery.toLowerCase()) ||
+    String(p.id).toLowerCase().includes(adminQuery.toLowerCase())
+  );
+
   return (
     <div className="space-y-8">
       <div className="grid gap-4 md:grid-cols-3">
-        <AdminActionCard icon={<Trash2 />} title="Purge Project" description="Remove any project by ID" onClick={() => pushToast({title: "Admin Action", description: "Not implemented in current schema."})} />
-        <AdminActionCard icon={<Ban />} title="Restrict Account" description="Revoke access permissions" onClick={() => pushToast({title: "Admin Action", description: "Not implemented in current schema."})} />
-        <AdminActionCard icon={<ShieldAlert />} title="Network Ban" description="Execute IP-level restriction" onClick={() => pushToast({title: "Admin Action", description: "Not implemented in current schema."})} />
+        <AdminActionCard icon={<Trash2 />} title="Purge Project" description="Remove any project by ID" onClick={() => pushToast({title: "Admin Action", description: "Use the project list below to purge."})} />
+        <AdminActionCard icon={<Ban />} title="Restrict Account" description="Revoke access or hide public projects" onClick={handleRestrictAccount} />
+        <AdminActionCard icon={<ShieldAlert />} title="Network Ban" description="Execute IP-level restriction or queue SQL fallback" onClick={handleNetworkBan} />
       </div>
+
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-bold flex items-center gap-2"><Database size={16} /> Global Project Registry</h3>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void loadAllProjects()}
+              disabled={isLoading}
+              className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[0.65rem] font-black uppercase tracking-widest hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+            >
+              Retry
+            </button>
+            <div className="relative w-64">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
+              <input 
+                value={adminQuery}
+                onChange={e => setAdminQuery(e.target.value)}
+                placeholder="Search all nodes..."
+                className="w-full rounded-md border border-slate-200 bg-slate-50 py-1 pl-8 pr-3 text-xs outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className={`rounded-md border px-4 py-3 text-sm ${
+          registryMode === "global"
+            ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-900/30 dark:bg-emerald-900/10 dark:text-emerald-100"
+            : registryMode === "limited"
+              ? "border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900/30 dark:bg-amber-900/10 dark:text-amber-100"
+              : "border-rose-200 bg-rose-50 text-rose-900 dark:border-rose-900/30 dark:bg-rose-900/10 dark:text-rose-100"
+        }`}>
+          <p className="font-semibold">{registryNotice}</p>
+          <p className="mt-1 text-xs font-medium opacity-80">
+            {lastRegistrySync ? `Last sync: ${formatDateTime(lastRegistrySync)}` : "No successful registry sync yet."}
+            {user?.id ? " Browser sessions can only see data allowed by Supabase policies." : ""}
+          </p>
+        </div>
+
+        <div className="rounded-md border border-slate-200 overflow-hidden dark:border-slate-800">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-50 text-slate-400 uppercase font-black tracking-widest dark:bg-slate-900/50">
+              <tr>
+                <th className="px-4 py-2">Node ID</th>
+                <th className="px-4 py-2">Title</th>
+                <th className="px-4 py-2">Owner</th>
+                <th className="px-4 py-2">Status</th>
+                <th className="px-4 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+              {isLoading ? (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">Querying registry...</td></tr>
+              ) : filtered.length === 0 ? (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">No nodes found matching filter.</td></tr>
+              ) : (
+                filtered.map(p => (
+                  <tr key={p.id || Math.random().toString()} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
+                    <td className="px-4 py-2 font-mono text-[0.65rem]">{String(p.id || "").slice(0, 8)}...</td>
+                    <td className="px-4 py-2 font-bold">{p.title || "Untitled"}</td>
+                    <td className="px-4 py-2">{p.owner_username || "anonymous"}</td>
+                    <td className="px-4 py-2">
+                      <span className={`px-1.5 py-0.5 rounded-full text-[0.6rem] font-bold ${p.is_public ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        {p.is_public ? 'PUBLIC' : 'PRIVATE'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button className="text-rose-600 hover:text-rose-700 font-bold" onClick={() => handlePurge(p.id)}>PURGE</button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="rounded-md border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#161b22]">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Moderation fallback queue</h3>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              When a moderation RPC is missing, the action is stored here with a copyable SQL fallback.
+            </p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[0.65rem] font-black uppercase tracking-widest text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+            {moderationQueue.length} queued
+          </span>
+        </div>
+
+        <div className="mt-4 space-y-3">
+          {moderationQueue.length === 0 ? (
+            <div className="rounded-md border border-dashed border-slate-200 px-4 py-6 text-sm text-slate-500 dark:border-slate-800 dark:text-slate-400">
+              No queued moderation actions. Browser-only fallback will place missing ban and restriction actions here.
+            </div>
+          ) : (
+            moderationQueue.map((action) => (
+              <div key={action.id} className="flex flex-col gap-3 rounded-md border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d1117]">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-slate-400">
+                      {action.type === "network_ban" ? "Network Ban" : "Restrict Account"}
+                    </p>
+                    <p className="mt-1 font-mono text-sm">{action.target}</p>
+                  </div>
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{formatDateTime(action.createdAt)}</p>
+                </div>
+                <pre className="overflow-x-auto rounded-md border border-slate-200 bg-white px-3 py-2 text-[0.7rem] text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300">
+                  {buildModerationSql(action)}
+                </pre>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleCopyModerationSql(action)}
+                    className="rounded-md bg-[#4d97ff] px-3 py-1.5 text-[0.7rem] font-black uppercase text-white hover:bg-blue-600"
+                  >
+                    Copy SQL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveQueuedAction(action.id)}
+                    className="rounded-md border border-slate-200 bg-white px-3 py-1.5 text-[0.7rem] font-black uppercase hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800"
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
       <div className="rounded-md border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-[#0d1117]">
         <h3 className="text-[0.7rem] font-bold uppercase tracking-widest text-slate-400 mb-4 flex items-center gap-2">
           <Database size={12} /> System Logs
@@ -511,11 +924,39 @@ function AdminProtocolTab() {
         <div className="font-mono text-[0.7rem] text-slate-500 space-y-1">
           <p>[2026-03-28 14:22] - Node initialization successful.</p>
           <p>[2026-03-28 14:25] - Admin Clearance Verified.</p>
-          <p>[2026-03-28 14:30] - Ready for system instructions...</p>
+          <p>[2026-03-28 14:30] - Registry mode: {registryMode.toUpperCase()}.</p>
+          <p>[2026-03-30 09:15] - Moderation fallback queue enabled.</p>
+          <p>[{new Date().toISOString().replace('T', ' ').slice(0, 19)}] - Admin Protocol session initialized.</p>
         </div>
       </div>
     </div>
   );
+}
+
+function canFallbackToPublicRegistry(message: string) {
+  return /row-level security|permission denied|rls|timed out|failed to fetch|network/i.test(message);
+}
+
+function formatRegistryError(error: unknown) {
+  if (error instanceof Error && error.name === "AbortError") {
+    return "Request timed out (10s). Registry sync failed.";
+  }
+
+  return formatSupabaseError(error);
+}
+
+async function runRegistryRequest<T>(buildRequest: (signal: AbortSignal) => PromiseLike<{ data: T | null; error: unknown }>) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 10_000);
+
+  try {
+    const result = await buildRequest(controller.signal);
+    window.clearTimeout(timeoutId);
+    return result;
+  } catch (error) {
+    window.clearTimeout(timeoutId);
+    return { data: null, error };
+  }
 }
 
 function AdminActionCard({ icon, title, description, onClick }: { icon: ReactNode, title: string, description: string, onClick: () => void }) {

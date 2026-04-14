@@ -7,13 +7,20 @@ import {
   formatSupabaseError,
   getConfirmPageUrl,
   isDuplicateError,
-  isMissingRowError
+  isMissingRowError,
+  signOutSupabaseSession
 } from "../auth/supabase-client.js";
 import bundledBlockCatalog from "../../../data/blocks.json";
 import {
   buildScratchblocksCode,
   getBlockSectionLabel
 } from "../../site/lib/blockPresentation";
+import {
+  assertReasonableScratchSource,
+  getScratchSourceValidationMessage,
+  sanitizeProjectNameInput,
+  sanitizeScratchSourceInput
+} from "../../site/lib/inputSafety";
 import { renderScratchblocksInto } from "../../site/lib/scratchblocks";
 import { showConfirmDialog } from "../shared/dialog-client.js";
 
@@ -55,6 +62,11 @@ const DIAGNOSTIC_DEBOUNCE_MS = 220;
 const TOAST_LIFETIME_MS = 3600;
 const CAPTCHA_CACHE_KEY = "text2scratch.hcaptcha.token";
 const CAPTCHA_CACHE_MAX_AGE_MS = 20 * 60 * 1000;
+const LOCAL_DRAFT_SOURCE_KEY = "text2scratch.workspace.source";
+const LOCAL_DRAFT_NAME_KEY = "text2scratch.workspace.project-name";
+const CLOUD_PROJECT_CACHE_PREFIX = "text2scratch.cloud.projects.";
+const CLOUD_PROJECT_REQUEST_TIMEOUT_MS = 10_000;
+const AUTH_STATE_EVENT_NAME = "text2scratch.auth.changed";
 const BLOCKING_DIAGNOSTIC_CODES = new Set([
   "t2s.missing-end",
   "t2s.unmatched-end",
@@ -100,6 +112,8 @@ const STAGE_UNSUPPORTED_OPCODES = new Set([
 ]);
 
 const DEFAULT_PROJECT_NAME = "multi_sprite_project";
+const MAX_PROJECT_SOURCE_LENGTH = 20000;
+const CLIENT_RATE_LIMITS = new Map();
 const DEFAULT_MULTI_SPRITE_SAMPLE = [
   "# Stage setup",
   "make_var score 0",
@@ -156,6 +170,7 @@ const ui = {
   saveCloud: document.getElementById("saveCloudBtn"),
   shareProject: document.getElementById("shareProjectBtn"),
   cloudProjects: document.getElementById("cloudProjectsSelect"),
+  refreshCloudProjects: document.getElementById("refreshCloudProjectsBtn"),
   shareLinkOutput: document.getElementById("shareLinkOutput"),
   copyShareLink: document.getElementById("copyShareLinkBtn"),
   sharedProjectNotice: document.getElementById("sharedProjectNotice"),
@@ -184,7 +199,8 @@ const editorState = {
   monacoRef: null,
   diagnosticTimer: null,
   codeActionsRegistered: false,
-  hoverRegistered: false
+  hoverRegistered: false,
+  completionRegistered: false
 };
 
 const toastState = {
@@ -195,7 +211,8 @@ const supabaseState = {
   client: null,
   user: null,
   activeProjectId: null,
-  authListener: null
+  authListener: null,
+  projectListRequestId: 0
 };
 
 const profileMenuState = {
@@ -224,7 +241,6 @@ async function init() {
   ensureToastHost();
   await initEditor();
   initPreview();
-  setProjectName(DEFAULT_PROJECT_NAME);
   let startupDegraded = false;
 
   try {
@@ -232,10 +248,21 @@ async function init() {
     reverseCatalog = buildReverseCatalog(blockCatalog);
     if (editorState.usingMonaco && editorState.monacoRef) {
       registerEditorHoverProvider(editorState.monacoRef);
+      registerText2ScratchCompletionProvider(editorState.monacoRef);
     }
-    setEditorValue(getSampleScript(blockCatalog));
+    const restoredDraft = restoreLocalDraft();
+    if (restoredDraft) {
+      setProjectName(restoredDraft.projectName || DEFAULT_PROJECT_NAME);
+      setEditorValue(restoredDraft.source || getSampleScript(blockCatalog));
+      setStatus("Restored your local workspace draft.");
+    } else {
+      setProjectName(DEFAULT_PROJECT_NAME);
+      setEditorValue(getSampleScript(blockCatalog));
+    }
     renderCommandList(blockCatalog);
-    setStatus("Ready. Import SB3, edit text commands, then export as .sb3 or .t2sh.");
+    if (!restoredDraft) {
+      setStatus("Ready. Import SB3, edit text commands, then export as .sb3 or .t2sh.");
+    }
     scheduleDiagnosticsUpdate();
   } catch (error) {
     startupDegraded = true;
@@ -358,13 +385,34 @@ function setProjectName(name) {
   if (!ui.projectName) {
     return;
   }
-  ui.projectName.value = sanitizeName(name, DEFAULT_PROJECT_NAME).slice(0, 80);
+  ui.projectName.value = sanitizeProjectNameInput(name) || DEFAULT_PROJECT_NAME;
 }
 
 function getProjectName() {
-  const raw = ui.projectName?.value || DEFAULT_PROJECT_NAME;
-  const cleaned = raw.trim();
-  return cleaned.length > 0 ? cleaned : DEFAULT_PROJECT_NAME;
+  const cleaned = sanitizeProjectNameInput(ui.projectName?.value || DEFAULT_PROJECT_NAME);
+  return cleaned || DEFAULT_PROJECT_NAME;
+}
+
+function getSafeSourceText(value) {
+  return sanitizeScratchSourceInput(value, MAX_PROJECT_SOURCE_LENGTH);
+}
+
+function generateProjectId() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return `project-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function assertClientRateLimit(key, max, windowMs, message) {
+  const now = Date.now();
+  const timestamps = (CLIENT_RATE_LIMITS.get(key) || []).filter((value) => value > now - windowMs);
+  if (timestamps.length >= max) {
+    throw new Error(message || "Too many requests. Please wait and try again.");
+  }
+  timestamps.push(now);
+  CLIENT_RATE_LIMITS.set(key, timestamps);
 }
 
 function getProjectFileBaseName() {
@@ -489,7 +537,7 @@ async function importT2shFile(file) {
     throw new Error("Invalid .t2sh session payload.");
   }
 
-  setEditorValue(payload.script);
+  setEditorValue(payload.script, { announceIssues: true });
   setProjectName(payload.projectName || stripFileExtension(file.name));
   setStatus(`Imported ${file.name}.`);
 }
@@ -511,7 +559,7 @@ async function importSb3File(file) {
   const importedScript = convertSb3ProjectToText(projectData, reverseCatalog, {
     spriteSvgSources
   });
-  setEditorValue(importedScript);
+  setEditorValue(importedScript, { announceIssues: true });
   setProjectName(stripFileExtension(file.name));
   setStatus(`Imported ${file.name} and converted it to text2scratch code.`);
 }
@@ -2873,6 +2921,7 @@ function initMonacoEditor() {
         defineText2ScratchTheme(monacoRef);
         registerText2ScratchCodeActions(monacoRef);
         registerEditorHoverProvider(monacoRef);
+        registerEditorCompletionProvider(monacoRef);
 
         editorState.instance = monacoRef.editor.create(ui.editorHost, {
           value: ui.input?.value || "",
@@ -3068,6 +3117,44 @@ function registerEditorHoverProvider(monacoRef) {
   });
 
   editorState.hoverRegistered = true;
+}
+
+function registerEditorCompletionProvider(monacoRef) {
+  if (editorState.completionRegistered) {
+    return;
+  }
+
+  monacoRef.languages.registerCompletionItemProvider("text2scratch", {
+    triggerCharacters: ["@", "_"],
+    provideCompletionItems(model, position) {
+      if (!blockCatalog?.commands) {
+        return { suggestions: [] };
+      }
+
+      const word = model.getWordUntilPosition(position);
+      const range = new monacoRef.Range(
+        position.lineNumber,
+        word.startColumn || position.column,
+        position.lineNumber,
+        word.endColumn || position.column
+      );
+
+      const suggestions = Object.entries(blockCatalog.commands)
+        .filter(([, definition]) => !definition?.hidden)
+        .map(([name, definition]) => ({
+          label: definition.syntax || name,
+          insertText: definition.syntax || name,
+          detail: definition.description || getBlockSectionLabel(name, definition),
+          documentation: definition.opcode ? `Opcode: ${definition.opcode}` : "text2scratch command",
+          kind: monacoRef.languages.CompletionItemKind.Keyword,
+          range
+        }));
+
+      return { suggestions };
+    }
+  });
+
+  editorState.completionRegistered = true;
 }
 
 function findTokenAtColumn(lineText, column) {
@@ -3334,17 +3421,21 @@ function getMarkerCodeValue(marker) {
 
 function getEditorValue() {
   if (editorState.usingMonaco && editorState.instance) {
-    return editorState.instance.getValue();
+    return getSafeSourceText(editorState.instance.getValue());
   }
-  return ui.input?.value || "";
+  return getSafeSourceText(ui.input?.value || "");
 }
 
-function setEditorValue(value) {
-  const next = value || "";
+function setEditorValue(value, options = {}) {
+  const { announceIssues = false } = options;
+  const next = getSafeSourceText(value || "");
   if (editorState.usingMonaco && editorState.instance) {
     editorState.instance.setValue(next);
     markPreviewDirty();
     scheduleDiagnosticsUpdate();
+    if (announceIssues && next !== String(value || "")) {
+      setStatus("Imported source was sanitized to remove unsupported control characters.", "warning");
+    }
     return;
   }
 
@@ -3354,6 +3445,9 @@ function setEditorValue(value) {
 
   markPreviewDirty();
   scheduleDiagnosticsUpdate();
+  if (announceIssues && next !== String(value || "")) {
+    setStatus("Imported source was sanitized to remove unsupported control characters.", "warning");
+  }
 }
 
 function attachEditorEnhancements() {
@@ -4049,6 +4143,7 @@ async function initSupabaseWorkspace() {
   });
 
   supabaseState.authListener = listenerResult?.data?.subscription || null;
+  window.addEventListener(AUTH_STATE_EVENT_NAME, onExternalAuthStateChanged);
 }
 
 function bindCloudEventHandlers() {
@@ -4058,6 +4153,7 @@ function bindCloudEventHandlers() {
   ui.publishCommunity?.addEventListener("click", onPublishCommunityClick);
   ui.copyShareLink.addEventListener("click", onCopyShareLinkClick);
   ui.cloudProjects.addEventListener("change", onCloudProjectSelected);
+  ui.refreshCloudProjects?.addEventListener("click", onRefreshCloudProjectsClick);
 }
 
 async function restoreCloudSession() {
@@ -4079,8 +4175,11 @@ async function onCloudSignOutClick() {
     return;
   }
 
-  const { error } = await supabaseState.client.auth.signOut();
-  if (error) {
+  let warning = "";
+  try {
+    const result = await signOutSupabaseSession(supabaseState.client);
+    warning = result.warning || "";
+  } catch (error) {
     setStatus(`Sign-out failed: ${formatSupabaseError(error)}`, "error");
     return;
   }
@@ -4092,8 +4191,15 @@ async function onCloudSignOutClick() {
   updateProfileUiState();
   resetShareLink();
   resetCloudProjectList("Sign in to load projects");
+  window.dispatchEvent(new CustomEvent(AUTH_STATE_EVENT_NAME, {
+    detail: { state: "signed_out", emittedAt: new Date().toISOString() }
+  }));
   setProfileAuthStatus("Signed out.", "success");
-  setStatus("Signed out successfully.", "success");
+  setStatus(warning || "Signed out successfully.", warning ? "warning" : "success");
+}
+
+async function onRefreshCloudProjectsClick() {
+  await refreshCloudProjectList({ announceSuccess: true, forceRefresh: true });
 }
 
 async function onSaveCloudProjectClick() {
@@ -4110,24 +4216,34 @@ async function saveProjectToCloud(options = {}) {
     return null;
   }
 
+  try {
+    assertClientRateLimit("cloud.save", 5, 60 * 1000, "Save rate limit reached. Wait a minute before trying again.");
+  } catch (error) {
+    setStatus(error.message, "warning");
+    return null;
+  }
+
   const projectPayload = {
     owner_id: supabaseState.user.id,
     owner_username: getUserDisplayName(supabaseState.user),
     title: getProjectName(),
-    source_text: getEditorValue(),
+    source_text: getSafeSourceText(getEditorValue()),
     updated_at: new Date().toISOString()
   };
 
   let record = null;
 
   if (supabaseState.activeProjectId) {
-    const updateResult = await supabaseState.client
-      .from(CLOUD_TABLE)
-      .update(projectPayload)
-      .eq("id", supabaseState.activeProjectId)
-      .eq("owner_id", supabaseState.user.id)
-      .select("id,title,share_slug,is_public,updated_at")
-      .single();
+    const updateResult = await runTimedProjectRequest((signal) =>
+      supabaseState.client
+        .from(CLOUD_TABLE)
+        .update(projectPayload)
+        .eq("id", supabaseState.activeProjectId)
+        .eq("owner_id", supabaseState.user.id)
+        .select("id,title,share_slug,is_public,updated_at")
+        .single()
+        .abortSignal(signal)
+    );
 
     if (!updateResult.error) {
       record = updateResult.data;
@@ -4140,11 +4256,15 @@ async function saveProjectToCloud(options = {}) {
   }
 
   if (!record) {
-    const insertResult = await supabaseState.client
-      .from(CLOUD_TABLE)
-      .insert(projectPayload)
-      .select("id,title,share_slug,is_public,updated_at")
-      .single();
+    const nextProjectId = supabaseState.activeProjectId || generateProjectId();
+    const insertResult = await runTimedProjectRequest((signal) =>
+      supabaseState.client
+        .from(CLOUD_TABLE)
+        .upsert({ id: nextProjectId, ...projectPayload }, { onConflict: "id" })
+        .select("id,title,share_slug,is_public,updated_at")
+        .single()
+        .abortSignal(signal)
+    );
 
     if (insertResult.error) {
       setStatus(`Cloud save failed: ${formatSupabaseError(insertResult.error)}`, "error");
@@ -4156,7 +4276,7 @@ async function saveProjectToCloud(options = {}) {
 
   supabaseState.activeProjectId = record.id;
   setShareLinkBySlug(record.share_slug || "");
-  await refreshCloudProjectList();
+  await refreshCloudProjectList({ announceSuccess: false });
 
   if (ui.cloudProjects) {
     ui.cloudProjects.value = record.id;
@@ -4178,6 +4298,22 @@ async function onShareProjectClick() {
     return;
   }
 
+  try {
+    assertClientRateLimit("cloud.share", 5, 60 * 1000, "Share rate limit reached. Wait a minute before trying again.");
+  } catch (error) {
+    setStatus(error.message, "warning");
+    return;
+  }
+
+  const shareValidationMessage = getScratchSourceValidationMessage(assertReasonableScratchSource(getEditorValue(), {
+    allowEmpty: false,
+    maxLength: MAX_PROJECT_SOURCE_LENGTH
+  }));
+  if (shareValidationMessage) {
+    setStatus(`Fix validation issues before sharing. ${shareValidationMessage}`, "warning");
+    return;
+  }
+
   let projectId = supabaseState.activeProjectId;
   if (!projectId) {
     projectId = await saveProjectToCloud({ announce: false });
@@ -4192,7 +4328,7 @@ async function onShareProjectClick() {
   }
 
   setShareLinkBySlug(shareData.share_slug);
-  await refreshCloudProjectList();
+  await refreshCloudProjectList({ announceSuccess: false });
   window.text2scratchRum?.trackProjectShared({ project_id: projectId, shared: true });
   setStatus("Share link created. Anyone with the link can load this project.", "success");
 }
@@ -4201,6 +4337,22 @@ async function onPublishCommunityClick() {
   if (!ensureCloudSignedIn()) return;
   if (shareState.readOnly) {
     setStatus("You must fork this project to publish it under your name.", "warning");
+    return;
+  }
+
+  try {
+    assertClientRateLimit("cloud.publish", 3, 60 * 1000, "Publish rate limit reached. Wait a minute before trying again.");
+  } catch (error) {
+    setStatus(error.message, "warning");
+    return;
+  }
+
+  const publishValidationMessage = getScratchSourceValidationMessage(assertReasonableScratchSource(getEditorValue(), {
+    allowEmpty: false,
+    maxLength: MAX_PROJECT_SOURCE_LENGTH
+  }));
+  if (publishValidationMessage) {
+    setStatus(`Fix validation issues before publishing. ${publishValidationMessage}`, "warning");
     return;
   }
 
@@ -4219,11 +4371,14 @@ async function onPublishCommunityClick() {
     if (!projectId) return;
   }
 
-  const result = await supabaseState.client
-    .from(CLOUD_TABLE)
-    .update({ is_public: true, updated_at: new Date().toISOString() })
-    .eq("id", projectId)
-    .eq("owner_id", supabaseState.user.id);
+  const result = await runTimedProjectRequest((signal) =>
+    supabaseState.client
+      .from(CLOUD_TABLE)
+      .update({ is_public: true, updated_at: new Date().toISOString() })
+      .eq("id", projectId)
+      .eq("owner_id", supabaseState.user.id)
+      .abortSignal(signal)
+  );
 
   if (result.error) {
     setStatus(`Publish failed: ${formatSupabaseError(result.error)}`, "error");
@@ -4266,31 +4421,42 @@ window.addEventListener("text2scratch.insert", (e) => {
 window.addEventListener("text2scratch.scroll_to", (e) => {
   const sectionName = e.detail?.section;
   if (!sectionName || !ui.commands) return;
-  
+
   const items = ui.commands.getElementsByTagName("li");
   for (let i = 0; i < items.length; i++) {
     const text = items[i].textContent || "";
     if (text.startsWith(sectionName)) {
-      items[i].scrollIntoView({ behavior: "smooth", block: "start" });
+      const container = ui.commands.parentElement;
+      if (container) {
+        const targetOffset = items[i].offsetTop;
+        container.scrollTo({
+          top: targetOffset,
+          behavior: "smooth"
+        });
+      } else {
+        items[i].scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       break;
     }
   }
 });
-
 async function assignProjectShareSlug(projectId) {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const slug = generateShareSlug();
-    const result = await supabaseState.client
-      .from(CLOUD_TABLE)
-      .update({
-        is_public: true,
-        share_slug: slug,
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", projectId)
-      .eq("owner_id", supabaseState.user.id)
-      .select("id,share_slug")
-      .single();
+    const result = await runTimedProjectRequest((signal) =>
+      supabaseState.client
+        .from(CLOUD_TABLE)
+        .update({
+          is_public: true,
+          share_slug: slug,
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", projectId)
+        .eq("owner_id", supabaseState.user.id)
+        .select("id,share_slug")
+        .single()
+        .abortSignal(signal)
+    );
 
     if (!result.error) {
       return result.data;
@@ -4333,19 +4499,22 @@ async function onCloudProjectSelected() {
     return;
   }
 
-  const { data, error } = await supabaseState.client
-    .from(CLOUD_TABLE)
-    .select("id,title,source_text,share_slug")
-    .eq("id", projectId)
-    .eq("owner_id", supabaseState.user.id)
-    .single();
+  const { data, error } = await runTimedProjectRequest((signal) =>
+    supabaseState.client
+      .from(CLOUD_TABLE)
+      .select("id,title,source_text,share_slug")
+      .eq("id", projectId)
+      .eq("owner_id", supabaseState.user.id)
+      .single()
+      .abortSignal(signal)
+  );
 
   if (error) {
     setStatus(`Load failed: ${formatSupabaseError(error)}`, "error");
     return;
   }
 
-  setEditorValue(data.source_text || "");
+  setEditorValue(data.source_text || "", { announceIssues: true });
   setProjectName(data.title || DEFAULT_PROJECT_NAME);
   supabaseState.activeProjectId = data.id;
   setShareLinkBySlug(data.share_slug || "");
@@ -4353,36 +4522,138 @@ async function onCloudProjectSelected() {
   setStatus(`Loaded "${data.title}" from cloud.`, "success");
 }
 
-async function refreshCloudProjectList() {
-  if (!ensureSupabaseReady() || !supabaseState.user) {
+async function refreshCloudProjectList(options = {}) {
+  const { announceSuccess = false, forceRefresh = false } = options;
+  if (!ensureSupabaseReady()) {
+    console.warn("refreshCloudProjectList: Supabase not ready");
+    return;
+  }
+  if (!supabaseState.user) {
+    resetCloudProjectList("Sign in to load projects");
     return;
   }
 
-  const { data, error } = await supabaseState.client
-    .from(CLOUD_TABLE)
-    .select("id,title,updated_at,is_public")
-    .eq("owner_id", supabaseState.user.id)
-    .order("updated_at", { ascending: false })
-    .limit(100);
+  resetCloudProjectList("Refreshing cloud projects...");
+  ui.cloudProjects.disabled = true;
+
+  const ownerId = supabaseState.user.id;
+  const requestId = ++supabaseState.projectListRequestId;
+  const { data, error } = await fetchCloudProjectList(ownerId);
+
+  if (requestId !== supabaseState.projectListRequestId || supabaseState.user?.id !== ownerId) {
+    return;
+  }
 
   if (error) {
-    setStatus(`Could not load cloud projects: ${formatSupabaseError(error)}`, "warning");
+    const msg = error?.name === "AbortError"
+      ? "Request timed out. Showing the last synced project list if available."
+      : formatSupabaseError(error);
+    console.error("refreshCloudProjectList error:", error);
+    const cachedProjects = readCachedCloudProjects(supabaseState.user.id);
+    if (cachedProjects.length > 0) {
+      populateCloudProjectList(cachedProjects, {
+        placeholder: "Showing cached cloud projects",
+        allowSelection: true
+      });
+      setStatus(`Could not refresh cloud projects: ${msg}`, "warning");
+      return;
+    }
+
+    setStatus(`Could not load cloud projects: ${msg}`, "warning");
+    resetCloudProjectList(`Error: ${msg}`);
     return;
   }
 
-  resetCloudProjectList(data.length > 0 ? "Select a cloud project" : "No cloud projects yet");
-  ui.cloudProjects.disabled = false;
+  if (!data || data.length === 0) {
+    writeCachedCloudProjects(supabaseState.user.id, []);
+    resetCloudProjectList("No cloud projects yet");
+    ui.cloudProjects.disabled = true;
+    return;
+  }
 
-  data.forEach((project) => {
-    const option = document.createElement("option");
-    option.value = project.id;
-    option.textContent = formatCloudProjectLabel(project);
-    ui.cloudProjects.appendChild(option);
+  writeCachedCloudProjects(supabaseState.user.id, data);
+  populateCloudProjectList(data, {
+    placeholder: "Select a cloud project",
+    allowSelection: true
   });
 
-  if (supabaseState.activeProjectId) {
-    ui.cloudProjects.value = supabaseState.activeProjectId;
+  if (announceSuccess || forceRefresh) {
+    setStatus("Cloud projects refreshed.", "success");
   }
+}
+
+async function runTimedProjectRequest(buildRequest) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), CLOUD_PROJECT_REQUEST_TIMEOUT_MS);
+
+    try {
+      const result = await buildRequest(controller.signal);
+      window.clearTimeout(timeoutId);
+
+      if (!result.error) {
+        return result;
+      }
+
+      lastError = result.error;
+      if (!isRetriableCloudError(result.error) || attempt === 1) {
+        return result;
+      }
+    } catch (error) {
+      window.clearTimeout(timeoutId);
+      lastError = error;
+      if (!isRetriableCloudError(error) || attempt === 1) {
+        return { data: null, error };
+      }
+    }
+  }
+
+  return { data: null, error: lastError };
+}
+
+async function fetchCloudProjectList(ownerId) {
+  let lastError = null;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), CLOUD_PROJECT_REQUEST_TIMEOUT_MS);
+
+    try {
+      const result = await supabaseState.client
+        .from(CLOUD_TABLE)
+        .select("id,title,updated_at,is_public")
+        .eq("owner_id", ownerId)
+        .order("updated_at", { ascending: false })
+        .limit(100)
+        .abortSignal(controller.signal);
+      window.clearTimeout(timeoutId);
+
+      if (!result.error) {
+        return result;
+      }
+
+      lastError = result.error;
+      if (!isRetriableCloudError(result.error) || attempt === 1) {
+        return { data: result.data, error: result.error };
+      }
+    } catch (error) {
+      window.clearTimeout(timeoutId);
+      lastError = error;
+      if (!isRetriableCloudError(error) || attempt === 1) {
+        return { data: null, error };
+      }
+    }
+  }
+
+  return { data: null, error: lastError };
+}
+
+function isRetriableCloudError(error) {
+  const message = String(error?.message || "");
+  const name = String(error?.name || "");
+  return name === "AbortError" || /failed to fetch|network|timed out|fetch/i.test(message);
 }
 
 async function loadSharedProjectFromQuery() {
@@ -4396,19 +4667,22 @@ async function loadSharedProjectFromQuery() {
     return;
   }
 
-  const { data, error } = await supabaseState.client
-    .from(CLOUD_TABLE)
-    .select("id,title,source_text,share_slug,owner_id,owner_username")
-    .eq("share_slug", shareSlug)
-    .eq("is_public", true)
-    .single();
+  const { data, error } = await runTimedProjectRequest((signal) =>
+    supabaseState.client
+      .from(CLOUD_TABLE)
+      .select("id,title,source_text,share_slug,owner_id,owner_username")
+      .eq("share_slug", shareSlug)
+      .eq("is_public", true)
+      .single()
+      .abortSignal(signal)
+  );
 
   if (error) {
     setStatus(`Shared project error: ${formatSupabaseError(error)}`, "error");
     return;
   }
 
-  setEditorValue(data.source_text || "");
+  setEditorValue(data.source_text || "", { announceIssues: true });
   setProjectName(data.title || "shared_project");
   supabaseState.activeProjectId = null;
   setShareLinkBySlug(data.share_slug || shareSlug);
@@ -4566,6 +4840,9 @@ function setCloudControlState(isSignedIn) {
   ui.saveCloud.disabled = !canWrite;
   ui.shareProject.disabled = !canWrite;
   ui.cloudProjects.disabled = !isSignedIn;
+  if (ui.refreshCloudProjects) {
+    ui.refreshCloudProjects.disabled = !isSignedIn;
+  }
   ui.copyShareLink.disabled = !ui.shareLinkOutput.value.trim();
 }
 
@@ -4580,6 +4857,89 @@ function resetCloudProjectList(placeholderText) {
   option.textContent = placeholderText;
   ui.cloudProjects.appendChild(option);
   ui.cloudProjects.value = "";
+}
+
+function populateCloudProjectList(projects, options = {}) {
+  const { placeholder = "Select a cloud project", allowSelection = false } = options;
+  resetCloudProjectList(placeholder);
+  ui.cloudProjects.disabled = !allowSelection;
+
+  projects.forEach((project) => {
+    const option = document.createElement("option");
+    option.value = project.id;
+    option.textContent = formatCloudProjectLabel(project);
+    ui.cloudProjects.appendChild(option);
+  });
+
+  if (supabaseState.activeProjectId) {
+    ui.cloudProjects.value = supabaseState.activeProjectId;
+  }
+}
+
+function readCachedCloudProjects(userId) {
+  const cacheKey = getCloudProjectCacheKey(userId);
+  if (!cacheKey) {
+    return [];
+  }
+
+  try {
+    const raw = window.localStorage.getItem(cacheKey);
+    if (!raw) {
+      return [];
+    }
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (_error) {
+    return [];
+  }
+}
+
+function writeCachedCloudProjects(userId, projects) {
+  const cacheKey = getCloudProjectCacheKey(userId);
+  if (!cacheKey) {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(cacheKey, JSON.stringify(Array.isArray(projects) ? projects : []));
+  } catch (_error) {
+    // Ignore storage failures.
+  }
+}
+
+function getCloudProjectCacheKey(userId) {
+  const value = String(userId || "").trim();
+  if (!value) {
+    return "";
+  }
+  return `${CLOUD_PROJECT_CACHE_PREFIX}${value}`;
+}
+
+async function onExternalAuthStateChanged(event) {
+  if (!supabaseState.client) {
+    return;
+  }
+
+  const nextState = String(event?.detail?.state || "").trim();
+  if (nextState === "signed_out") {
+    await supabaseState.client.auth.signOut({ scope: "local" }).catch(() => undefined);
+    supabaseState.user = null;
+    supabaseState.activeProjectId = null;
+    setCloudAuthState();
+    setCloudControlState(false);
+    updateProfileUiState();
+    resetCloudProjectList("Sign in to load projects");
+    return;
+  }
+
+  if (nextState === "signed_in") {
+    await restoreCloudSession();
+    setCloudAuthState();
+    setCloudControlState(Boolean(supabaseState.user));
+    if (supabaseState.user) {
+      await refreshCloudProjectList({ announceSuccess: false });
+    }
+  }
 }
 
 function resetShareLink() {

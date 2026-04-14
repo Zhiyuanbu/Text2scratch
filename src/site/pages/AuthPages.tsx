@@ -9,10 +9,11 @@ import { useEffect, useRef, useState } from "react";
 import { TurnstilePanel } from "../components/TurnstilePanel";
 import { AppShell } from "../components/AppShell";
 import {
-  storeAuthAudience,
   storePendingParentManagedSignup,
   type AuthAudience
 } from "../lib/coppa";
+import { sanitizeEmailInput, sanitizeSingleLineInput } from "../lib/inputSafety";
+import { isValidEmailInput, isValidPasswordInput, sanitizeUsernameInput } from "../lib/security";
 import { type TurnstileController } from "../lib/turnstile";
 import { useAuth, useToast } from "../providers/AppProviders";
 
@@ -54,12 +55,6 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
     if (user && step !== "recovery") window.location.replace("dashboard.html");
   }, [user, step]);
 
-  const onAgeSelect = (selected: AuthAudience) => {
-    setAudience(selected);
-    storeAuthAudience(selected);
-    setStep("form");
-  };
-
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setIsPending(true);
@@ -81,13 +76,26 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
           pushToast({ title: "Email sent", description: "Check your inbox.", variant: "success" });
         }
       } else {
+        const nextUsername = sanitizeUsernameInput(username);
+        if (!nextUsername || nextUsername.length < 3) {
+          throw new Error("Choose a username with at least 3 letters, numbers, or underscores.");
+        }
+        if (!isValidEmailInput(email)) {
+          throw new Error("Enter a valid email address.");
+        }
+        if (!isValidPasswordInput(password)) {
+          throw new Error("Password must be at least 8 characters long.");
+        }
         if (audience === "under_13") {
-          storePendingParentManagedSignup({ requestedUsername: username, parentEmail: email });
+          storePendingParentManagedSignup({ requestedUsername: nextUsername, parentEmail: email });
           pushToast({ title: "Verification required", description: "Parent must complete setup.", variant: "success" });
           setStep("age");
         } else {
           await signUp({
-            username, email, password, captchaToken,
+            username: nextUsername,
+            email: sanitizeEmailInput(email),
+            password,
+            captchaToken,
             ageBand: (audience as string) === "under_13" ? "under_13" : "13_or_over",
             accountRole: "standard"
           });
@@ -128,9 +136,12 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
                 <p className="text-[0.65rem] font-black uppercase tracking-[0.2em] text-slate-400">Identity Verification</p>
                 <div className="space-y-4">
                   <div className="flex gap-2">
+                    <label htmlFor="signup-birth-month" className="sr-only">Birth month</label>
                     <select 
+                      id="signup-birth-month"
                       value={birthMonth} 
                       onChange={e => setBirthMonth(e.target.value)}
+                      aria-describedby="signup-birthdate-help"
                       className="flex-1 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none dark:border-slate-700 dark:bg-slate-900"
                     >
                       <option value="">Month</option>
@@ -138,14 +149,21 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
                         <option key={m} value={i+1}>{m}</option>
                       ))}
                     </select>
+                    <label htmlFor="signup-birth-year" className="sr-only">Birth year</label>
                     <input 
+                      id="signup-birth-year"
                       type="number" 
                       placeholder="Year"
                       value={birthYear}
-                      onChange={e => setBirthYear(e.target.value)}
+                      onChange={e => setBirthYear(sanitizeSingleLineInput(e.target.value, 4))}
+                      aria-describedby="signup-birthdate-help"
+                      inputMode="numeric"
                       className="w-24 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold outline-none dark:border-slate-700 dark:bg-slate-900"
                     />
                   </div>
+                  <p id="signup-birthdate-help" className="text-[0.75rem] font-medium text-slate-500 dark:text-slate-400">
+                    Enter the month and year of birth to choose the correct account flow.
+                  </p>
                   <button 
                     onClick={() => {
                       const year = parseInt(birthYear);
@@ -178,7 +196,7 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
 
                 <button 
                   type="button"
-                  onClick={() => signInWithGoogle()}
+                  onClick={() => void signInWithGoogle()}
                   className="flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 py-2 text-sm font-bold hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800"
                 >
                   <GoogleLogo className="h-4 w-4" /> Continue with Google
@@ -191,11 +209,11 @@ function AuthContainer({ mode }: { mode: "login" | "signup" }) {
                 </div>
 
                 {mode === "login" ? (
-                  <AuthInput label="Username or email" value={identifier} onChange={setIdentifier} />
+                  <AuthInput label="Username or email" value={identifier} onChange={(value) => setIdentifier(sanitizeSingleLineInput(value, 254))} />
                 ) : (
                   <>
-                    <AuthInput label="Username" value={username} onChange={setUsername} />
-                    <AuthInput label="Email" value={email} onChange={setEmail} type="email" />
+                    <AuthInput label="Username" value={username} onChange={(value) => setUsername(sanitizeSingleLineInput(value, 32))} />
+                    <AuthInput label="Email" value={email} onChange={(value) => setEmail(sanitizeEmailInput(value))} type="email" />
                   </>
                 )}
 
@@ -259,11 +277,13 @@ function calculateAgeFromMonthYear(month: number, year: number) {
 function AuthInput({ label, value, onChange, type = "text" }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
   const [visible, setVisible] = useState(false);
   const isPass = type === "password";
+  const inputId = label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
   return (
     <div className="space-y-1">
-      <label className="text-xs font-bold text-slate-700 dark:text-slate-300">{label}</label>
+      <label htmlFor={inputId} className="text-xs font-bold text-slate-700 dark:text-slate-300">{label}</label>
       <div className="relative">
         <input
+          id={inputId}
           type={isPass ? (visible ? "text" : "password") : type}
           value={value}
           onChange={e => onChange(e.target.value)}
@@ -271,7 +291,7 @@ function AuthInput({ label, value, onChange, type = "text" }: { label: string; v
           required
         />
         {isPass && (
-          <button type="button" onClick={() => setVisible(!visible)} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <button type="button" onClick={() => setVisible(!visible)} aria-label={visible ? `Hide ${label}` : `Show ${label}`} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
             {visible ? <EyeOff size={14} /> : <Eye size={14} />}
           </button>
         )}

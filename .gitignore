@@ -42,3 +42,5 @@ __pycache__/
 # Generated exports from text2scratch
 *.sb3
 *.t2sh
+
+gha-creds-*.json

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { AlertCircle, CheckCircle2, LogIn, ShieldCheck, UserPlus } from "lucide-react";
 import { AppShell } from "../components/AppShell";
-import { buildLoginUrl, formatSupabaseError, supabaseClient } from "../lib/supabase";
+import { buildLoginUrl, ensureSupabaseConfigured, formatSupabaseError, supabaseClient } from "../lib/supabase";
+import { isValidPasswordInput } from "../lib/security";
 import { useAuth, useToast } from "../providers/AppProviders";
 
 type ConfirmSeverity = "info" | "success" | "error";
@@ -27,6 +28,14 @@ export function ConfirmPage() {
   }, []);
 
   async function handleConfirm() {
+    try {
+      ensureSupabaseConfigured();
+    } catch (error) {
+      setStatus(formatSupabaseError(error));
+      setSeverity("error");
+      return;
+    }
+
     const search = new URLSearchParams(window.location.search);
     const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
 
@@ -93,8 +102,8 @@ export function ConfirmPage() {
       return;
     }
 
-    if (password.length < 6) {
-      pushToast({ title: "Too short", description: "Minimum 6 characters required.", variant: "warning" });
+    if (!isValidPasswordInput(password)) {
+      pushToast({ title: "Too short", description: "Minimum 8 characters required.", variant: "warning" });
       return;
     }
 
@@ -138,7 +147,11 @@ export function ConfirmPage() {
                 : severity === "error"
                   ? "border-rose-100 bg-rose-50/50 text-rose-700 dark:border-rose-900/20 dark:bg-rose-900/10"
                   : "border-blue-100 bg-blue-50/50 text-blue-700 dark:border-blue-900/20 dark:bg-blue-900/10"
-            }`}>
+            }`}
+              role={severity === "error" ? "alert" : "status"}
+              aria-live={severity === "error" ? "assertive" : "polite"}
+              aria-atomic="true"
+            >
               <p className="text-xs font-bold leading-relaxed">{status}</p>
             </div>
 
@@ -148,7 +161,7 @@ export function ConfirmPage() {
                   label="New password"
                   value={password}
                   onChange={setPassword}
-                  placeholder="Minimum 6 characters"
+                  placeholder="Minimum 8 characters"
                 />
                 <PasswordField
                   label="Confirm password"

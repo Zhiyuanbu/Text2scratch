@@ -50,7 +50,7 @@ export function readCachedCaptchaToken() {
     }
 
     return token;
-  } catch (_error) {
+  } catch {
     clearCachedCaptchaToken();
     return "";
   }
@@ -67,7 +67,7 @@ export function saveCachedCaptchaToken(token: string) {
       token: value,
       savedAt: Date.now()
     }));
-  } catch (_error) {
+  } catch {
     // Ignore storage failures.
   }
 }
@@ -75,7 +75,7 @@ export function saveCachedCaptchaToken(token: string) {
 export function clearCachedCaptchaToken() {
   try {
     window.localStorage.removeItem(CAPTCHA_CACHE_KEY);
-  } catch (_error) {
+  } catch {
     // Ignore storage failures.
   }
 }

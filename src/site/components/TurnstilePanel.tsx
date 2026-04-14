@@ -94,7 +94,7 @@ export function TurnstilePanel({ actionLabel, controllerRef, className = "" }: T
             setStatus("error");
           }
         });
-      } catch (_error) {
+      } catch {
         setStatus("error");
       }
     };
@@ -120,7 +120,7 @@ export function TurnstilePanel({ actionLabel, controllerRef, className = "" }: T
         </div>
       </div>
       {isRequired ? (
-        <div ref={mountRef} className="mt-3 min-h-[65px] flex justify-center" />
+        <div ref={mountRef} aria-label="Turnstile verification widget" className="mt-3 min-h-[65px] flex justify-center" />
       ) : (
         <p className="mt-3 text-[0.7rem] font-medium text-amber-600">
           Turnstile is not active for this session.

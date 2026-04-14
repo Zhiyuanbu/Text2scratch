@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient, type User } from "@supabase/supabase-js";
+import { clientEnv, hasSupabaseClientEnv, readOptionalClientEnv } from "./env";
 
 export type { User };
 
@@ -6,16 +7,25 @@ export interface ProfileRecord {
   id: string;
   username: string;
   email: string;
+  is_banned?: boolean;
+  banned_reason?: string | null;
+  banned_at?: string | null;
   created_at?: string;
   updated_at?: string;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://ytsrvbrdxhyrazhnqohb.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || "sb_publishable_nY7QGrGczrV6Q9SEEcnuBQ_vAtCqUW0";
-const TURNSTILE_SITE_KEY = "0x4AAAAAACxhNG0J87F16OOI";
+const SUPABASE_URL = readOptionalClientEnv("VITE_SUPABASE_URL") || "https://example.invalid";
+const SUPABASE_PUBLISHABLE_KEY =
+  readOptionalClientEnv("VITE_SUPABASE_PUBLISHABLE_KEY") || "sb_publishable_placeholder";
+
+export const isSupabaseConfigured = hasSupabaseClientEnv();
+export const SUPABASE_CONFIG_ERROR_MESSAGE =
+  "Supabase environment variables are missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY.";
 
 export const CLOUD_TABLE = "projects";
 export const SHARE_QUERY_PARAM = "share";
+export const AUTH_STATE_EVENT_NAME = "text2scratch.auth.changed";
+const AUTH_REQUEST_TIMEOUT_MS = 8_000;
 
 export const supabaseClient: SupabaseClient = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
@@ -26,6 +36,7 @@ export const supabaseClient: SupabaseClient = createClient(SUPABASE_URL, SUPABAS
 });
 
 export function createEphemeralSupabaseClient() {
+  ensureSupabaseConfigured();
   return createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
       autoRefreshToken: false,
@@ -38,6 +49,9 @@ export function createEphemeralSupabaseClient() {
 
 export function formatSupabaseError(error: unknown) {
   const message = String((error as { message?: string } | null)?.message || "Unknown Supabase error");
+  if (/supabase environment variables are missing/i.test(message)) {
+    return SUPABASE_CONFIG_ERROR_MESSAGE;
+  }
   if (/relation .* does not exist/i.test(message)) {
     return "Supabase tables are missing. Run the project schema in SQL Editor first.";
   }
@@ -53,13 +67,56 @@ export function formatSupabaseError(error: unknown) {
   if (/captcha/i.test(message)) {
     return "Captcha verification failed. Complete captcha again, then retry.";
   }
-  if (/resolve_login_email|is_username_available|delete_current_account/i.test(message)) {
-    return "Supabase RPC functions are missing. Re-run the project schema in SQL Editor.";
+  if (/resolve_login_email|is_username_available|delete_current_account|admin_list_projects|admin_restrict_account|admin_network_ban|is_network_banned/i.test(message)) {
+    return "Supabase RPC functions are missing. Apply supabase/schema.sql in Supabase SQL Editor.";
   }
   if (/Username not found/i.test(message)) {
     return "Username not found.";
   }
   return message;
+}
+
+export function dispatchAuthStateEvent(state: "signed_in" | "signed_out") {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(new CustomEvent(AUTH_STATE_EVENT_NAME, {
+    detail: {
+      state,
+      emittedAt: new Date().toISOString()
+    }
+  }));
+}
+
+export async function signOutSupabaseSession(client: SupabaseClient = supabaseClient) {
+  ensureSupabaseConfigured();
+
+  const globalResult = await withTimeout(
+    client.auth.signOut({ scope: "global" }),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Global sign-out timed out."
+  );
+  if (!globalResult.error) {
+    dispatchAuthStateEvent("signed_out");
+    return { mode: "global" as const, warning: "" };
+  }
+
+  const primaryMessage = formatSupabaseError(globalResult.error);
+  const localResult = await withTimeout(
+    client.auth.signOut({ scope: "local" }),
+    AUTH_REQUEST_TIMEOUT_MS,
+    "Local sign-out timed out."
+  );
+  if (localResult.error) {
+    throw new Error(primaryMessage);
+  }
+
+  dispatchAuthStateEvent("signed_out");
+  return {
+    mode: "local" as const,
+    warning: `Global sign-out failed, but the local session was cleared. ${primaryMessage}`
+  };
 }
 
 export function normalizeUsername(value: string) {
@@ -135,14 +192,36 @@ export function buildShareUrl(slug: string) {
 }
 
 export function getTurnstileSiteKey() {
-  return TURNSTILE_SITE_KEY.trim();
+  return clientEnv.turnstileSiteKey;
 }
 
 export function getHcaptchaSiteKey() {
-  return "a52804d0-570c-4f04-83d0-65b60e3a93c2";
+  return clientEnv.hcaptchaSiteKey;
+}
+
+export function ensureSupabaseConfigured() {
+  if (!isSupabaseConfigured) {
+    throw new Error(SUPABASE_CONFIG_ERROR_MESSAGE);
+  }
 }
 
 function buildAppPageUrl(pageName: string) {
   const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/";
   return new URL(pageName, `${window.location.origin}${basePath}`);
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string) {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+
+    promise
+      .then((value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      });
+  });
 }
